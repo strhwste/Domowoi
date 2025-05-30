@@ -11,6 +11,7 @@ import { filterSensorsByArea } from './utils';
 import { loadRules } from './plugin-loader';
 import en from '../translations/en.json';
 import de from '../translations/de.json';
+import './hausgeist-card-editor';
 const TRANSLATIONS = { de, en };
 let HausgeistCard = class HausgeistCard extends LitElement {
     constructor() {
@@ -73,18 +74,26 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                     'blind', 'jalousie', 'volet', 'persiana', 'jaloezie', 'persiana', 'жалюзи', '블라인드'
                 ]
             };
+            // Track which sensors are used for debug
+            const usedSensors = [];
             // Helper to find a sensor by device_class or multilingual fallback
             function findSensor(cls) {
                 let s = sensors.find(st => st.attributes.device_class === cls);
-                if (s)
+                if (s) {
+                    usedSensors.push({ type: cls, entity_id: s.entity_id, value: s.state });
                     return s;
+                }
                 // Fallback: search by friendly_name or entity_id for keywords
                 const keywords = SENSOR_KEYWORDS[cls] || [];
-                return sensors.find(st => {
+                const found = sensors.find(st => {
                     const name = (st.attributes.friendly_name || '').toLowerCase();
                     const eid = st.entity_id.toLowerCase();
                     return keywords.some((k) => name.includes(k) || eid.includes(k));
                 });
+                if (found) {
+                    usedSensors.push({ type: cls, entity_id: found.entity_id, value: found.state });
+                }
+                return found;
             }
             const get = (cls) => {
                 const s = findSensor(cls);
@@ -110,7 +119,11 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             };
             const evals = this.engine.evaluate(context);
             if (this.debug) {
-                debugOut.push(`--- ${area} ---\n` + evals.map(ev => `${ev.priority}: ${ev.message_key}`).join("\n"));
+                debugOut.push(`--- ${area} ---\n` +
+                    'Sensors used:\n' +
+                    usedSensors.map(s => `  [${s.type}] ${s.entity_id}: ${s.value}`).join('\n') +
+                    '\n' +
+                    evals.map(ev => `${ev.priority}: ${ev.message_key}`).join("\n"));
             }
             if (evals.length === 0)
                 return null;

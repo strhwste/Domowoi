@@ -322,6 +322,58 @@ var de = {
 	open_blinds_for_sun_warmth: open_blinds_for_sun_warmth
 };
 
+var __decorate$1 = (undefined && undefined.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+let HausgeistCardEditor = class HausgeistCardEditor extends i {
+    constructor() {
+        super(...arguments);
+        this.config = {};
+        // Use arrow function to auto-bind 'this'
+        this._onDebugChange = (e) => {
+            const debug = e.target.checked;
+            this.config = { ...this.config, debug };
+            this._configChanged();
+        };
+    }
+    setConfig(config) {
+        this.config = config;
+    }
+    static getConfigElement() {
+        return document.createElement('hausgeist-card-editor');
+    }
+    static getStubConfig() {
+        return { debug: false };
+    }
+    _configChanged() {
+        const event = new CustomEvent('config-changed', {
+            detail: { config: this.config },
+            bubbles: true,
+            composed: true,
+        });
+        this.dispatchEvent(event);
+    }
+    render() {
+        return x `
+      <div class="card-config">
+        <label>
+          <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
+          Debug mode
+        </label>
+      </div>
+    `;
+    }
+};
+__decorate$1([
+    n({ type: Object })
+], HausgeistCardEditor.prototype, "config", void 0);
+HausgeistCardEditor = __decorate$1([
+    t('hausgeist-card-editor')
+], HausgeistCardEditor);
+
 var __decorate = (undefined && undefined.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -390,18 +442,26 @@ let HausgeistCard = class HausgeistCard extends i {
                     'blind', 'jalousie', 'volet', 'persiana', 'jaloezie', 'persiana', 'жалюзи', '블라인드'
                 ]
             };
+            // Track which sensors are used for debug
+            const usedSensors = [];
             // Helper to find a sensor by device_class or multilingual fallback
             function findSensor(cls) {
                 let s = sensors.find(st => st.attributes.device_class === cls);
-                if (s)
+                if (s) {
+                    usedSensors.push({ type: cls, entity_id: s.entity_id, value: s.state });
                     return s;
+                }
                 // Fallback: search by friendly_name or entity_id for keywords
                 const keywords = SENSOR_KEYWORDS[cls] || [];
-                return sensors.find(st => {
+                const found = sensors.find(st => {
                     const name = (st.attributes.friendly_name || '').toLowerCase();
                     const eid = st.entity_id.toLowerCase();
                     return keywords.some((k) => name.includes(k) || eid.includes(k));
                 });
+                if (found) {
+                    usedSensors.push({ type: cls, entity_id: found.entity_id, value: found.state });
+                }
+                return found;
             }
             const get = (cls) => {
                 const s = findSensor(cls);
@@ -427,7 +487,11 @@ let HausgeistCard = class HausgeistCard extends i {
             };
             const evals = this.engine.evaluate(context);
             if (this.debug) {
-                debugOut.push(`--- ${area} ---\n` + evals.map(ev => `${ev.priority}: ${ev.message_key}`).join("\n"));
+                debugOut.push(`--- ${area} ---\n` +
+                    'Sensors used:\n' +
+                    usedSensors.map(s => `  [${s.type}] ${s.entity_id}: ${s.value}`).join('\n') +
+                    '\n' +
+                    evals.map(ev => `${ev.priority}: ${ev.message_key}`).join("\n"));
             }
             if (evals.length === 0)
                 return null;

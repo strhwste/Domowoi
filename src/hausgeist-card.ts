@@ -5,6 +5,7 @@ import { filterSensorsByArea } from './utils';
 import { loadRules } from './plugin-loader';
 import en from '../translations/en.json';
 import de from '../translations/de.json';
+import './hausgeist-card-editor';
 
 const TRANSLATIONS = { de, en };
 
@@ -125,17 +126,26 @@ export class HausgeistCard extends LitElement {
           'blind', 'jalousie', 'volet', 'persiana', 'jaloezie', 'persiana', 'жалюзи', '블라인드'
         ]
       };
+      // Track which sensors are used for debug
+      const usedSensors: Array<{type: string, entity_id: string, value: any}> = [];
       // Helper to find a sensor by device_class or multilingual fallback
       function findSensor(cls: keyof typeof SENSOR_KEYWORDS) {
         let s = sensors.find(st => (st as any).attributes.device_class === cls);
-        if (s) return s;
+        if (s) {
+          usedSensors.push({ type: cls, entity_id: (s as any).entity_id, value: (s as any).state });
+          return s;
+        }
         // Fallback: search by friendly_name or entity_id for keywords
         const keywords = SENSOR_KEYWORDS[cls] || [];
-        return sensors.find(st => {
+        const found = sensors.find(st => {
           const name = ((st as any).attributes.friendly_name || '').toLowerCase();
           const eid = (st as any).entity_id.toLowerCase();
           return keywords.some((k: string) => name.includes(k) || eid.includes(k));
         });
+        if (found) {
+          usedSensors.push({ type: cls, entity_id: (found as any).entity_id, value: (found as any).state });
+        }
+        return found;
       }
       const get = (cls: keyof typeof SENSOR_KEYWORDS) => {
         const s = findSensor(cls);
@@ -161,7 +171,13 @@ export class HausgeistCard extends LitElement {
       };
       const evals = this.engine.evaluate(context);
       if (this.debug) {
-        debugOut.push(`--- ${area} ---\n` + evals.map(ev => `${ev.priority}: ${ev.message_key}`).join("\n"));
+        debugOut.push(
+          `--- ${area} ---\n` +
+          'Sensors used:\n' +
+          usedSensors.map(s => `  [${s.type}] ${s.entity_id}: ${s.value}`).join('\n') +
+          '\n' +
+          evals.map(ev => `${ev.priority}: ${ev.message_key}`).join("\n")
+        );
       }
       if (evals.length === 0) return null;
       const top = evals.sort((a, b) => (prioOrder[b.priority as keyof typeof prioOrder] || 0) - (prioOrder[a.priority as keyof typeof prioOrder] || 0))[0];

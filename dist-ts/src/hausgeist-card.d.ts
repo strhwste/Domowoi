@@ -1,4 +1,5 @@
 import { LitElement } from 'lit';
+import './hausgeist-card-editor';
 export declare class HausgeistCard extends LitElement {
     hass: any;
     config: {
