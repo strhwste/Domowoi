@@ -123,5 +123,20 @@
     "condition": "forecast_sun == true && now % 86400000 > 7 * 3600000 && blind == 'closed' && temp < 21",
     "message_key": "open_blinds_for_sun_warmth",
     "priority": "info"
+  },
+  {
+    "condition": "window == 'open' && outside_temp < 10 && now % 86400000 > 22 * 3600000",
+    "message_key": "window_open_night_cold",
+    "priority": "alert"
+  },
+  {
+    "condition": "temp < 17 && window == 'open'",
+    "message_key": "room_too_cold_window_open",
+    "priority": "warn"
+  },
+  {
+    "condition": "humidity > 70 && temp - (outside_temp + (humidity/100)*(temp-outside_temp)) < 2",
+    "message_key": "mold_risk_dew_point",
+    "priority": "alert"
   }
 ]

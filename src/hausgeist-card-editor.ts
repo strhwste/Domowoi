@@ -225,7 +225,7 @@ export class HausgeistCardEditor extends LitElement {
       <!-- Feature 6: Regel-Editor (JSON) -->
       <div style="margin-top:1em;">
         <b>Regeln bearbeiten (JSON):</b><br/>
-        <textarea style="width:100%; min-height:120px; font-family:monospace;" @input=${this.handleRulesChange}>${this.rulesJson}</textarea>
+        <textarea style="width:100%; min-height:120px; font-family:monospace;" @input=${this.handleRulesChange} .value=${this.rulesJson}></textarea>
         <span style="font-size:0.95em; color:#888;">(Bearbeite die Regeln als JSON. Änderungen werden übernommen.)</span>
       </div>
       <!-- Feature 8: Benachrichtigungsoptionen -->

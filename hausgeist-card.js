@@ -63,8 +63,8 @@ class RuleEngine {
 }
 
 function filterSensorsByArea(states, areaId) {
-    return states.filter(st => st.attributes.area_id === areaId &&
-        ['humidity', 'co2', 'temperature'].includes(st.attributes.device_class));
+    // Return all entities for the area, not just those with specific device_class
+    return states.filter(st => st.attributes.area_id === areaId);
 }
 
 var coreRules = [
@@ -192,6 +192,21 @@ var coreRules = [
 		condition: "forecast_sun == true && now % 86400000 > 7 * 3600000 && blind == 'closed' && temp < 21",
 		message_key: "open_blinds_for_sun_warmth",
 		priority: "info"
+	},
+	{
+		condition: "window == 'open' && outside_temp < 10 && now % 86400000 > 22 * 3600000",
+		message_key: "window_open_night_cold",
+		priority: "alert"
+	},
+	{
+		condition: "temp < 17 && window == 'open'",
+		message_key: "room_too_cold_window_open",
+		priority: "warn"
+	},
+	{
+		condition: "humidity > 70 && temp - (outside_temp + (humidity/100)*(temp-outside_temp)) < 2",
+		message_key: "mold_risk_dew_point",
+		priority: "alert"
 	}
 ];
 
@@ -229,6 +244,9 @@ var close_door_to_save_heat$1 = "Close the door to prevent heat loss to other ro
 var ventilate_air_quality_poor$1 = "Air quality is poor – ventilate the room.";
 var ventilate_high_humidity$1 = "Humidity is high – ventilate to reduce moisture.";
 var open_blinds_for_sun_warmth$1 = "Sunny soon – open blinds to warm up the room.";
+var window_open_night_cold$1 = "🌙 Window is open at night and it's cold outside – please close to avoid cooling down.";
+var room_too_cold_window_open$1 = "❄️ Room is below 17°C and window is open – please close to avoid undercooling.";
+var mold_risk_dew_point$1 = "⚠️ Mold risk: High humidity and dew point reached – please ventilate!";
 var en = {
 	low_humidity: low_humidity$1,
 	high_co2: high_co2$1,
@@ -258,7 +276,10 @@ var en = {
 	close_door_to_save_heat: close_door_to_save_heat$1,
 	ventilate_air_quality_poor: ventilate_air_quality_poor$1,
 	ventilate_high_humidity: ventilate_high_humidity$1,
-	open_blinds_for_sun_warmth: open_blinds_for_sun_warmth$1
+	open_blinds_for_sun_warmth: open_blinds_for_sun_warmth$1,
+	window_open_night_cold: window_open_night_cold$1,
+	room_too_cold_window_open: room_too_cold_window_open$1,
+	mold_risk_dew_point: mold_risk_dew_point$1
 };
 
 var low_humidity = "Luftfeuchtigkeit unter 35 % – lüften oder befeuchten empfohlen";
@@ -290,6 +311,9 @@ var close_door_to_save_heat = "Tür schließen, um Wärmeverlust in andere Räum
 var ventilate_air_quality_poor = "Luftqualität schlecht – bitte lüften.";
 var ventilate_high_humidity = "Luftfeuchtigkeit hoch – lüften empfohlen.";
 var open_blinds_for_sun_warmth = "Bald sonnig – Jalousien öffnen, um Raum zu erwärmen.";
+var window_open_night_cold = "🌙 Fenster ist nachts offen und es ist draußen kalt – bitte schließen, um Auskühlung zu vermeiden.";
+var room_too_cold_window_open = "❄️ Raum ist unter 17 °C und das Fenster ist offen – bitte schließen, um Unterkühlung zu vermeiden.";
+var mold_risk_dew_point = "⚠️ Schimmelgefahr: Hohe Luftfeuchtigkeit und Taupunkt erreicht – bitte lüften!";
 var de = {
 	low_humidity: low_humidity,
 	high_co2: high_co2,
@@ -319,7 +343,10 @@ var de = {
 	close_door_to_save_heat: close_door_to_save_heat,
 	ventilate_air_quality_poor: ventilate_air_quality_poor,
 	ventilate_high_humidity: ventilate_high_humidity,
-	open_blinds_for_sun_warmth: open_blinds_for_sun_warmth
+	open_blinds_for_sun_warmth: open_blinds_for_sun_warmth,
+	window_open_night_cold: window_open_night_cold,
+	room_too_cold_window_open: room_too_cold_window_open,
+	mold_risk_dew_point: mold_risk_dew_point
 };
 
 var __decorate$1 = (undefined && undefined.__decorate) || function (decorators, target, key, desc) {
@@ -547,7 +574,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
       <!-- Feature 6: Regel-Editor (JSON) -->
       <div style="margin-top:1em;">
         <b>Regeln bearbeiten (JSON):</b><br/>
-        <textarea style="width:100%; min-height:120px; font-family:monospace;" @input=${this.handleRulesChange}>${this.rulesJson}</textarea>
+        <textarea style="width:100%; min-height:120px; font-family:monospace;" @input=${this.handleRulesChange} .value=${this.rulesJson}></textarea>
         <span style="font-size:0.95em; color:#888;">(Bearbeite die Regeln als JSON. Änderungen werden übernommen.)</span>
       </div>
       <!-- Feature 8: Benachrichtigungsoptionen -->
@@ -772,7 +799,8 @@ let HausgeistCard = class HausgeistCard extends i {
                 debugOut.push(`--- ${area} ---\n` +
                     'Sensors used:\n' +
                     usedSensors.map((s) => `  [${s.type}] ${s.entity_id}: ${s.value}`).join('\n') +
-                    '\n' +
+                    `\nRules checked: ${this.engine ? this.engine['rules'].length : 0}\n` +
+                    `Rules matched: ${evals.length}\n` +
                     evals.map((ev) => `${ev.priority}: ${ev.message_key}`).join("\n"));
             }
             // Attach usedSensors to area for later display

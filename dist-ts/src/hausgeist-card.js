@@ -195,7 +195,8 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                 debugOut.push(`--- ${area} ---\n` +
                     'Sensors used:\n' +
                     usedSensors.map((s) => `  [${s.type}] ${s.entity_id}: ${s.value}`).join('\n') +
-                    '\n' +
+                    `\nRules checked: ${this.engine ? this.engine['rules'].length : 0}\n` +
+                    `Rules matched: ${evals.length}\n` +
                     evals.map((ev) => `${ev.priority}: ${ev.message_key}`).join("\n"));
             }
             // Attach usedSensors to area for later display

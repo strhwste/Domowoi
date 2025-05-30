@@ -321,7 +321,8 @@ export class HausgeistCard extends LitElement {
           `--- ${area} ---\n` +
           'Sensors used:\n' +
           usedSensors.map((s) => `  [${s.type}] ${s.entity_id}: ${s.value}`).join('\n') +
-          '\n' +
+          `\nRules checked: ${this.engine ? this.engine['rules'].length : 0}\n` +
+          `Rules matched: ${evals.length}\n` +
           evals.map((ev: any) => `${ev.priority}: ${ev.message_key}`).join("\n")
         );
       }

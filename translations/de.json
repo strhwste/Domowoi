@@ -27,5 +27,8 @@
   "close_door_to_save_heat": "Tür schließen, um Wärmeverlust in andere Räume zu vermeiden.",
   "ventilate_air_quality_poor": "Luftqualität schlecht – bitte lüften.",
   "ventilate_high_humidity": "Luftfeuchtigkeit hoch – lüften empfohlen.",
-  "open_blinds_for_sun_warmth": "Bald sonnig – Jalousien öffnen, um Raum zu erwärmen."
+  "open_blinds_for_sun_warmth": "Bald sonnig – Jalousien öffnen, um Raum zu erwärmen.",
+  "window_open_night_cold": "🌙 Fenster ist nachts offen und es ist draußen kalt – bitte schließen, um Auskühlung zu vermeiden.",
+  "room_too_cold_window_open": "❄️ Raum ist unter 17 °C und das Fenster ist offen – bitte schließen, um Unterkühlung zu vermeiden.",
+  "mold_risk_dew_point": "⚠️ Schimmelgefahr: Hohe Luftfeuchtigkeit und Taupunkt erreicht – bitte lüften!"
 }

@@ -1,4 +1,4 @@
 export function filterSensorsByArea(states, areaId) {
-    return states.filter(st => st.attributes.area_id === areaId &&
-        ['humidity', 'co2', 'temperature'].includes(st.attributes.device_class));
+    // Return all entities for the area, not just those with specific device_class
+    return states.filter(st => st.attributes.area_id === areaId);
 }
