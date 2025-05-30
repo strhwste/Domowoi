@@ -3,6 +3,10 @@ export declare class HausgeistCardEditor extends LitElement {
     config: {
         debug?: boolean;
         overrides?: Record<string, Record<string, string>>;
+        areas?: Array<{
+            area_id: string;
+            name: string;
+        }>;
     };
     private _hass;
     testValues: {
@@ -11,6 +15,7 @@ export declare class HausgeistCardEditor extends LitElement {
     rulesJson: string;
     notify: boolean;
     highThreshold: number;
+    private _lastAreas;
     setConfig(config: any): void;
     get hass(): any;
     set hass(hass: any);

@@ -3,12 +3,13 @@ import { property, customElement } from 'lit/decorators.js';
 
 @customElement('hausgeist-card-editor')
 export class HausgeistCardEditor extends LitElement {
-  @property({ type: Object }) config: { debug?: boolean, overrides?: Record<string, Record<string, string>> } = {};
+  @property({ type: Object }) config: { debug?: boolean, overrides?: Record<string, Record<string, string>>, areas?: Array<{ area_id: string; name: string }> } = {};
   private _hass: any = undefined;
   @property({ type: Object }) testValues: { [key: string]: any } = {};
   @property({ type: String }) rulesJson = '';
   @property({ type: Boolean }) notify = false;
   @property({ type: Number }) highThreshold = 2000;
+  private _lastAreas: Array<{ area_id: string; name: string }> = [];
 
   setConfig(config: any) {
     this.config = config;
@@ -38,6 +39,10 @@ export class HausgeistCardEditor extends LitElement {
   }
     // Dispatch a custom event to notify that the config has changed
   _configChanged() {
+    // Always include the current areas in the config
+    if (this._lastAreas && Array.isArray(this._lastAreas)) {
+      this.config = { ...this.config, areas: this._lastAreas };
+    }
     const event = new CustomEvent('config-changed', {
       detail: { config: this.config },
       bubbles: true,
@@ -72,6 +77,7 @@ export class HausgeistCardEditor extends LitElement {
     const areas: Array<{ area_id: string; name: string }> = hass?.areas
       ? Object.values(hass.areas)
       : Array.from(new Set(Object.values(hass?.states || {}).map((e: any) => e.attributes?.area_id).filter(Boolean))).map((area_id: string) => ({ area_id, name: area_id }));
+    this._lastAreas = areas;
     const states = Object.values(hass?.states || {});
     const sensorTypes = [
       'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target' // heating/target neu

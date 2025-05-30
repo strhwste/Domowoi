@@ -9,6 +9,10 @@ export declare class HausgeistCard extends LitElement {
         notify?: boolean;
         highThreshold?: number;
         rulesJson?: string;
+        areas?: Array<{
+            area_id: string;
+            name: string;
+        }>;
     };
     debug: boolean;
     notify: boolean;

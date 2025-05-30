@@ -365,6 +365,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         this.rulesJson = '';
         this.notify = false;
         this.highThreshold = 2000;
+        this._lastAreas = [];
         // Use arrow function to auto-bind 'this'
         this._onDebugChange = (e) => {
             const debug = e.target.checked;
@@ -393,6 +394,10 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
     }
     // Dispatch a custom event to notify that the config has changed
     _configChanged() {
+        // Always include the current areas in the config
+        if (this._lastAreas && Array.isArray(this._lastAreas)) {
+            this.config = { ...this.config, areas: this._lastAreas };
+        }
         const event = new CustomEvent('config-changed', {
             detail: { config: this.config },
             bubbles: true,
@@ -427,6 +432,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         const areas = hass?.areas
             ? Object.values(hass.areas)
             : Array.from(new Set(Object.values(hass?.states || {}).map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
+        this._lastAreas = areas;
         const states = Object.values(hass?.states || {});
         const sensorTypes = [
             'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target' // heating/target neu
@@ -701,9 +707,12 @@ let HausgeistCard = class HausgeistCard extends i {
         this.debug = !!this.config?.debug;
         let debugOut = [];
         const states = Object.values(this.hass.states);
-        const areas = this.hass.areas
-            ? Object.values(this.hass.areas)
-            : Array.from(new Set(states.map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
+        // Prefer config.areas if present, then hass.areas, then fallback
+        const areas = (this.config.areas && this.config.areas.length)
+            ? this.config.areas
+            : (this.hass.areas
+                ? Object.values(this.hass.areas)
+                : Array.from(new Set(states.map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id })));
         const areaIds = areas.map(a => a.area_id);
         const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
         const defaultTarget = this.config?.overrides?.default_target || 21;

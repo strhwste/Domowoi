@@ -15,6 +15,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         this.rulesJson = '';
         this.notify = false;
         this.highThreshold = 2000;
+        this._lastAreas = [];
         // Use arrow function to auto-bind 'this'
         this._onDebugChange = (e) => {
             const debug = e.target.checked;
@@ -43,6 +44,10 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     }
     // Dispatch a custom event to notify that the config has changed
     _configChanged() {
+        // Always include the current areas in the config
+        if (this._lastAreas && Array.isArray(this._lastAreas)) {
+            this.config = { ...this.config, areas: this._lastAreas };
+        }
         const event = new CustomEvent('config-changed', {
             detail: { config: this.config },
             bubbles: true,
@@ -77,6 +82,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         const areas = hass?.areas
             ? Object.values(hass.areas)
             : Array.from(new Set(Object.values(hass?.states || {}).map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
+        this._lastAreas = areas;
         const states = Object.values(hass?.states || {});
         const sensorTypes = [
             'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target' // heating/target neu

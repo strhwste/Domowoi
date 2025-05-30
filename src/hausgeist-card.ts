@@ -13,7 +13,7 @@ const TRANSLATIONS = { de, en };
 @customElement('hausgeist-card')
 export class HausgeistCard extends LitElement {
   @property({ type: Object }) public hass: any;
-  @property({ type: Object }) public config: { area_id?: string; overrides?: any; debug?: boolean; notify?: boolean; highThreshold?: number; rulesJson?: string } = {};
+  @property({ type: Object }) public config: { area_id?: string; overrides?: any; debug?: boolean; notify?: boolean; highThreshold?: number; rulesJson?: string; areas?: Array<{ area_id: string; name: string }> } = {};
   @property({ type: Boolean }) public debug = false;
   @property({ type: Boolean }) public notify = false;
   @property({ type: Number }) public highThreshold = 2000;
@@ -188,9 +188,12 @@ export class HausgeistCard extends LitElement {
     this.debug = !!this.config?.debug;
     let debugOut: string[] = [];
     const states = Object.values(this.hass.states);
-    const areas: Array<{ area_id: string; name: string }> = this.hass.areas
-      ? Object.values(this.hass.areas)
-      : Array.from(new Set(states.map((e: any) => e.attributes?.area_id).filter(Boolean))).map((area_id: string) => ({ area_id, name: area_id }));
+    // Prefer config.areas if present, then hass.areas, then fallback
+    const areas: Array<{ area_id: string; name: string }> = (this.config.areas && this.config.areas.length)
+      ? this.config.areas
+      : (this.hass.areas
+        ? Object.values(this.hass.areas)
+        : Array.from(new Set(states.map((e: any) => e.attributes?.area_id).filter(Boolean))).map((area_id: string) => ({ area_id, name: area_id })));
     const areaIds: string[] = areas.map(a => a.area_id);
     const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
     const defaultTarget = this.config?.overrides?.default_target || 21;
