@@ -69,8 +69,9 @@ export class HausgeistCard extends LitElement {
   render() {
     const area = this.config.area_id;
     const lang = this.hass.selectedLanguage || 'de';
+    const langKey = lang as keyof typeof TRANSLATIONS;
     if (!this.texts || Object.keys(this.texts).length === 0) {
-      this.texts = TRANSLATIONS[lang] || TRANSLATIONS['de'];
+      this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
     }
     // Kontext-Objekt für die RuleEngine bauen
     const states = Object.values(this.hass.states);
@@ -101,7 +102,7 @@ export class HausgeistCard extends LitElement {
     // Priorität sortieren und top 3
     const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
     // evals enthält jetzt {message_key, priority}, daher RuleEngine anpassen!
-    const top = evals.sort((a,b) => (prioOrder[b.priority]||0) - (prioOrder[a.priority]||0)).slice(0,3);
+    const top = evals.sort((a,b) => (prioOrder[b.priority as keyof typeof prioOrder]||0) - (prioOrder[a.priority as keyof typeof prioOrder]||0)).slice(0,3);
     return html`
       <h2>👻 Hausgeist sagt:</h2>
       ${top.length === 0 ? html`<p class="ok">${this.texts['all_ok'] || 'Alles in Ordnung!'}</p>` :

@@ -38,31 +38,33 @@ const t=t=>(e,o)=>{ void 0!==o?o.addInitializer((()=>{customElements.define(t,e)
  */const o={attribute:true,type:String,converter:u$1,reflect:false,hasChanged:f$1},r=(t=o,e,r)=>{const{kind:n,metadata:i}=r;let s=globalThis.litPropertyMetadata.get(i);if(void 0===s&&globalThis.litPropertyMetadata.set(i,s=new Map),"setter"===n&&((t=Object.create(t)).wrapped=true),s.set(r.name,t),"accessor"===n){const{name:o}=r;return {set(r){const n=e.get.call(this);e.set.call(this,r),this.requestUpdate(o,n,t);},init(e){return void 0!==e&&this.C(o,void 0,t,e),e}}}if("setter"===n){const{name:o}=r;return function(r){const n=this[o];e.call(this,r),this.requestUpdate(o,n,t);}}throw Error("Unsupported decorator location: "+n)};function n(t){return (e,o)=>"object"==typeof o?r(t,e,o):((t,e,o)=>{const r=e.hasOwnProperty(o);return e.constructor.createProperty(o,t),r?Object.getOwnPropertyDescriptor(e,o):void 0})(t,e,o)}
 
 class RuleEngine {
-  constructor(rules) {
-    this.rules = [];
-    this.rules = rules;
-  }
-  evaluate(context) {
-    const results = [];
-    for (const rule of this.rules) {
-      let hit = false;
-      try {
-        hit = Function(...Object.keys(context), `return (${rule.condition});`)(...Object.values(context));
-      } catch (e) {
-        continue;
-      }
-      if (hit) {
-        results.push({ message_key: rule.message_key, priority: rule.priority });
-      }
+    constructor(rules) {
+        this.rules = [];
+        this.rules = rules;
     }
-    return results;
-  }
+    evaluate(context) {
+        const results = [];
+        for (const rule of this.rules) {
+            let hit = false;
+            try {
+                // eslint-disable-next-line no-new-func
+                hit = Function(...Object.keys(context), `return (${rule.condition});`)(...Object.values(context));
+            }
+            catch (e) {
+                // Fehlerhafte Regel ignorieren
+                continue;
+            }
+            if (hit) {
+                results.push({ message_key: rule.message_key, priority: rule.priority });
+            }
+        }
+        return results;
+    }
 }
 
 function filterSensorsByArea(states, areaId) {
-  return states.filter(
-    (st) => st.attributes.area_id === areaId && ["humidity", "co2", "temperature"].includes(st.attributes.device_class)
-  );
+    return states.filter(st => st.attributes.area_id === areaId &&
+        ['humidity', 'co2', 'temperature'].includes(st.attributes.device_class));
 }
 
 var coreRules = [
@@ -159,7 +161,8 @@ var coreRules = [
 ];
 
 async function loadRules() {
-  return coreRules;
+    // Core-Regeln
+    return coreRules;
 }
 
 var low_humidity$1 = "Humidity below 35% – please ventilate or humidify";
@@ -256,69 +259,72 @@ var de = {
 	early_cool_outside_ventilate: early_cool_outside_ventilate
 };
 
-var __defProp = Object.defineProperty;
-var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __decorateClass = (decorators, target, key, kind) => {
-  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc(target, key) : target;
-  for (var i = decorators.length - 1, decorator; i >= 0; i--)
-    if (decorator = decorators[i])
-      result = (kind ? decorator(target, key, result) : decorator(result)) || result;
-  if (kind && result) __defProp(target, key, result);
-  return result;
+var __decorate = (undefined && undefined.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 const TRANSLATIONS = { de, en };
-let HausgeistCard = class extends i {
-  constructor() {
-    super(...arguments);
-    this.texts = {};
-  }
-  async firstUpdated() {
-    const rules = await loadRules();
-    this.engine = new RuleEngine(rules);
-  }
-  setConfig(config) {
-    if (!config.area_id) throw new Error("area_id fehlt");
-    this.config = config;
-  }
-  render() {
-    const area = this.config.area_id;
-    const lang = this.hass.selectedLanguage || "de";
-    if (!this.texts || Object.keys(this.texts).length === 0) {
-      this.texts = TRANSLATIONS[lang] || TRANSLATIONS["de"];
+let HausgeistCard = class HausgeistCard extends i {
+    constructor() {
+        super(...arguments);
+        this.texts = {};
     }
-    const states = Object.values(this.hass.states);
-    const sensors = filterSensorsByArea(states, area);
-    const get = (cls) => {
-      const s = sensors.find((st) => st.attributes.device_class === cls);
-      return s ? Number(s.state) : void 0;
-    };
-    const context = {
-      temp: get("temperature"),
-      humidity: get("humidity"),
-      co2: get("co2"),
-      target: Number(states.find((e) => e.entity_id.endsWith("_temperature_target") && e.attributes.area_id === area)?.state ?? 21),
-      window: states.find((e) => e.entity_id.includes("window") && e.attributes.area_id === area)?.state,
-      heating: states.find((e) => e.entity_id.includes("heating") && e.attributes.area_id === area)?.state,
-      motion: states.find((e) => e.entity_id.includes("motion") && e.attributes.area_id === area)?.state === "on",
-      occupied: states.find((e) => e.entity_id.includes("occupancy") && e.attributes.area_id === area)?.state === "on",
-      outside_temp: Number(states.find((e) => e.entity_id === "weather.home")?.attributes?.temperature ?? 15),
-      forecast_temp: Number(states.find((e) => e.entity_id === "weather.home")?.attributes?.forecast?.[0]?.temperature ?? 15),
-      energy: Number(states.find((e) => e.entity_id.includes("energy") && e.attributes.area_id === area)?.state ?? 0),
-      high_threshold: 2e3,
-      temp_change_rate: 0,
-      // Hier ggf. Logik für Temperaturänderung einbauen
-      now: Date.now()
-    };
-    const evals = this.engine.evaluate(context);
-    const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
-    const top = evals.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0)).slice(0, 3);
-    return x`
+    async firstUpdated() {
+        const rules = await loadRules();
+        this.engine = new RuleEngine(rules);
+    }
+    setConfig(config) {
+        if (!config.area_id)
+            throw new Error('area_id fehlt');
+        this.config = config;
+    }
+    render() {
+        const area = this.config.area_id;
+        const lang = this.hass.selectedLanguage || 'de';
+        const langKey = lang;
+        if (!this.texts || Object.keys(this.texts).length === 0) {
+            this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
+        }
+        // Kontext-Objekt für die RuleEngine bauen
+        const states = Object.values(this.hass.states);
+        const sensors = filterSensorsByArea(states, area);
+        // Hilfsfunktion für Wert aus Sensor holen
+        const get = (cls) => {
+            const s = sensors.find(st => st.attributes.device_class === cls);
+            return s ? Number(s.state) : undefined;
+        };
+        // Kontextdaten extrahieren
+        const context = {
+            temp: get('temperature'),
+            humidity: get('humidity'),
+            co2: get('co2'),
+            target: Number(states.find(e => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? 21),
+            window: states.find(e => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
+            heating: states.find(e => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
+            motion: states.find(e => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+            occupied: states.find(e => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
+            outside_temp: Number(states.find(e => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
+            forecast_temp: Number(states.find(e => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
+            energy: Number(states.find(e => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
+            high_threshold: 2000,
+            temp_change_rate: 0, // Hier ggf. Logik für Temperaturänderung einbauen
+            now: Date.now(),
+        };
+        const evals = this.engine.evaluate(context);
+        // Priorität sortieren und top 3
+        const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
+        // evals enthält jetzt {message_key, priority}, daher RuleEngine anpassen!
+        const top = evals.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0)).slice(0, 3);
+        return x `
       <h2>👻 Hausgeist sagt:</h2>
-      ${top.length === 0 ? x`<p class="ok">${this.texts["all_ok"] || "Alles in Ordnung!"}</p>` : top.map((e) => x`<p class="${e.priority}">${this.texts[e.message_key] || e.message_key}</p>`)}
+      ${top.length === 0 ? x `<p class="ok">${this.texts['all_ok'] || 'Alles in Ordnung!'}</p>` :
+            top.map(e => x `<p class="${e.priority}">${this.texts[e.message_key] || e.message_key}</p>`)}
     `;
-  }
+    }
 };
-HausgeistCard.styles = i$3`
+HausgeistCard.styles = i$3 `
     :host {
       display: block;
       background: var(--card-background-color, #fff);
@@ -357,14 +363,14 @@ HausgeistCard.styles = i$3`
       margin: 0.5em 0;
     }
   `;
-__decorateClass([
-  n({ attribute: false })
-], HausgeistCard.prototype, "hass", 2);
-__decorateClass([
-  n({ type: Object })
-], HausgeistCard.prototype, "config", 2);
-HausgeistCard = __decorateClass([
-  t("hausgeist-card")
+__decorate([
+    n({ attribute: false })
+], HausgeistCard.prototype, "hass", void 0);
+__decorate([
+    n({ type: Object })
+], HausgeistCard.prototype, "config", void 0);
+HausgeistCard = __decorate([
+    t('hausgeist-card')
 ], HausgeistCard);
 
 export { HausgeistCard };

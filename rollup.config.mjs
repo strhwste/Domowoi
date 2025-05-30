@@ -1,10 +1,9 @@
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
-import esbuild from 'rollup-plugin-esbuild';
 
 export default {
-  input: 'src/hausgeist-card.ts',
+  input: 'dist-ts/src/hausgeist-card.js',
   output: {
     file: 'dist/hausgeist-card.js',
     format: 'es',
@@ -13,10 +12,6 @@ export default {
   plugins: [
     resolve(),
     commonjs(),
-    json(),
-    esbuild({
-      tsconfig: 'tsconfig.json',
-      target: 'es2020'
-    })
+    json()
   ]
 };
