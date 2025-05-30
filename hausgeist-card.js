@@ -536,9 +536,24 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             <b>${area.name}</b>
             <ul>
               ${sensorTypes.map(type => {
-            // Alle passenden Sensoren für diesen Bereich/Typ
-            const sensors = states.filter((e) => e.attributes?.area_id === area.area_id &&
-                (type === 'heating' ? ['heating', 'heizung', 'thermostat'].some(k => e.entity_id.toLowerCase().includes(k)) : true));
+            // Keywords wie in autodetect
+            const keywords = {
+                temperature: ['temperature', 'temperatur', 'température'],
+                humidity: ['humidity', 'feuchtigkeit', 'humidité'],
+                co2: ['co2'],
+                window: ['window', 'fenster'],
+                door: ['door', 'tür'],
+                curtain: ['curtain', 'vorhang'],
+                blind: ['blind', 'jalousie'],
+                heating: ['heating', 'heizung', 'thermostat'],
+                target: ['target', 'soll', 'setpoint']
+            };
+            const kw = keywords[type] || [type];
+            // Filter: device_class oder Keyword im Namen/ID
+            const sensors = states.filter((e) => e.attributes?.area_id === area.area_id && ((type === 'heating')
+                ? ['heating', 'heizung', 'thermostat'].some(k => e.entity_id.toLowerCase().includes(k))
+                : (e.attributes?.device_class === type ||
+                    kw.some(k => e.entity_id.toLowerCase().includes(k) || (e.attributes.friendly_name || '').toLowerCase().includes(k)))));
             const autoId = autodetect(area.area_id, type);
             const selected = this.config.overrides?.[area.area_id]?.[type] || '';
             return x `<li>${type}:
@@ -795,6 +810,12 @@ let HausgeistCard = class HausgeistCard extends i {
                 }
                 return undefined;
             };
+            // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
+            const requiredSensorTypes = [
+                'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'energy', 'motion', 'occupancy', 'air_quality', 'rain', 'sun', 'adjacent', 'forecast'
+            ];
+            // Call findSensor for all required types to populate usedSensors, even if not used in context
+            requiredSensorTypes.forEach(type => { findSensor(type); });
             const get = (cls) => {
                 const s = findSensor(cls);
                 return s ? Number(s.state) : undefined;

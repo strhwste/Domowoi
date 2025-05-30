@@ -204,7 +204,7 @@ export class HausgeistCard extends LitElement {
     let debugOut: string[] = [];
     const areaMessages: { area: string; evals: any[]; usedSensors: { type: string; entity_id: string; value: any }[] }[] = areaIds.map((area: string) => {
       const sensors = filterSensorsByArea(states, area);
-      const usedSensors: Array<{ type: string; entity_id: string; value: any }> = [];
+      const usedSensors: Array<{ type: string, entity_id: string, value: any }> = [];
       // Multilingual sensor keywords for fallback
       const SENSOR_KEYWORDS: Record<string, string[]> = {
         temperature: [
@@ -298,6 +298,12 @@ export class HausgeistCard extends LitElement {
         }
         return undefined;
       };
+      // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
+      const requiredSensorTypes: (keyof typeof SENSOR_KEYWORDS)[] = [
+        'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'energy', 'motion', 'occupancy', 'air_quality', 'rain', 'sun', 'adjacent', 'forecast'
+      ];
+      // Call findSensor for all required types to populate usedSensors, even if not used in context
+      requiredSensorTypes.forEach(type => { findSensor(type); });
       const get = (cls: keyof typeof SENSOR_KEYWORDS) => {
         const s = findSensor(cls);
         return s ? Number(s.state) : undefined;

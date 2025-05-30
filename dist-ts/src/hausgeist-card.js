@@ -173,6 +173,12 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                 }
                 return undefined;
             };
+            // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
+            const requiredSensorTypes = [
+                'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'energy', 'motion', 'occupancy', 'air_quality', 'rain', 'sun', 'adjacent', 'forecast'
+            ];
+            // Call findSensor for all required types to populate usedSensors, even if not used in context
+            requiredSensorTypes.forEach(type => { findSensor(type); });
             const get = (cls) => {
                 const s = findSensor(cls);
                 return s ? Number(s.state) : undefined;
