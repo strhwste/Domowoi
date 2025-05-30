@@ -1,0 +1,92 @@
+[
+  {
+    "condition": "temp > target + 2",
+    "message_key": "temp_above_target",
+    "priority": "warn"
+  },
+  {
+    "condition": "temp < target - 2",
+    "message_key": "temp_below_target",
+    "priority": "warn"
+  },
+  {
+    "condition": "humidity < 35",
+    "message_key": "humidity_low",
+    "priority": "info"
+  },
+  {
+    "condition": "humidity > 70",
+    "message_key": "humidity_high",
+    "priority": "alert"
+  },
+  {
+    "condition": "co2 > 1000",
+    "message_key": "co2_high",
+    "priority": "warn"
+  },
+  {
+    "condition": "window == 'open' && heating == 'on'",
+    "message_key": "window_open_heating_on",
+    "priority": "alert"
+  },
+  {
+    "condition": "!occupied && temp > 21",
+    "message_key": "room_empty_warm",
+    "priority": "info"
+  },
+  {
+    "condition": "outside_temp > 15 && temp > 23",
+    "message_key": "outside_warm_inside_warm",
+    "priority": "info"
+  },
+  {
+    "condition": "forecast_temp > 18 && target > 21",
+    "message_key": "forecast_warmer_target_high",
+    "priority": "info"
+  },
+  {
+    "condition": "energy > high_threshold",
+    "message_key": "energy_high",
+    "priority": "warn"
+  },
+  {
+    "condition": "target == 0",
+    "message_key": "eco_mode",
+    "priority": "ok"
+  },
+  {
+    "condition": "temp_change_rate > 2",
+    "message_key": "temp_rising_fast",
+    "priority": "warn"
+  },
+  {
+    "condition": "motion == false && heating == 'on'",
+    "message_key": "no_motion_heating_on",
+    "priority": "info"
+  },
+  {
+    "condition": "outside_temp < temp - 3 && now % 86400000 < 9 * 3600000",
+    "message_key": "morning_cool_outside",
+    "priority": "info"
+  },
+  {
+    "condition": "outside_temp > temp && now % 86400000 > 11 * 3600000 && window == 'open'",
+    "message_key": "afternoon_window_open_hot_outside",
+    "priority": "warn"
+  },
+  {
+    "condition": "forecast_temp > 26 && temp < 23 && now % 86400000 < 8 * 3600000",
+    "message_key": "hot_day_morning_ventilate",
+    "priority": "info"
+  },
+  {
+    "condition": "forecast_temp > 28 && window == 'open' && now % 86400000 > 12 * 3600000",
+    "message_key": "very_hot_window_open",
+    "priority": "alert"
+  },
+  {
+    "condition": "outside_temp < 18 && temp > 24 && now % 86400000 < 7 * 3600000",
+    "message_key": "early_cool_outside_ventilate",
+    "priority": "info"
+  }
+]
