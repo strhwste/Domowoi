@@ -91,6 +91,13 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                     .map((s) => `${s.entity_id}: '${s.attributes.area_id}'`)
                     .join('\n');
                 debugOut.push(`All area_id values in states:\n${allAreaIds}`);
+                // Zeige die Area-IDs, die für die Schleife verwendet werden
+                debugOut.push(`areaIds used for mapping: ${JSON.stringify(areaIds)}`);
+                // Zeige für die erste Area die Entity-IDs, die filterSensorsByArea zurückgibt
+                if (areaIds.length > 0) {
+                    const sensorsForFirst = filterSensorsByArea(states, areaIds[0]);
+                    debugOut.push(`Entities for areaIds[0] ('${areaIds[0]}'): ${sensorsForFirst.map((s) => s.entity_id).join(', ')}`);
+                }
                 // Zeige die Anzahl der gefundenen Sensoren pro Area
                 debugOut.push(`Area: ${area} | sensors.length: ${sensors.length}`);
                 debugOut.push(`Sensors found by filterSensorsByArea: ${sensors.map((s) => s.entity_id + ' (' + (s.attributes.device_class || '-') + ')').join(', ')}`);
