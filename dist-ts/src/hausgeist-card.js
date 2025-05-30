@@ -125,16 +125,26 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                     '\n' +
                     evals.map(ev => `${ev.priority}: ${ev.message_key}`).join("\n"));
             }
-            if (evals.length === 0)
-                return null;
-            const top = evals.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0))[0];
-            return { area, ...top };
+            // Attach usedSensors to area for later display
+            return evals.length === 0 ? null : { area, ...top, usedSensors };
         }).filter(Boolean);
         const topMessages = areaMessages.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0)).slice(0, 3);
         return html `
       <h2>👻 Hausgeist sagt:</h2>
       ${topMessages.length === 0 ? html `<p class="ok">${this.texts['all_ok'] || 'Alles in Ordnung!'}</p>` :
             topMessages.map(e => html `<p class="${e.priority}"><b>${e.area}:</b> ${this.texts[e.message_key] || e.message_key}</p>`)}
+      <div class="sensors-used">
+        <b>Sensors used:</b>
+        <ul>
+          ${areaMessages.map(areaMsg => html `
+            <li><b>${areaMsg.area}:</b>
+              <ul>
+                ${areaMsg.usedSensors.map(s => html `<li>[${s.type}] ${s.entity_id}: ${s.value}</li>`)}
+              </ul>
+            </li>
+          `)}
+        </ul>
+      </div>
       ${this.debug ? html `<div class="debug">${debugOut.join('\n\n')}</div>` : ''}
     `;
     }
