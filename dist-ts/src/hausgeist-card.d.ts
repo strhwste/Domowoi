@@ -5,10 +5,10 @@ export declare class HausgeistCard extends LitElement {
     config: {
         area_id: string;
         overrides?: any;
-    };
+    } | undefined;
     static styles: import("lit").CSSResult;
     debug: boolean;
-    private engine;
+    private engine?;
     private texts;
     private ready;
     firstUpdated(): Promise<void>;

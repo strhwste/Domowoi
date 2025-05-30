@@ -17,13 +17,19 @@ let HausgeistCard = class HausgeistCard extends LitElement {
     constructor() {
         super(...arguments);
         this.debug = false;
-        this.texts = {};
+        this.texts = TRANSLATIONS['de'];
         this.ready = false;
     }
     async firstUpdated() {
-        const rules = await loadRules();
-        this.engine = new RuleEngine(rules);
-        this.ready = true;
+        try {
+            const rules = await loadRules();
+            this.engine = new RuleEngine(rules);
+            this.ready = true;
+        }
+        catch (error) {
+            console.error('Failed to load rules:', error);
+            this.ready = false;
+        }
         this.requestUpdate();
     }
     setConfig(config) {
@@ -41,15 +47,25 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         }
         const lang = this.hass.selectedLanguage || 'de';
         const langKey = lang;
+        this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
         if (!this.texts || Object.keys(this.texts).length === 0) {
-            this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
+            this.texts = TRANSLATIONS['de'];
         }
         const states = Object.values(this.hass.states);
-        const areaIds = Array.from(new Set(states.map(e => e.attributes?.area_id).filter(Boolean)));
+        // Fix: add type annotations and correct scoping
+        const areaIds = states.reduce((uniqueAreas, e) => {
+            const areaId = e.attributes?.area_id;
+            if (areaId && !uniqueAreas.includes(areaId)) {
+                uniqueAreas.push(areaId);
+            }
+            return uniqueAreas;
+        }, []);
         const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
+        const defaultTarget = this.config?.overrides?.default_target || 21;
         let debugOut = [];
-        const areaMessages = areaIds.map(area => {
+        const areaMessages = areaIds.map((area) => {
             const sensors = filterSensorsByArea(states, area);
+            const usedSensors = [];
             // Multilingual sensor keywords for fallback
             const SENSOR_KEYWORDS = {
                 temperature: [
@@ -71,32 +87,53 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                     'curtain', 'vorhang', 'rideau', 'tenda', 'gordijn', 'cortina', 'занавеска', '커튼'
                 ],
                 blind: [
-                    'blind', 'jalousie', 'volet', 'persiana', 'jaloezie', 'persiana', 'жалюзи', '블라인드'
+                    'blind', 'jalousie', 'store', 'persiana', 'jaloezie', 'persiana', 'жалюзи', '블라인드'
+                ],
+                energy: [
+                    'energy', 'energie', 'énergie', 'energia', 'energía', 'энергия', '에너지'
+                ],
+                motion: [
+                    'motion', 'bewegung', 'mouvement', 'movimento', 'beweging', 'movimiento', 'движение', '움직임'
+                ],
+                occupancy: [
+                    'occupancy', 'belegung', 'occupation', 'occupazione', 'bezetting', 'ocupación', 'занятость', '점유'
+                ],
+                air_quality: [
+                    'air_quality', 'luftqualität', "qualité de l'air", "qualità dell'aria", 'luchtkwaliteit', 'calidad del aire', 'качество воздуха', '공기질'
+                ],
+                rain: [
+                    'rain', 'regen', 'pluie', 'pioggia', 'lluvia', 'дождь', '비'
+                ],
+                sun: [
+                    'sun', 'sonne', 'soleil', 'sole', 'zon', 'sol', 'солнце', '태양'
+                ],
+                adjacent: [
+                    'adjacent', 'benachbart', 'adjacent', 'adiacente', 'aangrenzend', 'adyacente', 'смежный', '인접'
+                ],
+                forecast: [
+                    'forecast', 'vorhersage', 'prévision', 'previsione', 'voorspelling', 'pronóstico', 'прогноз', '예보'
                 ]
             };
-            // Track which sensors are used for debug
-            const usedSensors = [];
-            // Helper to find a sensor by device_class, multilingual fallback, or area name in entity_id/friendly_name
-            const self = this;
-            function findSensor(cls) {
+            // Inline findSensor logic (since _findSensor is not a method)
+            const findSensor = (cls) => {
                 // 1. Check for manual override in config
-                const overrideId = self.config?.overrides?.[area]?.[cls];
+                const overrideId = this.config?.overrides?.[area]?.[cls];
                 if (overrideId) {
-                    const s = sensors.find(st => st.entity_id === overrideId);
+                    const s = sensors.find((st) => st.entity_id === overrideId);
                     if (s) {
                         usedSensors.push({ type: cls + ' (override)', entity_id: s.entity_id, value: s.state });
                         return s;
                     }
                 }
                 // 2. Autodetect by device_class
-                let s = sensors.find(st => st.attributes.device_class === cls);
+                let s = sensors.find((st) => st.attributes.device_class === cls);
                 if (s) {
                     usedSensors.push({ type: cls, entity_id: s.entity_id, value: s.state });
                     return s;
                 }
                 // 3. Fallback: search by friendly_name or entity_id for keywords
                 const keywords = SENSOR_KEYWORDS[cls] || [];
-                let found = sensors.find(st => {
+                let found = sensors.find((st) => {
                     const name = (st.attributes.friendly_name || '').toLowerCase();
                     const eid = st.entity_id.toLowerCase();
                     return keywords.some((k) => name.includes(k) || eid.includes(k));
@@ -106,8 +143,8 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                     return found;
                 }
                 // 4. Extra fallback: look for sensors whose entity_id or friendly_name contains the area name
-                const areaName = (self.hass.areas && self.hass.areas[area]?.name?.toLowerCase()) || area.toLowerCase();
-                found = sensors.find(st => {
+                const areaName = (this.hass.areas && this.hass.areas[area]?.name?.toLowerCase()) || area.toLowerCase();
+                found = sensors.find((st) => {
                     const name = (st.attributes.friendly_name || '').toLowerCase();
                     const eid = st.entity_id.toLowerCase();
                     return name.includes(areaName) || eid.includes(areaName);
@@ -117,63 +154,67 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                     return found;
                 }
                 // If still not found, log a warning in debug
-                if (self.debug) {
+                if (this.debug) {
                     usedSensors.push({ type: cls, entity_id: '[NOT FOUND]', value: 'No matching sensor found' });
                 }
                 return undefined;
-            }
+            };
             const get = (cls) => {
                 const s = findSensor(cls);
                 return s ? Number(s.state) : undefined;
             };
+            // Helper to always cast to 'any' for state lookups
+            const findState = (fn) => {
+                const found = states.find(fn);
+                return found ? found : undefined;
+            };
             const context = {
-                temp: get('temperature'),
+                target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
                 humidity: get('humidity'),
                 co2: get('co2'),
-                target: Number(states.find(e => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? 21),
-                window: states.find(e => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
-                heating: states.find(e => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
-                motion: states.find(e => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
-                occupied: states.find(e => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
-                outside_temp: Number(states.find(e => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
-                forecast_temp: Number(states.find(e => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
-                energy: Number(states.find(e => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
+                window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
+                heating: findState((e) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
+                motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+                occupied: findState((e) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
+                outside_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
+                forecast_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
+                energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
                 high_threshold: 2000,
                 temp_change_rate: 0,
                 now: Date.now(),
-                curtain: states.find(e => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
-                blind: states.find(e => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
+                curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
+                blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
                 // Ergänzungen für Regeln
-                rain_soon: states.find(e => e.entity_id.includes('rain') && e.attributes.area_id === area)?.state === 'on' || false,
-                adjacent_room_temp: Number(states.find(e => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
-                air_quality: states.find(e => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
-                forecast_sun: states.find(e => e.entity_id.includes('forecast') && e.entity_id.includes('sun') && e.attributes.area_id === area)?.state === 'on' || false,
+                rain_soon: findState((e) => e.entity_id.includes('rain') && e.attributes.area_id === area)?.state === 'on' || false,
+                adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
+                air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
+                forecast_sun: findState((e) => e.entity_id.includes('forecast') && e.entity_id.includes('sun') && e.attributes.area_id === area)?.state === 'on' || false,
             };
-            const evals = this.engine.evaluate(context);
+            const evals = this.engine ? this.engine.evaluate(context) : [];
             if (this.debug) {
                 debugOut.push(`--- ${area} ---\n` +
                     'Sensors used:\n' +
-                    usedSensors.map(s => `  [${s.type}] ${s.entity_id}: ${s.value}`).join('\n') +
+                    usedSensors.map((s) => `  [${s.type}] ${s.entity_id}: ${s.value}`).join('\n') +
                     '\n' +
-                    evals.map(ev => `${ev.priority}: ${ev.message_key}`).join("\n"));
+                    evals.map((ev) => `${ev.priority}: ${ev.message_key}`).join("\n"));
             }
             // Attach usedSensors to area for later display
             return { area, evals, usedSensors };
         });
         // Top messages: only areas with at least one rule hit
-        const topMessages = areaMessages.filter(a => a.evals.length > 0)
-            .map(a => {
+        const topMessages = areaMessages.filter((a) => a.evals.length > 0)
+            .map((a) => {
             // Pick highest prio message for each area
             const top = a.evals.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0))[0];
             return { area: a.area, ...top, usedSensors: a.usedSensors };
         });
-        const anySensorsUsed = areaMessages.some(areaMsg => areaMsg.usedSensors.length > 0 && areaMsg.usedSensors.some(s => s.entity_id !== '[NOT FOUND]'));
-        const anyRulesApplied = areaMessages.some(a => a.evals.length > 0);
+        const anySensorsUsed = areaMessages.some((areaMsg) => areaMsg.usedSensors && areaMsg.usedSensors.length > 0 && areaMsg.usedSensors.some((s) => s.entity_id !== '[NOT FOUND]'));
+        const anyRulesApplied = areaMessages.some((a) => a.evals.length > 0);
         return html `
       <h2>👻 Hausgeist sagt:</h2>
       ${!anySensorsUsed ? html `<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>` :
             (!anyRulesApplied ? html `<p class="warning">⚠️ No rules applied (no comparisons made for any area).</p>` :
-                topMessages.map(e => html `<p class="${e.priority}"><b>${e.area}:</b> ${this.texts[e.message_key] || e.message_key}</p>`))}
+                topMessages.map(e => html `<p class="${e.priority}"><b>${e.area}:</b> ${this.texts?.[e.message_key] || `Missing translation: ${e.message_key}`}</p>`))}
       ${this.debug ? html `
         <div class="sensors-used">
           <b>Sensors used:</b>
@@ -202,6 +243,78 @@ HausgeistCard.styles = css `
       font-family: var(--primary-font-family, inherit);
       color: var(--primary-text-color, #222);
     }
+  
+    private _findSensor(
+      sensors: any[],
+      area: string,
+      usedSensors: Array<{ type: string; entity_id: string; value: any }>,
+      cls: keyof typeof SENSOR_KEYWORDS
+    ) {
+      // 1. Check for manual override in config
+      const overrideId = this.config?.overrides?.[area]?.[cls];
+      if (overrideId) {
+        const s = sensors.find((st) => (st as any).entity_id === overrideId);
+        if (s) {
+          usedSensors.push({
+            type: cls + ' (override)',
+            entity_id: (s as any).entity_id,
+            value: (s as any).state,
+          });
+          return s;
+        }
+      }
+      // 2. Autodetect by device_class
+      let s = sensors.find((st) => (st as any).attributes.device_class === cls);
+      if (s) {
+        usedSensors.push({
+          type: cls,
+          entity_id: (s as any).entity_id,
+          value: (s as any).state,
+        });
+        return s;
+      }
+      // 3. Fallback: search by friendly_name or entity_id for keywords
+      const keywords = SENSOR_KEYWORDS[cls] || [];
+      let found = sensors.find((st) => {
+        const name = ((st as any).attributes.friendly_name || '').toLowerCase();
+        const eid = (st as any).entity_id.toLowerCase();
+        return keywords.some((k: string) => name.includes(k) || eid.includes(k));
+      });
+      if (found) {
+        usedSensors.push({
+          type: cls,
+          entity_id: (found as any).entity_id,
+          value: (found as any).state,
+        });
+        return found;
+      }
+      // 4. Extra fallback: look for sensors whose entity_id or friendly_name contains the area name
+      const areaName =
+        (this.hass.areas && this.hass.areas[area]?.name?.toLowerCase()) ||
+        area.toLowerCase();
+      found = sensors.find((st) => {
+        const name = ((st as any).attributes.friendly_name || '').toLowerCase();
+        const eid = (st as any).entity_id.toLowerCase();
+        return name.includes(areaName) || eid.includes(areaName);
+      });
+      if (found) {
+        usedSensors.push({
+          type: cls + ' (area-fallback)',
+          entity_id: (found as any).entity_id,
+          value: (found as any).state,
+        });
+        return found;
+      }
+      // If still not found, log a warning in debug
+      if (this.debug) {
+        usedSensors.push({
+          type: cls,
+          entity_id: '[NOT FOUND]',
+          value: 'No matching sensor found',
+        });
+      }
+      return undefined;
+    }
     h2 {
       margin-top: 0;
       font-size: 1.3em;
@@ -216,9 +329,12 @@ HausgeistCard.styles = css `
       margin: 0.5em 0;
     }
     p.info {
-      color: var(--info-color, #00529b);
-      background: var(--info-bg, #e6f2ff);
-      border-left: 4px solid var(--info-border, #2196f3);
+    let debugOut: string[] = [];
+    const areaMessages = areaIds.map(area => {
+      const sensors = filterSensorsByArea(states, area);
+      if (this.debug) {
+        debugOut = []; // Initialize debug output only if debug is true
+      }
       padding: 0.5em 1em;
       border-radius: 0.5em;
       margin: 0.5em 0;
