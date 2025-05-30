@@ -128,7 +128,8 @@ export class HausgeistCard extends LitElement {
       };
       // Track which sensors are used for debug
       const usedSensors: Array<{type: string, entity_id: string, value: any}> = [];
-      // Helper to find a sensor by device_class or multilingual fallback
+      // Helper to find a sensor by device_class, multilingual fallback, or area name in entity_id/friendly_name
+      const self = this;
       function findSensor(cls: keyof typeof SENSOR_KEYWORDS) {
         let s = sensors.find(st => (st as any).attributes.device_class === cls);
         if (s) {
@@ -137,15 +138,31 @@ export class HausgeistCard extends LitElement {
         }
         // Fallback: search by friendly_name or entity_id for keywords
         const keywords = SENSOR_KEYWORDS[cls] || [];
-        const found = sensors.find(st => {
+        let found = sensors.find(st => {
           const name = ((st as any).attributes.friendly_name || '').toLowerCase();
           const eid = (st as any).entity_id.toLowerCase();
           return keywords.some((k: string) => name.includes(k) || eid.includes(k));
         });
         if (found) {
           usedSensors.push({ type: cls, entity_id: (found as any).entity_id, value: (found as any).state });
+          return found;
         }
-        return found;
+        // Extra fallback: look for sensors whose entity_id or friendly_name contains the area name
+        const areaName = (self.hass.areas && self.hass.areas[area]?.name?.toLowerCase()) || area.toLowerCase();
+        found = sensors.find(st => {
+          const name = ((st as any).attributes.friendly_name || '').toLowerCase();
+          const eid = (st as any).entity_id.toLowerCase();
+          return name.includes(areaName) || eid.includes(areaName);
+        });
+        if (found) {
+          usedSensors.push({ type: cls + ' (area-fallback)', entity_id: (found as any).entity_id, value: (found as any).state });
+          return found;
+        }
+        // If still not found, log a warning in debug
+        if (self.debug) {
+          usedSensors.push({ type: cls, entity_id: '[NOT FOUND]', value: 'No matching sensor found' });
+        }
+        return undefined;
       }
       const get = (cls: keyof typeof SENSOR_KEYWORDS) => {
         const s = findSensor(cls);
@@ -183,10 +200,12 @@ export class HausgeistCard extends LitElement {
       return evals.length === 0 ? null : { area, ...top, usedSensors };
     }).filter(Boolean) as Array<{ area: string; message_key: string; priority: string; usedSensors: Array<{type: string, entity_id: string, value: any}> }>;
     const topMessages = areaMessages.sort((a, b) => (prioOrder[b.priority as keyof typeof prioOrder] || 0) - (prioOrder[a.priority as keyof typeof prioOrder] || 0)).slice(0, 3);
+    const anySensorsUsed = areaMessages.some(areaMsg => areaMsg.usedSensors.length > 0 && areaMsg.usedSensors.some(s => s.entity_id !== '[NOT FOUND]'));
     return html`
       <h2>👻 Hausgeist sagt:</h2>
-      ${topMessages.length === 0 ? html`<p class="ok">${this.texts['all_ok'] || 'Alles in Ordnung!'}</p>` :
-        topMessages.map(e => html`<p class="${e.priority}"><b>${e.area}:</b> ${this.texts[e.message_key] || e.message_key}</p>`)}
+      ${!anySensorsUsed ? html`<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>` :
+        (topMessages.length === 0 ? html`<p class="ok">${this.texts['all_ok'] || 'Alles in Ordnung!'}</p>` :
+        topMessages.map(e => html`<p class="${e.priority}"><b>${e.area}:</b> ${this.texts[e.message_key] || e.message_key}</p>`))}
       <div class="sensors-used">
         <b>Sensors used:</b>
         <ul>
