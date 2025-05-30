@@ -10,6 +10,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     constructor() {
         super(...arguments);
         this.config = {};
+        this.hass = undefined;
         // Use arrow function to auto-bind 'this'
         this._onDebugChange = (e) => {
             const debug = e.target.checked;
@@ -20,11 +21,16 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     setConfig(config) {
         this.config = config;
     }
-    static getConfigElement() {
-        return document.createElement('hausgeist-card-editor');
+    set hassInstance(hass) {
+        this.hass = hass;
+        this.requestUpdate();
     }
-    static getStubConfig() {
-        return { debug: false };
+    _onAreaSensorChange(areaId, type, e) {
+        const entity_id = e.target.value;
+        const overrides = { ...(this.config.overrides || {}) };
+        overrides[areaId] = { ...(overrides[areaId] || {}), [type]: entity_id };
+        this.config = { ...this.config, overrides };
+        this._configChanged();
     }
     _configChanged() {
         const event = new CustomEvent('config-changed', {
@@ -35,12 +41,37 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         this.dispatchEvent(event);
     }
     render() {
+        const hass = this.hass;
+        const areas = hass?.areas
+            ? Object.values(hass.areas)
+            : Array.from(new Set(Object.values(hass?.states || {}).map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
+        const states = Object.values(hass?.states || {});
+        const sensorTypes = ['temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind'];
         return html `
       <div class="card-config">
         <label>
           <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
           Debug mode
         </label>
+        <hr />
+        <b>Sensor Overrides:</b>
+        ${areas.map(area => html `
+          <div style="margin-bottom: 1em;">
+            <b>${area.name}</b>
+            <ul>
+              ${sensorTypes.map(type => {
+            const sensors = states.filter((e) => e.attributes?.area_id === area.area_id ||
+                (e.entity_id && e.entity_id.toLowerCase().includes(area.name.toLowerCase())));
+            return html `<li>${type}:
+                  <select @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)}>
+                    <option value="">(auto)</option>
+                    ${sensors.map((s) => html `<option value="${s.entity_id}" ?selected=${this.config.overrides?.[area.area_id]?.[type] === s.entity_id}>${s.entity_id} (${s.attributes.friendly_name || ''})</option>`)}
+                  </select>
+                </li>`;
+        })}
+            </ul>
+          </div>
+        `)}
       </div>
     `;
     }
@@ -48,6 +79,9 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
 __decorate([
     property({ type: Object })
 ], HausgeistCardEditor.prototype, "config", void 0);
+__decorate([
+    property({ type: Object })
+], HausgeistCardEditor.prototype, "hass", void 0);
 HausgeistCardEditor = __decorate([
     customElement('hausgeist-card-editor')
 ], HausgeistCardEditor);

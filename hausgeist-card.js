@@ -332,6 +332,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
     constructor() {
         super(...arguments);
         this.config = {};
+        this.hass = undefined;
         // Use arrow function to auto-bind 'this'
         this._onDebugChange = (e) => {
             const debug = e.target.checked;
@@ -342,11 +343,16 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
     setConfig(config) {
         this.config = config;
     }
-    static getConfigElement() {
-        return document.createElement('hausgeist-card-editor');
+    set hassInstance(hass) {
+        this.hass = hass;
+        this.requestUpdate();
     }
-    static getStubConfig() {
-        return { debug: false };
+    _onAreaSensorChange(areaId, type, e) {
+        const entity_id = e.target.value;
+        const overrides = { ...(this.config.overrides || {}) };
+        overrides[areaId] = { ...(overrides[areaId] || {}), [type]: entity_id };
+        this.config = { ...this.config, overrides };
+        this._configChanged();
     }
     _configChanged() {
         const event = new CustomEvent('config-changed', {
@@ -357,12 +363,37 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         this.dispatchEvent(event);
     }
     render() {
+        const hass = this.hass;
+        const areas = hass?.areas
+            ? Object.values(hass.areas)
+            : Array.from(new Set(Object.values(hass?.states || {}).map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
+        const states = Object.values(hass?.states || {});
+        const sensorTypes = ['temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind'];
         return x `
       <div class="card-config">
         <label>
           <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
           Debug mode
         </label>
+        <hr />
+        <b>Sensor Overrides:</b>
+        ${areas.map(area => x `
+          <div style="margin-bottom: 1em;">
+            <b>${area.name}</b>
+            <ul>
+              ${sensorTypes.map(type => {
+            const sensors = states.filter((e) => e.attributes?.area_id === area.area_id ||
+                (e.entity_id && e.entity_id.toLowerCase().includes(area.name.toLowerCase())));
+            return x `<li>${type}:
+                  <select @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)}>
+                    <option value="">(auto)</option>
+                    ${sensors.map((s) => x `<option value="${s.entity_id}" ?selected=${this.config.overrides?.[area.area_id]?.[type] === s.entity_id}>${s.entity_id} (${s.attributes.friendly_name || ''})</option>`)}
+                  </select>
+                </li>`;
+        })}
+            </ul>
+          </div>
+        `)}
       </div>
     `;
     }
@@ -370,6 +401,9 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
 __decorate$1([
     n({ type: Object })
 ], HausgeistCardEditor.prototype, "config", void 0);
+__decorate$1([
+    n({ type: Object })
+], HausgeistCardEditor.prototype, "hass", void 0);
 HausgeistCardEditor = __decorate$1([
     t('hausgeist-card-editor')
 ], HausgeistCardEditor);
@@ -447,12 +481,22 @@ let HausgeistCard = class HausgeistCard extends i {
             // Helper to find a sensor by device_class, multilingual fallback, or area name in entity_id/friendly_name
             const self = this;
             function findSensor(cls) {
+                // 1. Check for manual override in config
+                const overrideId = self.config?.overrides?.[area]?.[cls];
+                if (overrideId) {
+                    const s = sensors.find(st => st.entity_id === overrideId);
+                    if (s) {
+                        usedSensors.push({ type: cls + ' (override)', entity_id: s.entity_id, value: s.state });
+                        return s;
+                    }
+                }
+                // 2. Autodetect by device_class
                 let s = sensors.find(st => st.attributes.device_class === cls);
                 if (s) {
                     usedSensors.push({ type: cls, entity_id: s.entity_id, value: s.state });
                     return s;
                 }
-                // Fallback: search by friendly_name or entity_id for keywords
+                // 3. Fallback: search by friendly_name or entity_id for keywords
                 const keywords = SENSOR_KEYWORDS[cls] || [];
                 let found = sensors.find(st => {
                     const name = (st.attributes.friendly_name || '').toLowerCase();
@@ -463,7 +507,7 @@ let HausgeistCard = class HausgeistCard extends i {
                     usedSensors.push({ type: cls, entity_id: found.entity_id, value: found.state });
                     return found;
                 }
-                // Extra fallback: look for sensors whose entity_id or friendly_name contains the area name
+                // 4. Extra fallback: look for sensors whose entity_id or friendly_name contains the area name
                 const areaName = (self.hass.areas && self.hass.areas[area]?.name?.toLowerCase()) || area.toLowerCase();
                 found = sensors.find(st => {
                     const name = (st.attributes.friendly_name || '').toLowerCase();

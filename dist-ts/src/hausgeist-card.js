@@ -79,12 +79,22 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             // Helper to find a sensor by device_class, multilingual fallback, or area name in entity_id/friendly_name
             const self = this;
             function findSensor(cls) {
+                // 1. Check for manual override in config
+                const overrideId = self.config?.overrides?.[area]?.[cls];
+                if (overrideId) {
+                    const s = sensors.find(st => st.entity_id === overrideId);
+                    if (s) {
+                        usedSensors.push({ type: cls + ' (override)', entity_id: s.entity_id, value: s.state });
+                        return s;
+                    }
+                }
+                // 2. Autodetect by device_class
                 let s = sensors.find(st => st.attributes.device_class === cls);
                 if (s) {
                     usedSensors.push({ type: cls, entity_id: s.entity_id, value: s.state });
                     return s;
                 }
-                // Fallback: search by friendly_name or entity_id for keywords
+                // 3. Fallback: search by friendly_name or entity_id for keywords
                 const keywords = SENSOR_KEYWORDS[cls] || [];
                 let found = sensors.find(st => {
                     const name = (st.attributes.friendly_name || '').toLowerCase();
@@ -95,7 +105,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                     usedSensors.push({ type: cls, entity_id: found.entity_id, value: found.state });
                     return found;
                 }
-                // Extra fallback: look for sensors whose entity_id or friendly_name contains the area name
+                // 4. Extra fallback: look for sensors whose entity_id or friendly_name contains the area name
                 const areaName = (self.hass.areas && self.hass.areas[area]?.name?.toLowerCase()) || area.toLowerCase();
                 found = sensors.find(st => {
                     const name = (st.attributes.friendly_name || '').toLowerCase();
