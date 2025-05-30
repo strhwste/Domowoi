@@ -20,6 +20,12 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     setConfig(config) {
         this.config = config;
     }
+    static getConfigElement() {
+        return document.createElement('hausgeist-card-editor');
+    }
+    static getStubConfig() {
+        return { debug: false };
+    }
     _configChanged() {
         const event = new CustomEvent('config-changed', {
             detail: { config: this.config },

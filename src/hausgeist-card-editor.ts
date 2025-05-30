@@ -9,6 +9,14 @@ export class HausgeistCardEditor extends LitElement {
     this.config = config;
   }
 
+  static getConfigElement() {
+    return document.createElement('hausgeist-card-editor');
+  }
+
+  static getStubConfig() {
+    return { debug: false };
+  }
+
   // Use arrow function to auto-bind 'this'
   _onDebugChange = (e: Event) => {
     const debug = (e.target as HTMLInputElement).checked;
