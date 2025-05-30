@@ -158,6 +158,7 @@ export class HausgeistCard extends LitElement {
 
   setConfig(config: any) {
     this.config = config;
+    this.debug = !!config?.debug; // update debug property from config
   }
 
   static getConfigElement() {

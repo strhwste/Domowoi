@@ -521,9 +521,9 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             const autoId = autodetect(area.area_id, type);
             const selected = this.config.overrides?.[area.area_id]?.[type] || '';
             return x `<li>${type}:
-                  <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)}>
-                    <option value="" disabled selected hidden>(auto${autoId ? ': ' + autoId : ': none'})</option>
-                    ${sensors.map((s) => x `<option value="${s.entity_id}" ?selected=${selected === s.entity_id}>${s.entity_id} (${s.attributes.friendly_name || ''})</option>`)}
+                  <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected}>
+                    <option value="" disabled hidden>(auto${autoId ? ': ' + autoId : ': none'})</option>
+                    ${sensors.map((s) => x `<option value="${s.entity_id}">${s.entity_id} (${s.attributes.friendly_name || ''})</option>`)}
                   </select>
                   <span style="color: #888; font-size: 0.95em; margin-left: 0.5em;">${autoId ? `Auto: ${autoId}` : 'Auto: none gefunden'}</span>
                 </li>`;
@@ -638,6 +638,7 @@ let HausgeistCard = class HausgeistCard extends i {
     }
     setConfig(config) {
         this.config = config;
+        this.debug = !!config?.debug; // update debug property from config
     }
     static getConfigElement() {
         return document.createElement('hausgeist-card-editor');

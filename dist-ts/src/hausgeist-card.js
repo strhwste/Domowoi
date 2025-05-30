@@ -34,6 +34,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
     }
     setConfig(config) {
         this.config = config;
+        this.debug = !!config?.debug; // update debug property from config
     }
     static getConfigElement() {
         return document.createElement('hausgeist-card-editor');
