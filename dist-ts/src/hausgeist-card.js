@@ -59,6 +59,10 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         if (!this.ready || !this.engine) {
             return html `<p>Loading…</p>`;
         }
+        // Debug-Flag direkt aus Config übernehmen (zur Sicherheit)
+        this.debug = !!this.config?.debug;
+        // Debug-Hinweis oben anzeigen
+        const debugBanner = this.debug ? html `<div style="background:#ffe; color:#a00; padding:0.5em; border:1px solid #cc0; margin-bottom:1em;">Debug active! (hausgeist-card)</div>` : '';
         const lang = this.hass.selectedLanguage || 'de';
         const langKey = lang;
         this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
@@ -254,6 +258,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         const anyRulesApplied = areaMessages.some((a) => a.evals.length > 0);
         // Render the card content
         return html `
+      ${debugBanner}
       <h2>👻 Hausgeist sagt:</h2>
       ${!anySensorsUsed ? html `<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>` :
             (!anyRulesApplied ? html `<p class="warning">⚠️ No rules applied (no comparisons made for any area).</p>` :

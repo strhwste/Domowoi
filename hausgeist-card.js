@@ -63,8 +63,9 @@ class RuleEngine {
 }
 
 function filterSensorsByArea(states, areaId) {
-    // Return all entities for the area, not just those with specific device_class
-    return states.filter(st => st.attributes.area_id === areaId);
+    // Vergleiche areaId und st.attributes.area_id getrimmt und in Kleinbuchstaben
+    const norm = (v) => (v || '').toLowerCase().trim();
+    return states.filter(st => norm(st.attributes?.area_id) === norm(areaId));
 }
 
 var coreRules = [
@@ -696,6 +697,10 @@ let HausgeistCard = class HausgeistCard extends i {
         if (!this.ready || !this.engine) {
             return x `<p>Loading…</p>`;
         }
+        // Debug-Flag direkt aus Config übernehmen (zur Sicherheit)
+        this.debug = !!this.config?.debug;
+        // Debug-Hinweis oben anzeigen
+        const debugBanner = this.debug ? x `<div style="background:#ffe; color:#a00; padding:0.5em; border:1px solid #cc0; margin-bottom:1em;">Debug active! (hausgeist-card)</div>` : '';
         const lang = this.hass.selectedLanguage || 'de';
         const langKey = lang;
         this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
@@ -891,6 +896,7 @@ let HausgeistCard = class HausgeistCard extends i {
         const anyRulesApplied = areaMessages.some((a) => a.evals.length > 0);
         // Render the card content
         return x `
+      ${debugBanner}
       <h2>👻 Hausgeist sagt:</h2>
       ${!anySensorsUsed ? x `<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>` :
             (!anyRulesApplied ? x `<p class="warning">⚠️ No rules applied (no comparisons made for any area).</p>` :

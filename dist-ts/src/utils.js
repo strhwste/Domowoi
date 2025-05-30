@@ -1,4 +1,5 @@
 export function filterSensorsByArea(states, areaId) {
-    // Return all entities for the area, not just those with specific device_class
-    return states.filter(st => st.attributes.area_id === areaId);
+    // Vergleiche areaId und st.attributes.area_id getrimmt und in Kleinbuchstaben
+    const norm = (v) => (v || '').toLowerCase().trim();
+    return states.filter(st => norm(st.attributes?.area_id) === norm(areaId));
 }
