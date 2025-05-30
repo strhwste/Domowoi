@@ -1,129 +1,3 @@
-/******************************************************************************
-Copyright (c) Microsoft Corporation.
-
-Permission to use, copy, modify, and/or distribute this software for any
-purpose with or without fee is hereby granted.
-
-THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-PERFORMANCE OF THIS SOFTWARE.
-***************************************************************************** */
-/* global Reflect, Promise, SuppressedError, Symbol, Iterator */
-
-var extendStatics = function(d, b) {
-    extendStatics = Object.setPrototypeOf ||
-        ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
-        function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
-    return extendStatics(d, b);
-};
-
-function __extends(d, b) {
-    if (typeof b !== "function" && b !== null)
-        throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
-    extendStatics(d, b);
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-}
-
-function __esDecorate(ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {
-    function accept(f) { if (f !== void 0 && typeof f !== "function") throw new TypeError("Function expected"); return f; }
-    var kind = contextIn.kind, key = kind === "getter" ? "get" : kind === "setter" ? "set" : "value";
-    var target = !descriptorIn && ctor ? contextIn["static"] ? ctor : ctor.prototype : null;
-    var descriptor = descriptorIn || (target ? Object.getOwnPropertyDescriptor(target, contextIn.name) : {});
-    var _, done = false;
-    for (var i = decorators.length - 1; i >= 0; i--) {
-        var context = {};
-        for (var p in contextIn) context[p] = p === "access" ? {} : contextIn[p];
-        for (var p in contextIn.access) context.access[p] = contextIn.access[p];
-        context.addInitializer = function (f) { if (done) throw new TypeError("Cannot add initializers after decoration has completed"); extraInitializers.push(accept(f || null)); };
-        var result = (0, decorators[i])(kind === "accessor" ? { get: descriptor.get, set: descriptor.set } : descriptor[key], context);
-        if (kind === "accessor") {
-            if (result === void 0) continue;
-            if (result === null || typeof result !== "object") throw new TypeError("Object expected");
-            if (_ = accept(result.get)) descriptor.get = _;
-            if (_ = accept(result.set)) descriptor.set = _;
-            if (_ = accept(result.init)) initializers.unshift(_);
-        }
-        else if (_ = accept(result)) {
-            if (kind === "field") initializers.unshift(_);
-            else descriptor[key] = _;
-        }
-    }
-    if (target) Object.defineProperty(target, contextIn.name, descriptor);
-    done = true;
-}
-function __runInitializers(thisArg, initializers, value) {
-    var useValue = arguments.length > 2;
-    for (var i = 0; i < initializers.length; i++) {
-        value = useValue ? initializers[i].call(thisArg, value) : initializers[i].call(thisArg);
-    }
-    return useValue ? value : void 0;
-}
-function __setFunctionName(f, name, prefix) {
-    if (typeof name === "symbol") name = name.description ? "[".concat(name.description, "]") : "";
-    return Object.defineProperty(f, "name", { configurable: true, value: prefix ? "".concat(prefix, " ", name) : name });
-}
-function __awaiter(thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-}
-
-function __generator(thisArg, body) {
-    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
-    return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
-    function verb(n) { return function (v) { return step([n, v]); }; }
-    function step(op) {
-        if (f) throw new TypeError("Generator is already executing.");
-        while (g && (g = 0, op[0] && (_ = 0)), _) try {
-            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [op[0] & 2, t.value];
-            switch (op[0]) {
-                case 0: case 1: t = op; break;
-                case 4: _.label++; return { value: op[1], done: false };
-                case 5: _.label++; y = op[1]; op = [0]; continue;
-                case 7: op = _.ops.pop(); _.trys.pop(); continue;
-                default:
-                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }
-                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }
-                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }
-                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }
-                    if (t[2]) _.ops.pop();
-                    _.trys.pop(); continue;
-            }
-            op = body.call(thisArg, _);
-        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }
-        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };
-    }
-}
-
-function __spreadArray(to, from, pack) {
-    if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
-        if (ar || !(i in from)) {
-            if (!ar) ar = Array.prototype.slice.call(from, 0, i);
-            ar[i] = from[i];
-        }
-    }
-    return to.concat(ar || Array.prototype.slice.call(from));
-}
-
-function __makeTemplateObject(cooked, raw) {
-    if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
-    return cooked;
-}
-typeof SuppressedError === "function" ? SuppressedError : function (error, suppressed, message) {
-    var e = new Error(message);
-    return e.name = "SuppressedError", e.error = error, e.suppressed = suppressed, e;
-};
-
 /**
  * @license
  * Copyright 2019 Google LLC
@@ -163,38 +37,32 @@ const t=t=>(e,o)=>{ void 0!==o?o.addInitializer((()=>{customElements.define(t,e)
  * SPDX-License-Identifier: BSD-3-Clause
  */const o={attribute:true,type:String,converter:u$1,reflect:false,hasChanged:f$1},r=(t=o,e,r)=>{const{kind:n,metadata:i}=r;let s=globalThis.litPropertyMetadata.get(i);if(void 0===s&&globalThis.litPropertyMetadata.set(i,s=new Map),"setter"===n&&((t=Object.create(t)).wrapped=true),s.set(r.name,t),"accessor"===n){const{name:o}=r;return {set(r){const n=e.get.call(this);e.set.call(this,r),this.requestUpdate(o,n,t);},init(e){return void 0!==e&&this.C(o,void 0,t,e),e}}}if("setter"===n){const{name:o}=r;return function(r){const n=this[o];e.call(this,r),this.requestUpdate(o,n,t);}}throw Error("Unsupported decorator location: "+n)};function n(t){return (e,o)=>"object"==typeof o?r(t,e,o):((t,e,o)=>{const r=e.hasOwnProperty(o);return e.constructor.createProperty(o,t),r?Object.getOwnPropertyDescriptor(e,o):void 0})(t,e,o)}
 
-var RuleEngine = /** @class */ (function () {
-    function RuleEngine(rules) {
-        this.rules = [];
-        this.rules = rules;
+class RuleEngine {
+  constructor(rules) {
+    this.rules = [];
+    this.rules = rules;
+  }
+  evaluate(context) {
+    const results = [];
+    for (const rule of this.rules) {
+      let hit = false;
+      try {
+        hit = Function(...Object.keys(context), `return (${rule.condition});`)(...Object.values(context));
+      } catch (e) {
+        continue;
+      }
+      if (hit) {
+        results.push({ message_key: rule.message_key, priority: rule.priority });
+      }
     }
-    RuleEngine.prototype.evaluate = function (context) {
-        var results = [];
-        for (var _i = 0, _a = this.rules; _i < _a.length; _i++) {
-            var rule = _a[_i];
-            var hit = false;
-            try {
-                // eslint-disable-next-line no-new-func
-                hit = Function.apply(void 0, __spreadArray(__spreadArray([], Object.keys(context), false), ["return (".concat(rule.condition, ");")], false)).apply(void 0, Object.values(context));
-            }
-            catch (e) {
-                // Fehlerhafte Regel ignorieren
-                continue;
-            }
-            if (hit) {
-                results.push({ message_key: rule.message_key, priority: rule.priority });
-            }
-        }
-        return results;
-    };
-    return RuleEngine;
-}());
+    return results;
+  }
+}
 
 function filterSensorsByArea(states, areaId) {
-    return states.filter(function (st) {
-        return st.attributes.area_id === areaId &&
-            ['humidity', 'co2', 'temperature'].includes(st.attributes.device_class);
-    });
+  return states.filter(
+    (st) => st.attributes.area_id === areaId && ["humidity", "co2", "temperature"].includes(st.attributes.device_class)
+  );
 }
 
 var coreRules = [
@@ -290,13 +158,8 @@ var coreRules = [
 	}
 ];
 
-function loadRules() {
-    return __awaiter(this, void 0, void 0, function () {
-        return __generator(this, function (_a) {
-            // Core-Regeln
-            return [2 /*return*/, coreRules];
-        });
-    });
+async function loadRules() {
+  return coreRules;
 }
 
 var low_humidity$1 = "Humidity below 35% – please ventilate or humidify";
@@ -393,110 +256,116 @@ var de = {
 	early_cool_outside_ventilate: early_cool_outside_ventilate
 };
 
-var TRANSLATIONS = { de: de, en: en };
-var HausgeistCard = function () {
-    var _classDecorators = [t('hausgeist-card')];
-    var _classDescriptor;
-    var _classExtraInitializers = [];
-    var _classThis;
-    var _classSuper = i;
-    var _hass_decorators;
-    var _hass_initializers = [];
-    var _hass_extraInitializers = [];
-    var _config_decorators;
-    var _config_initializers = [];
-    var _config_extraInitializers = [];
-    _classThis = /** @class */ (function (_super) {
-        __extends(HausgeistCard_1, _super);
-        function HausgeistCard_1() {
-            var _this = _super !== null && _super.apply(this, arguments) || this;
-            _this.hass = __runInitializers(_this, _hass_initializers, void 0);
-            _this.config = (__runInitializers(_this, _hass_extraInitializers), __runInitializers(_this, _config_initializers, void 0));
-            _this.engine = __runInitializers(_this, _config_extraInitializers);
-            _this.texts = {};
-            return _this;
-        }
-        HausgeistCard_1.prototype.firstUpdated = function () {
-            return __awaiter(this, void 0, void 0, function () {
-                var rules;
-                return __generator(this, function (_a) {
-                    switch (_a.label) {
-                        case 0: return [4 /*yield*/, loadRules()];
-                        case 1:
-                            rules = _a.sent();
-                            this.engine = new RuleEngine(rules);
-                            return [2 /*return*/];
-                    }
-                });
-            });
-        };
-        HausgeistCard_1.prototype.setConfig = function (config) {
-            if (!config.area_id)
-                throw new Error('area_id fehlt');
-            this.config = config;
-        };
-        HausgeistCard_1.prototype.render = function () {
-            var _this = this;
-            var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r;
-            var area = this.config.area_id;
-            var lang = this.hass.selectedLanguage || 'de';
-            if (!this.texts || Object.keys(this.texts).length === 0) {
-                this.texts = TRANSLATIONS[lang] || TRANSLATIONS['de'];
-            }
-            // Kontext-Objekt für die RuleEngine bauen
-            var states = Object.values(this.hass.states);
-            var sensors = filterSensorsByArea(states, area);
-            // Hilfsfunktion für Wert aus Sensor holen
-            var get = function (cls) {
-                var s = sensors.find(function (st) { return st.attributes.device_class === cls; });
-                return s ? Number(s.state) : undefined;
-            };
-            // Kontextdaten extrahieren
-            var context = {
-                temp: get('temperature'),
-                humidity: get('humidity'),
-                co2: get('co2'),
-                target: Number((_b = (_a = states.find(function (e) { return e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area; })) === null || _a === void 0 ? void 0 : _a.state) !== null && _b !== void 0 ? _b : 21),
-                window: (_c = states.find(function (e) { return e.entity_id.includes('window') && e.attributes.area_id === area; })) === null || _c === void 0 ? void 0 : _c.state,
-                heating: (_d = states.find(function (e) { return e.entity_id.includes('heating') && e.attributes.area_id === area; })) === null || _d === void 0 ? void 0 : _d.state,
-                motion: ((_e = states.find(function (e) { return e.entity_id.includes('motion') && e.attributes.area_id === area; })) === null || _e === void 0 ? void 0 : _e.state) === 'on',
-                occupied: ((_f = states.find(function (e) { return e.entity_id.includes('occupancy') && e.attributes.area_id === area; })) === null || _f === void 0 ? void 0 : _f.state) === 'on',
-                outside_temp: Number((_j = (_h = (_g = states.find(function (e) { return e.entity_id === 'weather.home'; })) === null || _g === void 0 ? void 0 : _g.attributes) === null || _h === void 0 ? void 0 : _h.temperature) !== null && _j !== void 0 ? _j : 15),
-                forecast_temp: Number((_p = (_o = (_m = (_l = (_k = states.find(function (e) { return e.entity_id === 'weather.home'; })) === null || _k === void 0 ? void 0 : _k.attributes) === null || _l === void 0 ? void 0 : _l.forecast) === null || _m === void 0 ? void 0 : _m[0]) === null || _o === void 0 ? void 0 : _o.temperature) !== null && _p !== void 0 ? _p : 15),
-                energy: Number((_r = (_q = states.find(function (e) { return e.entity_id.includes('energy') && e.attributes.area_id === area; })) === null || _q === void 0 ? void 0 : _q.state) !== null && _r !== void 0 ? _r : 0),
-                high_threshold: 2000,
-                temp_change_rate: 0, // Hier ggf. Logik für Temperaturänderung einbauen
-                now: Date.now(),
-            };
-            var evals = this.engine.evaluate(context);
-            // Priorität sortieren und top 3
-            var prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
-            // evals enthält jetzt {message_key, priority}, daher RuleEngine anpassen!
-            var top = evals.sort(function (a, b) { return (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0); }).slice(0, 3);
-            return x(templateObject_3 || (templateObject_3 = __makeTemplateObject(["\n      <h2>\uD83D\uDC7B Hausgeist sagt:</h2>\n      ", "\n    "], ["\n      <h2>\uD83D\uDC7B Hausgeist sagt:</h2>\n      ", "\n    "])), top.length === 0 ? x(templateObject_1 || (templateObject_1 = __makeTemplateObject(["<p class=\"ok\">", "</p>"], ["<p class=\"ok\">", "</p>"])), this.texts['all_ok'] || 'Alles in Ordnung!') :
-                top.map(function (e) { return x(templateObject_2 || (templateObject_2 = __makeTemplateObject(["<p class=\"", "\">", "</p>"], ["<p class=\"", "\">", "</p>"])), e.priority, _this.texts[e.message_key] || e.message_key); }));
-        };
-        return HausgeistCard_1;
-    }(_classSuper));
-    __setFunctionName(_classThis, "HausgeistCard");
-    (function () {
-        var _a;
-        var _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create((_a = _classSuper[Symbol.metadata]) !== null && _a !== void 0 ? _a : null) : void 0;
-        _hass_decorators = [n({ attribute: false })];
-        _config_decorators = [n({ type: Object })];
-        __esDecorate(null, null, _hass_decorators, { kind: "field", name: "hass", static: false, private: false, access: { has: function (obj) { return "hass" in obj; }, get: function (obj) { return obj.hass; }, set: function (obj, value) { obj.hass = value; } }, metadata: _metadata }, _hass_initializers, _hass_extraInitializers);
-        __esDecorate(null, null, _config_decorators, { kind: "field", name: "config", static: false, private: false, access: { has: function (obj) { return "config" in obj; }, get: function (obj) { return obj.config; }, set: function (obj, value) { obj.config = value; } }, metadata: _metadata }, _config_initializers, _config_extraInitializers);
-        __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: "class", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);
-        _classThis = _classDescriptor.value;
-        if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });
-    })();
-    _classThis.styles = i$3(templateObject_4 || (templateObject_4 = __makeTemplateObject(["\n    :host {\n      display: block;\n      background: var(--card-background-color, #fff);\n      border-radius: 1em;\n      box-shadow: 0 2px 8px rgba(0,0,0,0.07);\n      padding: 1.5em;\n      font-family: inherit;\n    }\n    h2 {\n      margin-top: 0;\n      font-size: 1.3em;\n      color: #4a4a4a;\n    }\n    p.warning {\n      color: #b85c00;\n      background: #fff7e6;\n      border-left: 4px solid #ffb300;\n      padding: 0.5em 1em;\n      border-radius: 0.5em;\n      margin: 0.5em 0;\n    }\n    p.info {\n      color: #00529b;\n      background: #e6f2ff;\n      border-left: 4px solid #2196f3;\n      padding: 0.5em 1em;\n      border-radius: 0.5em;\n      margin: 0.5em 0;\n    }\n    p.ok {\n      color: #357a38;\n      background: #e6f9e6;\n      border-left: 4px solid #4caf50;\n      padding: 0.5em 1em;\n      border-radius: 0.5em;\n      margin: 0.5em 0;\n    }\n  "], ["\n    :host {\n      display: block;\n      background: var(--card-background-color, #fff);\n      border-radius: 1em;\n      box-shadow: 0 2px 8px rgba(0,0,0,0.07);\n      padding: 1.5em;\n      font-family: inherit;\n    }\n    h2 {\n      margin-top: 0;\n      font-size: 1.3em;\n      color: #4a4a4a;\n    }\n    p.warning {\n      color: #b85c00;\n      background: #fff7e6;\n      border-left: 4px solid #ffb300;\n      padding: 0.5em 1em;\n      border-radius: 0.5em;\n      margin: 0.5em 0;\n    }\n    p.info {\n      color: #00529b;\n      background: #e6f2ff;\n      border-left: 4px solid #2196f3;\n      padding: 0.5em 1em;\n      border-radius: 0.5em;\n      margin: 0.5em 0;\n    }\n    p.ok {\n      color: #357a38;\n      background: #e6f9e6;\n      border-left: 4px solid #4caf50;\n      padding: 0.5em 1em;\n      border-radius: 0.5em;\n      margin: 0.5em 0;\n    }\n  "])));
-    (function () {
-        __runInitializers(_classThis, _classExtraInitializers);
-    })();
-    return _classThis;
-}();
-var templateObject_1, templateObject_2, templateObject_3, templateObject_4;
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __decorateClass = (decorators, target, key, kind) => {
+  var result = kind > 1 ? void 0 : kind ? __getOwnPropDesc(target, key) : target;
+  for (var i = decorators.length - 1, decorator; i >= 0; i--)
+    if (decorator = decorators[i])
+      result = (kind ? decorator(target, key, result) : decorator(result)) || result;
+  if (kind && result) __defProp(target, key, result);
+  return result;
+};
+const TRANSLATIONS = { de, en };
+let HausgeistCard = class extends i {
+  constructor() {
+    super(...arguments);
+    this.texts = {};
+  }
+  async firstUpdated() {
+    const rules = await loadRules();
+    this.engine = new RuleEngine(rules);
+  }
+  setConfig(config) {
+    if (!config.area_id) throw new Error("area_id fehlt");
+    this.config = config;
+  }
+  render() {
+    const area = this.config.area_id;
+    const lang = this.hass.selectedLanguage || "de";
+    if (!this.texts || Object.keys(this.texts).length === 0) {
+      this.texts = TRANSLATIONS[lang] || TRANSLATIONS["de"];
+    }
+    const states = Object.values(this.hass.states);
+    const sensors = filterSensorsByArea(states, area);
+    const get = (cls) => {
+      const s = sensors.find((st) => st.attributes.device_class === cls);
+      return s ? Number(s.state) : void 0;
+    };
+    const context = {
+      temp: get("temperature"),
+      humidity: get("humidity"),
+      co2: get("co2"),
+      target: Number(states.find((e) => e.entity_id.endsWith("_temperature_target") && e.attributes.area_id === area)?.state ?? 21),
+      window: states.find((e) => e.entity_id.includes("window") && e.attributes.area_id === area)?.state,
+      heating: states.find((e) => e.entity_id.includes("heating") && e.attributes.area_id === area)?.state,
+      motion: states.find((e) => e.entity_id.includes("motion") && e.attributes.area_id === area)?.state === "on",
+      occupied: states.find((e) => e.entity_id.includes("occupancy") && e.attributes.area_id === area)?.state === "on",
+      outside_temp: Number(states.find((e) => e.entity_id === "weather.home")?.attributes?.temperature ?? 15),
+      forecast_temp: Number(states.find((e) => e.entity_id === "weather.home")?.attributes?.forecast?.[0]?.temperature ?? 15),
+      energy: Number(states.find((e) => e.entity_id.includes("energy") && e.attributes.area_id === area)?.state ?? 0),
+      high_threshold: 2e3,
+      temp_change_rate: 0,
+      // Hier ggf. Logik für Temperaturänderung einbauen
+      now: Date.now()
+    };
+    const evals = this.engine.evaluate(context);
+    const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
+    const top = evals.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0)).slice(0, 3);
+    return x`
+      <h2>👻 Hausgeist sagt:</h2>
+      ${top.length === 0 ? x`<p class="ok">${this.texts["all_ok"] || "Alles in Ordnung!"}</p>` : top.map((e) => x`<p class="${e.priority}">${this.texts[e.message_key] || e.message_key}</p>`)}
+    `;
+  }
+};
+HausgeistCard.styles = i$3`
+    :host {
+      display: block;
+      background: var(--card-background-color, #fff);
+      border-radius: 1em;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      padding: 1.5em;
+      font-family: inherit;
+    }
+    h2 {
+      margin-top: 0;
+      font-size: 1.3em;
+      color: #4a4a4a;
+    }
+    p.warning {
+      color: #b85c00;
+      background: #fff7e6;
+      border-left: 4px solid #ffb300;
+      padding: 0.5em 1em;
+      border-radius: 0.5em;
+      margin: 0.5em 0;
+    }
+    p.info {
+      color: #00529b;
+      background: #e6f2ff;
+      border-left: 4px solid #2196f3;
+      padding: 0.5em 1em;
+      border-radius: 0.5em;
+      margin: 0.5em 0;
+    }
+    p.ok {
+      color: #357a38;
+      background: #e6f9e6;
+      border-left: 4px solid #4caf50;
+      padding: 0.5em 1em;
+      border-radius: 0.5em;
+      margin: 0.5em 0;
+    }
+  `;
+__decorateClass([
+  n({ attribute: false })
+], HausgeistCard.prototype, "hass", 2);
+__decorateClass([
+  n({ type: Object })
+], HausgeistCard.prototype, "config", 2);
+HausgeistCard = __decorateClass([
+  t("hausgeist-card")
+], HausgeistCard);
 
 export { HausgeistCard };
 //# sourceMappingURL=hausgeist-card.js.map
