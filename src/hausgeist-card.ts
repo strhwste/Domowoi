@@ -186,17 +186,8 @@ export class HausgeistCard extends LitElement {
     }
     // Debug-Flag direkt aus Config übernehmen (zur Sicherheit)
     this.debug = !!this.config?.debug;
-    // Debug-Hinweis oben anzeigen
-    const debugBanner = this.debug ? html`<div style="background:#ffe; color:#a00; padding:0.5em; border:1px solid #cc0; margin-bottom:1em;">Debug active! (hausgeist-card)</div>` : '';
-
-    const lang = this.hass.selectedLanguage || 'de';
-    const langKey = lang as keyof typeof TRANSLATIONS;
-    this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
-    if (!this.texts || Object.keys(this.texts).length === 0) {
-      this.texts = TRANSLATIONS['de'];
-    }
+    let debugOut: string[] = [];
     const states = Object.values(this.hass.states);
-    // Fix: add type annotations and correct scoping
     const areaIds: string[] = states.reduce((uniqueAreas: string[], e: any) => {
       const areaId = e.attributes?.area_id;
       if (areaId && !uniqueAreas.includes(areaId)) {
@@ -206,7 +197,22 @@ export class HausgeistCard extends LitElement {
     }, []);
     const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
     const defaultTarget = this.config?.overrides?.default_target || 21;
-    let debugOut: string[] = [];
+    if (this.debug) {
+      debugOut.push(`DEBUG: areaIds: ${JSON.stringify(areaIds)}`);
+      debugOut.push(`DEBUG: states.length: ${states.length}`);
+      debugOut.push(`DEBUG: Erste 10 area_id aus states:`);
+      debugOut.push(states.filter((s: any) => s.attributes && s.attributes.area_id).slice(0, 10).map((s: any) => `${s.entity_id}: '${s.attributes.area_id}'`).join('\n'));
+    }
+    // Debug-Hinweis oben anzeigen
+    const debugBanner = this.debug ? html`<div style="background:#ffe; color:#a00; padding:0.5em; border:1px solid #cc0; margin-bottom:1em;">Debug active! (hausgeist-card)</div>` : '';
+
+    const lang = this.hass.selectedLanguage || 'de';
+    const langKey = lang as keyof typeof TRANSLATIONS;
+    this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
+    if (!this.texts || Object.keys(this.texts).length === 0) {
+      this.texts = TRANSLATIONS['de'];
+    }
+    // Fix: add type annotations and correct scoping
     const areaMessages: { area: string; evals: any[]; usedSensors: { type: string; entity_id: string; value: any }[] }[] = areaIds.map((area: string) => {
       const sensors = filterSensorsByArea(states, area);
       const usedSensors: Array<{ type: string, entity_id: string, value: any }> = [];
