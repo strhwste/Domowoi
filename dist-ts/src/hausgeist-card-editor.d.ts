@@ -5,10 +5,20 @@ export declare class HausgeistCardEditor extends LitElement {
         overrides?: Record<string, Record<string, string>>;
     };
     hass: any;
+    testValues: {
+        [key: string]: any;
+    };
+    rulesJson: string;
+    notify: boolean;
+    highThreshold: number;
     setConfig(config: any): void;
     set hassInstance(hass: any);
     _onDebugChange: (e: Event) => void;
     _onAreaSensorChange(areaId: string, type: string, e: Event): void;
     _configChanged(): void;
+    handleTestValueChange(areaId: string, type: string, e: any): void;
+    handleRulesChange(e: any): void;
+    handleNotifyChange(e: any): void;
+    handleThresholdChange(e: any): void;
     render(): import("lit-html").TemplateResult<1>;
 }

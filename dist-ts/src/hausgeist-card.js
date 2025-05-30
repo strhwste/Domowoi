@@ -143,6 +143,11 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                 now: Date.now(),
                 curtain: states.find(e => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
                 blind: states.find(e => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
+                // Ergänzungen für Regeln
+                rain_soon: states.find(e => e.entity_id.includes('rain') && e.attributes.area_id === area)?.state === 'on' || false,
+                adjacent_room_temp: Number(states.find(e => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
+                air_quality: states.find(e => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
+                forecast_sun: states.find(e => e.entity_id.includes('forecast') && e.entity_id.includes('sun') && e.attributes.area_id === area)?.state === 'on' || false,
             };
             const evals = this.engine.evaluate(context);
             if (this.debug) {
@@ -153,28 +158,37 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                     evals.map(ev => `${ev.priority}: ${ev.message_key}`).join("\n"));
             }
             // Attach usedSensors to area for later display
-            return evals.length === 0 ? null : { area, ...top, usedSensors };
-        }).filter(Boolean);
-        const topMessages = areaMessages.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0)).slice(0, 3);
+            return { area, evals, usedSensors };
+        });
+        // Top messages: only areas with at least one rule hit
+        const topMessages = areaMessages.filter(a => a.evals.length > 0)
+            .map(a => {
+            // Pick highest prio message for each area
+            const top = a.evals.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0))[0];
+            return { area: a.area, ...top, usedSensors: a.usedSensors };
+        });
         const anySensorsUsed = areaMessages.some(areaMsg => areaMsg.usedSensors.length > 0 && areaMsg.usedSensors.some(s => s.entity_id !== '[NOT FOUND]'));
+        const anyRulesApplied = areaMessages.some(a => a.evals.length > 0);
         return html `
       <h2>👻 Hausgeist sagt:</h2>
       ${!anySensorsUsed ? html `<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>` :
-            (topMessages.length === 0 ? html `<p class="ok">${this.texts['all_ok'] || 'Alles in Ordnung!'}</p>` :
+            (!anyRulesApplied ? html `<p class="warning">⚠️ No rules applied (no comparisons made for any area).</p>` :
                 topMessages.map(e => html `<p class="${e.priority}"><b>${e.area}:</b> ${this.texts[e.message_key] || e.message_key}</p>`))}
-      <div class="sensors-used">
-        <b>Sensors used:</b>
-        <ul>
-          ${areaMessages.map(areaMsg => html `
-            <li><b>${areaMsg.area}:</b>
-              <ul>
-                ${areaMsg.usedSensors.map(s => html `<li>[${s.type}] ${s.entity_id}: ${s.value}</li>`)}
-              </ul>
-            </li>
-          `)}
-        </ul>
-      </div>
-      ${this.debug ? html `<div class="debug">${debugOut.join('\n\n')}</div>` : ''}
+      ${this.debug ? html `
+        <div class="sensors-used">
+          <b>Sensors used:</b>
+          <ul>
+            ${areaMessages.map(areaMsg => html `
+              <li><b>${areaMsg.area}:</b>
+                <ul>
+                  ${areaMsg.usedSensors.map(s => html `<li>[${s.type}] ${s.entity_id}: ${s.value}</li>`)}
+                </ul>
+              </li>
+            `)}
+          </ul>
+        </div>
+        <div class="debug">${debugOut.join('\n\n')}</div>
+      ` : ''}
     `;
     }
 };
