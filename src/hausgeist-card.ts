@@ -188,13 +188,10 @@ export class HausgeistCard extends LitElement {
     this.debug = !!this.config?.debug;
     let debugOut: string[] = [];
     const states = Object.values(this.hass.states);
-    const areaIds: string[] = states.reduce((uniqueAreas: string[], e: any) => {
-      const areaId = e.attributes?.area_id;
-      if (areaId && !uniqueAreas.includes(areaId)) {
-        uniqueAreas.push(areaId);
-      }
-      return uniqueAreas;
-    }, []);
+    const areas: Array<{ area_id: string; name: string }> = this.hass.areas
+      ? Object.values(this.hass.areas)
+      : Array.from(new Set(states.map((e: any) => e.attributes?.area_id).filter(Boolean))).map((area_id: string) => ({ area_id, name: area_id }));
+    const areaIds: string[] = areas.map(a => a.area_id);
     const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
     const defaultTarget = this.config?.overrides?.default_target || 21;
     if (this.debug) {
