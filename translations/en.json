@@ -20,5 +20,12 @@
   "afternoon_window_open_hot_outside": "🌞 Warmer outside than inside – better close the window.",
   "hot_day_morning_ventilate": "📊 Hot day ahead – ventilate well in the morning.",
   "very_hot_window_open": "🔥 Very hot outside – close windows to avoid heating up.",
-  "early_cool_outside_ventilate": "🧊 Early cool outside – natural cooling by ventilation possible."
+  "early_cool_outside_ventilate": "🧊 Early cool outside – natural cooling by ventilation possible.",
+  "keep_window_closed_cool_inside": "Keep windows closed to keep it cool inside.",
+  "close_curtains_to_keep_cool": "Close curtains or blinds to keep the room cool.",
+  "rain_soon_close_window": "Rain is expected soon – please close the windows.",
+  "close_door_to_save_heat": "Close the door to prevent heat loss to other rooms.",
+  "ventilate_air_quality_poor": "Air quality is poor – ventilate the room.",
+  "ventilate_high_humidity": "Humidity is high – ventilate to reduce moisture.",
+  "open_blinds_for_sun_warmth": "Sunny soon – open blinds to warm up the room."
 }

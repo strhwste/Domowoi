@@ -157,6 +157,41 @@ var coreRules = [
 		condition: "outside_temp < 18 && temp > 24 && now % 86400000 < 7 * 3600000",
 		message_key: "early_cool_outside_ventilate",
 		priority: "info"
+	},
+	{
+		condition: "window == 'closed' && outside_temp > temp && temp > 23 && now % 86400000 > 11 * 3600000",
+		message_key: "keep_window_closed_cool_inside",
+		priority: "info"
+	},
+	{
+		condition: "(curtain == 'open' || blind == 'open') && outside_temp > 26 && now % 86400000 > 11 * 3600000",
+		message_key: "close_curtains_to_keep_cool",
+		priority: "info"
+	},
+	{
+		condition: "window == 'open' && rain_soon == true",
+		message_key: "rain_soon_close_window",
+		priority: "alert"
+	},
+	{
+		condition: "door == 'open' && heating == 'on' && adjacent_room_temp > temp + 1",
+		message_key: "close_door_to_save_heat",
+		priority: "info"
+	},
+	{
+		condition: "air_quality == 'poor' && window == 'closed'",
+		message_key: "ventilate_air_quality_poor",
+		priority: "warn"
+	},
+	{
+		condition: "humidity > 70 && window == 'closed'",
+		message_key: "ventilate_high_humidity",
+		priority: "info"
+	},
+	{
+		condition: "forecast_sun == true && now % 86400000 > 7 * 3600000 && blind == 'closed' && temp < 21",
+		message_key: "open_blinds_for_sun_warmth",
+		priority: "info"
 	}
 ];
 
@@ -187,6 +222,13 @@ var afternoon_window_open_hot_outside$1 = "🌞 Warmer outside than inside – b
 var hot_day_morning_ventilate$1 = "📊 Hot day ahead – ventilate well in the morning.";
 var very_hot_window_open$1 = "🔥 Very hot outside – close windows to avoid heating up.";
 var early_cool_outside_ventilate$1 = "🧊 Early cool outside – natural cooling by ventilation possible.";
+var keep_window_closed_cool_inside$1 = "Keep windows closed to keep it cool inside.";
+var close_curtains_to_keep_cool$1 = "Close curtains or blinds to keep the room cool.";
+var rain_soon_close_window$1 = "Rain is expected soon – please close the windows.";
+var close_door_to_save_heat$1 = "Close the door to prevent heat loss to other rooms.";
+var ventilate_air_quality_poor$1 = "Air quality is poor – ventilate the room.";
+var ventilate_high_humidity$1 = "Humidity is high – ventilate to reduce moisture.";
+var open_blinds_for_sun_warmth$1 = "Sunny soon – open blinds to warm up the room.";
 var en = {
 	low_humidity: low_humidity$1,
 	high_co2: high_co2$1,
@@ -209,7 +251,14 @@ var en = {
 	afternoon_window_open_hot_outside: afternoon_window_open_hot_outside$1,
 	hot_day_morning_ventilate: hot_day_morning_ventilate$1,
 	very_hot_window_open: very_hot_window_open$1,
-	early_cool_outside_ventilate: early_cool_outside_ventilate$1
+	early_cool_outside_ventilate: early_cool_outside_ventilate$1,
+	keep_window_closed_cool_inside: keep_window_closed_cool_inside$1,
+	close_curtains_to_keep_cool: close_curtains_to_keep_cool$1,
+	rain_soon_close_window: rain_soon_close_window$1,
+	close_door_to_save_heat: close_door_to_save_heat$1,
+	ventilate_air_quality_poor: ventilate_air_quality_poor$1,
+	ventilate_high_humidity: ventilate_high_humidity$1,
+	open_blinds_for_sun_warmth: open_blinds_for_sun_warmth$1
 };
 
 var low_humidity = "Luftfeuchtigkeit unter 35 % – lüften oder befeuchten empfohlen";
@@ -234,6 +283,13 @@ var afternoon_window_open_hot_outside = "🌞 Draußen wärmer als drinnen – F
 var hot_day_morning_ventilate = "📊 Heute wird’s heiß – jetzt morgens gut durchlüften.";
 var very_hot_window_open = "🔥 Hitze draußen – Fenster schließen, um Aufheizen zu vermeiden.";
 var early_cool_outside_ventilate = "🧊 Früh kühl draußen – natürliche Kühlung durch Lüften möglich.";
+var keep_window_closed_cool_inside = "Fenster geschlossen halten, um es innen kühl zu halten.";
+var close_curtains_to_keep_cool = "Vorhänge oder Jalousien schließen, um den Raum kühl zu halten.";
+var rain_soon_close_window = "Bald Regen erwartet – Fenster besser schließen.";
+var close_door_to_save_heat = "Tür schließen, um Wärmeverlust in andere Räume zu vermeiden.";
+var ventilate_air_quality_poor = "Luftqualität schlecht – bitte lüften.";
+var ventilate_high_humidity = "Luftfeuchtigkeit hoch – lüften empfohlen.";
+var open_blinds_for_sun_warmth = "Bald sonnig – Jalousien öffnen, um Raum zu erwärmen.";
 var de = {
 	low_humidity: low_humidity,
 	high_co2: high_co2,
@@ -256,7 +312,14 @@ var de = {
 	afternoon_window_open_hot_outside: afternoon_window_open_hot_outside,
 	hot_day_morning_ventilate: hot_day_morning_ventilate,
 	very_hot_window_open: very_hot_window_open,
-	early_cool_outside_ventilate: early_cool_outside_ventilate
+	early_cool_outside_ventilate: early_cool_outside_ventilate,
+	keep_window_closed_cool_inside: keep_window_closed_cool_inside,
+	close_curtains_to_keep_cool: close_curtains_to_keep_cool,
+	rain_soon_close_window: rain_soon_close_window,
+	close_door_to_save_heat: close_door_to_save_heat,
+	ventilate_air_quality_poor: ventilate_air_quality_poor,
+	ventilate_high_humidity: ventilate_high_humidity,
+	open_blinds_for_sun_warmth: open_blinds_for_sun_warmth
 };
 
 var __decorate = (undefined && undefined.__decorate) || function (decorators, target, key, desc) {
@@ -269,6 +332,7 @@ const TRANSLATIONS = { de, en };
 let HausgeistCard = class HausgeistCard extends i {
     constructor() {
         super(...arguments);
+        this.debug = false;
         this.texts = {};
         this.ready = false;
     }
@@ -281,6 +345,12 @@ let HausgeistCard = class HausgeistCard extends i {
     setConfig(config) {
         this.config = config;
     }
+    static getConfigElement() {
+        return document.createElement('hausgeist-card-editor');
+    }
+    static getStubConfig() {
+        return { debug: false };
+    }
     render() {
         if (!this.ready || !this.engine) {
             return x `<p>Loading…</p>`;
@@ -291,14 +361,50 @@ let HausgeistCard = class HausgeistCard extends i {
             this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
         }
         const states = Object.values(this.hass.states);
-        // Find all unique area_ids from entities
         const areaIds = Array.from(new Set(states.map(e => e.attributes?.area_id).filter(Boolean)));
-        // For each area, evaluate rules and pick the most important message
         const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
+        let debugOut = [];
         const areaMessages = areaIds.map(area => {
             const sensors = filterSensorsByArea(states, area);
+            // Multilingual sensor keywords for fallback
+            const SENSOR_KEYWORDS = {
+                temperature: [
+                    'temperature', 'temperatur', 'température', 'temperatura', 'temperatuur', 'температура', '温度', '온도'
+                ],
+                humidity: [
+                    'humidity', 'feuchtigkeit', 'humidité', 'umidità', 'vochtigheid', 'humedad', 'влажность', '湿度', '습도'
+                ],
+                co2: [
+                    'co2', 'kohlendioxid', 'dioxyde de carbone', 'anidride carbonica', 'kooldioxide', 'dióxido de carbono', 'углекислый газ', '二氧化碳', '이산화탄소'
+                ],
+                window: [
+                    'window', 'fenster', 'fenêtre', 'finestra', 'raam', 'ventana', 'окно', '窗', '창문'
+                ],
+                door: [
+                    'door', 'tür', 'porte', 'porta', 'deur', 'puerta', 'дверь', '문'
+                ],
+                curtain: [
+                    'curtain', 'vorhang', 'rideau', 'tenda', 'gordijn', 'cortina', 'занавеска', '커튼'
+                ],
+                blind: [
+                    'blind', 'jalousie', 'volet', 'persiana', 'jaloezie', 'persiana', 'жалюзи', '블라인드'
+                ]
+            };
+            // Helper to find a sensor by device_class or multilingual fallback
+            function findSensor(cls) {
+                let s = sensors.find(st => st.attributes.device_class === cls);
+                if (s)
+                    return s;
+                // Fallback: search by friendly_name or entity_id for keywords
+                const keywords = SENSOR_KEYWORDS[cls] || [];
+                return sensors.find(st => {
+                    const name = (st.attributes.friendly_name || '').toLowerCase();
+                    const eid = st.entity_id.toLowerCase();
+                    return keywords.some((k) => name.includes(k) || eid.includes(k));
+                });
+            }
             const get = (cls) => {
-                const s = sensors.find(st => st.attributes.device_class === cls);
+                const s = findSensor(cls);
                 return s ? Number(s.state) : undefined;
             };
             const context = {
@@ -316,60 +422,74 @@ let HausgeistCard = class HausgeistCard extends i {
                 high_threshold: 2000,
                 temp_change_rate: 0,
                 now: Date.now(),
+                curtain: states.find(e => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
+                blind: states.find(e => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
             };
             const evals = this.engine.evaluate(context);
+            if (this.debug) {
+                debugOut.push(`--- ${area} ---\n` + evals.map(ev => `${ev.priority}: ${ev.message_key}`).join("\n"));
+            }
             if (evals.length === 0)
                 return null;
-            // Pick the most important message for this area
             const top = evals.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0))[0];
             return { area, ...top };
         }).filter(Boolean);
-        // Sort all area messages by priority and pick top 3
         const topMessages = areaMessages.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0)).slice(0, 3);
         return x `
       <h2>👻 Hausgeist sagt:</h2>
       ${topMessages.length === 0 ? x `<p class="ok">${this.texts['all_ok'] || 'Alles in Ordnung!'}</p>` :
             topMessages.map(e => x `<p class="${e.priority}"><b>${e.area}:</b> ${this.texts[e.message_key] || e.message_key}</p>`)}
+      ${this.debug ? x `<div class="debug">${debugOut.join('\n\n')}</div>` : ''}
     `;
     }
 };
 HausgeistCard.styles = i$3 `
     :host {
       display: block;
-      background: var(--card-background-color, #fff);
-      border-radius: 1em;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+      background: var(--ha-card-background, var(--card-background-color, #fff));
+      border-radius: var(--ha-card-border-radius, 1em);
+      box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,0.07));
       padding: 1.5em;
-      font-family: inherit;
+      font-family: var(--primary-font-family, inherit);
+      color: var(--primary-text-color, #222);
     }
     h2 {
       margin-top: 0;
       font-size: 1.3em;
-      color: #4a4a4a;
+      color: var(--primary-text-color, #4a4a4a);
     }
     p.warning {
-      color: #b85c00;
-      background: #fff7e6;
-      border-left: 4px solid #ffb300;
+      color: var(--warning-color, #b85c00);
+      background: var(--warning-bg, #fff7e6);
+      border-left: 4px solid var(--warning-border, #ffb300);
       padding: 0.5em 1em;
       border-radius: 0.5em;
       margin: 0.5em 0;
     }
     p.info {
-      color: #00529b;
-      background: #e6f2ff;
-      border-left: 4px solid #2196f3;
+      color: var(--info-color, #00529b);
+      background: var(--info-bg, #e6f2ff);
+      border-left: 4px solid var(--info-border, #2196f3);
       padding: 0.5em 1em;
       border-radius: 0.5em;
       margin: 0.5em 0;
     }
     p.ok {
-      color: #357a38;
-      background: #e6f9e6;
-      border-left: 4px solid #4caf50;
+      color: var(--success-color, #357a38);
+      background: var(--success-bg, #e6f9e6);
+      border-left: 4px solid var(--success-border, #4caf50);
       padding: 0.5em 1em;
       border-radius: 0.5em;
       margin: 0.5em 0;
+    }
+    .debug {
+      font-size: 0.9em;
+      color: var(--secondary-text-color, #888);
+      background: var(--secondary-background-color, #f5f5f5);
+      border-radius: 0.5em;
+      padding: 0.5em 1em;
+      margin: 0.5em 0;
+      white-space: pre-wrap;
     }
   `;
 __decorate([
@@ -378,6 +498,9 @@ __decorate([
 __decorate([
     n({ type: Object })
 ], HausgeistCard.prototype, "config", void 0);
+__decorate([
+    n({ type: Boolean })
+], HausgeistCard.prototype, "debug", void 0);
 HausgeistCard = __decorate([
     t('hausgeist-card')
 ], HausgeistCard);

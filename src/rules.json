@@ -88,5 +88,40 @@
     "condition": "outside_temp < 18 && temp > 24 && now % 86400000 < 7 * 3600000",
     "message_key": "early_cool_outside_ventilate",
     "priority": "info"
+  },
+  {
+    "condition": "window == 'closed' && outside_temp > temp && temp > 23 && now % 86400000 > 11 * 3600000",
+    "message_key": "keep_window_closed_cool_inside",
+    "priority": "info"
+  },
+  {
+    "condition": "(curtain == 'open' || blind == 'open') && outside_temp > 26 && now % 86400000 > 11 * 3600000",
+    "message_key": "close_curtains_to_keep_cool",
+    "priority": "info"
+  },
+  {
+    "condition": "window == 'open' && rain_soon == true",
+    "message_key": "rain_soon_close_window",
+    "priority": "alert"
+  },
+  {
+    "condition": "door == 'open' && heating == 'on' && adjacent_room_temp > temp + 1",
+    "message_key": "close_door_to_save_heat",
+    "priority": "info"
+  },
+  {
+    "condition": "air_quality == 'poor' && window == 'closed'",
+    "message_key": "ventilate_air_quality_poor",
+    "priority": "warn"
+  },
+  {
+    "condition": "humidity > 70 && window == 'closed'",
+    "message_key": "ventilate_high_humidity",
+    "priority": "info"
+  },
+  {
+    "condition": "forecast_sun == true && now % 86400000 > 7 * 3600000 && blind == 'closed' && temp < 21",
+    "message_key": "open_blinds_for_sun_warmth",
+    "priority": "info"
   }
 ]
