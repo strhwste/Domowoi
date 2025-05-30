@@ -46,7 +46,46 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     _configChanged() {
         // Always include the current areas in the config
         if (this._lastAreas && Array.isArray(this._lastAreas)) {
-            this.config = { ...this.config, areas: this._lastAreas };
+            // Build auto-mapping: auto[area_id][type] = entity_id (wie im Editor angezeigt)
+            const auto = {};
+            const hass = this.hass;
+            const areas = this._lastAreas;
+            const states = Object.values(hass?.states || {});
+            const sensorTypes = [
+                'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
+            ];
+            function autodetect(areaId, type) {
+                let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
+                if (s && s.entity_id)
+                    return s.entity_id;
+                const keywords = {
+                    temperature: ['temperature', 'temperatur', 'température'],
+                    humidity: ['humidity', 'feuchtigkeit', 'humidité'],
+                    co2: ['co2'],
+                    window: ['window', 'fenster'],
+                    door: ['door', 'tür'],
+                    curtain: ['curtain', 'vorhang'],
+                    blind: ['blind', 'jalousie'],
+                    heating: ['heating', 'heizung', 'thermostat'],
+                    target: ['target', 'soll', 'setpoint']
+                };
+                const kw = keywords[type] || [type];
+                s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name || '').toLowerCase().includes(k)));
+                if (s && s.entity_id)
+                    return s.entity_id;
+                const areaName = (hass.areas && hass.areas[areaId]?.name?.toLowerCase()) || areaId.toLowerCase();
+                s = states.find((st) => (st.entity_id.toLowerCase().includes(areaName) || (st.attributes.friendly_name || '').toLowerCase().includes(areaName)) && kw.some(k => st.entity_id.toLowerCase().includes(k)));
+                return s && s.entity_id ? s.entity_id : undefined;
+            }
+            for (const area of areas) {
+                auto[area.area_id] = {};
+                for (const type of sensorTypes) {
+                    const autoId = autodetect(area.area_id, type);
+                    if (autoId)
+                        auto[area.area_id][type] = autoId;
+                }
+            }
+            this.config = { ...this.config, areas: this._lastAreas, auto };
         }
         const event = new CustomEvent('config-changed', {
             detail: { config: this.config },

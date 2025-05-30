@@ -7,6 +7,7 @@ export declare class HausgeistCardEditor extends LitElement {
             area_id: string;
             name: string;
         }>;
+        auto?: Record<string, Record<string, string>>;
     };
     private _hass;
     testValues: {

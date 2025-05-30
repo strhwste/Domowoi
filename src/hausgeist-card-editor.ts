@@ -3,7 +3,7 @@ import { property, customElement } from 'lit/decorators.js';
 
 @customElement('hausgeist-card-editor')
 export class HausgeistCardEditor extends LitElement {
-  @property({ type: Object }) config: { debug?: boolean, overrides?: Record<string, Record<string, string>>, areas?: Array<{ area_id: string; name: string }> } = {};
+  @property({ type: Object }) config: { debug?: boolean, overrides?: Record<string, Record<string, string>>, areas?: Array<{ area_id: string; name: string }>, auto?: Record<string, Record<string, string>> } = {};
   private _hass: any = undefined;
   @property({ type: Object }) testValues: { [key: string]: any } = {};
   @property({ type: String }) rulesJson = '';
@@ -41,7 +41,43 @@ export class HausgeistCardEditor extends LitElement {
   _configChanged() {
     // Always include the current areas in the config
     if (this._lastAreas && Array.isArray(this._lastAreas)) {
-      this.config = { ...this.config, areas: this._lastAreas };
+      // Build auto-mapping: auto[area_id][type] = entity_id (wie im Editor angezeigt)
+      const auto: Record<string, Record<string, string>> = {};
+      const hass = this.hass;
+      const areas = this._lastAreas;
+      const states = Object.values(hass?.states || {});
+      const sensorTypes = [
+        'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
+      ];
+      function autodetect(areaId: string, type: string): string | undefined {
+        let s = states.find((st: any) => st.attributes?.area_id === areaId && st.attributes?.device_class === type) as any;
+        if (s && s.entity_id) return s.entity_id;
+        const keywords: Record<string, string[]> = {
+          temperature: ['temperature','temperatur','température'],
+          humidity: ['humidity','feuchtigkeit','humidité'],
+          co2: ['co2'],
+          window: ['window','fenster'],
+          door: ['door','tür'],
+          curtain: ['curtain','vorhang'],
+          blind: ['blind','jalousie'],
+          heating: ['heating','heizung','thermostat'],
+          target: ['target','soll','setpoint']
+        };
+        const kw = keywords[type] || [type];
+        s = states.find((st: any) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name||'').toLowerCase().includes(k))) as any;
+        if (s && s.entity_id) return s.entity_id;
+        const areaName = (hass.areas && hass.areas[areaId]?.name?.toLowerCase()) || areaId.toLowerCase();
+        s = states.find((st: any) => (st.entity_id.toLowerCase().includes(areaName) || (st.attributes.friendly_name||'').toLowerCase().includes(areaName)) && kw.some(k => st.entity_id.toLowerCase().includes(k))) as any;
+        return s && s.entity_id ? s.entity_id : undefined;
+      }
+      for (const area of areas) {
+        auto[area.area_id] = {};
+        for (const type of sensorTypes) {
+          const autoId = autodetect(area.area_id, type);
+          if (autoId) auto[area.area_id][type] = autoId;
+        }
+      }
+      this.config = { ...this.config, areas: this._lastAreas, auto };
     }
     const event = new CustomEvent('config-changed', {
       detail: { config: this.config },
