@@ -9,10 +9,15 @@ import './hausgeist-card-editor';
 
 const TRANSLATIONS = { de, en };
 
+
 @customElement('hausgeist-card')
 export class HausgeistCard extends LitElement {
-  @property({ attribute: false }) public hass: any;
-  @property({ type: Object }) public config: { area_id: string; overrides?: any } | undefined;
+  @property({ type: Object }) public hass: any;
+  @property({ type: Object }) public config: { area_id?: string; overrides?: any; debug?: boolean; notify?: boolean; highThreshold?: number; rulesJson?: string } = {};
+  @property({ type: Boolean }) public debug = false;
+  @property({ type: Boolean }) public notify = false;
+  @property({ type: Number }) public highThreshold = 2000;
+  @property({ type: String }) public rulesJson = '';
 
   static styles = css`
     :host {
@@ -138,15 +143,19 @@ export class HausgeistCard extends LitElement {
       white-space: pre-wrap;
     }
   `;
-
-  @property({ type: Boolean }) debug = false;
+// Define the keywords for sensor detection
   private engine?: RuleEngine;
   private texts: Record<string, string> = TRANSLATIONS['de'];
   private ready = false;
 
   async firstUpdated() {
     try {
-      const rules = await loadRules();
+      let rules;
+      if (this.config.rulesJson) {
+        rules = JSON.parse(this.config.rulesJson);
+      } else {
+        rules = await loadRules();
+      }
       this.engine = new RuleEngine(rules);
       this.ready = true;
     } catch (error) {
@@ -158,15 +167,19 @@ export class HausgeistCard extends LitElement {
 
   setConfig(config: any) {
     this.config = config;
-    this.debug = !!config?.debug; // update debug property from config
+    this.debug = !!config?.debug;
+    this.notify = !!config?.notify;
+    this.highThreshold = typeof config?.highThreshold === 'number' ? config.highThreshold : 2000;
+    this.rulesJson = config?.rulesJson || '';
   }
 
   static getConfigElement() {
     return document.createElement('hausgeist-card-editor');
   }
   static getStubConfig() {
-    return { debug: false };
+    return { debug: false, notify: false, highThreshold: 2000, rulesJson: '' };
   }
+
   render() {
     if (!this.ready || !this.engine) {
       return html`<p>Loading…</p>`;
@@ -294,6 +307,7 @@ export class HausgeistCard extends LitElement {
         const found = states.find(fn);
         return found ? (found as any) : undefined;
       };
+
       const context: Record<string, any> = {
         target: Number(findState((e: any) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
         humidity: get('humidity'),
@@ -305,7 +319,7 @@ export class HausgeistCard extends LitElement {
         outside_temp: Number(findState((e: any) => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
         forecast_temp: Number(findState((e: any) => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
         energy: Number(findState((e: any) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
-        high_threshold: 2000,
+        high_threshold: this.highThreshold,
         temp_change_rate: 0,
         now: Date.now(),
         curtain: findState((e: any) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
@@ -335,10 +349,21 @@ export class HausgeistCard extends LitElement {
       .map((a) => {
         // Pick highest prio message for each area
         const top = a.evals.sort((a: any, b: any) => (prioOrder[b.priority as keyof typeof prioOrder] || 0) - (prioOrder[a.priority as keyof typeof prioOrder] || 0))[0];
+        if (!top) return null; // Skip if no evals
+        // Return area with its top message and used sensors
+        if (this.debug) {
+          debugOut.push(`Top message for ${a.area}: ${top.priority} - ${top.message_key}`);
+        }
+        if (!top.message_key) {
+          console.warn(`Missing message_key for area ${a.area} in evals:`, a.evals);
+          return null; // Skip if no message_key
+        }
         return { area: a.area, ...top, usedSensors: a.usedSensors };
       });
     const anySensorsUsed = areaMessages.some((areaMsg) => areaMsg.usedSensors && areaMsg.usedSensors.length > 0 && areaMsg.usedSensors.some((s) => s.entity_id !== '[NOT FOUND]'));
     const anyRulesApplied = areaMessages.some((a) => a.evals.length > 0);
+    // Render the card content
+
     return html`
       <h2>👻 Hausgeist sagt:</h2>
       ${!anySensorsUsed ? html`<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>` :

@@ -620,13 +620,23 @@ const TRANSLATIONS = { de, en };
 let HausgeistCard = class HausgeistCard extends i {
     constructor() {
         super(...arguments);
+        this.config = {};
         this.debug = false;
+        this.notify = false;
+        this.highThreshold = 2000;
+        this.rulesJson = '';
         this.texts = TRANSLATIONS['de'];
         this.ready = false;
     }
     async firstUpdated() {
         try {
-            const rules = await loadRules();
+            let rules;
+            if (this.config.rulesJson) {
+                rules = JSON.parse(this.config.rulesJson);
+            }
+            else {
+                rules = await loadRules();
+            }
             this.engine = new RuleEngine(rules);
             this.ready = true;
         }
@@ -638,13 +648,16 @@ let HausgeistCard = class HausgeistCard extends i {
     }
     setConfig(config) {
         this.config = config;
-        this.debug = !!config?.debug; // update debug property from config
+        this.debug = !!config?.debug;
+        this.notify = !!config?.notify;
+        this.highThreshold = typeof config?.highThreshold === 'number' ? config.highThreshold : 2000;
+        this.rulesJson = config?.rulesJson || '';
     }
     static getConfigElement() {
         return document.createElement('hausgeist-card-editor');
     }
     static getStubConfig() {
-        return { debug: false };
+        return { debug: false, notify: false, highThreshold: 2000, rulesJson: '' };
     }
     render() {
         if (!this.ready || !this.engine) {
@@ -784,7 +797,7 @@ let HausgeistCard = class HausgeistCard extends i {
                 outside_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
                 forecast_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
                 energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
-                high_threshold: 2000,
+                high_threshold: this.highThreshold,
                 temp_change_rate: 0,
                 now: Date.now(),
                 curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
@@ -812,10 +825,21 @@ let HausgeistCard = class HausgeistCard extends i {
             .map((a) => {
             // Pick highest prio message for each area
             const top = a.evals.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0))[0];
+            if (!top)
+                return null; // Skip if no evals
+            // Return area with its top message and used sensors
+            if (this.debug) {
+                debugOut.push(`Top message for ${a.area}: ${top.priority} - ${top.message_key}`);
+            }
+            if (!top.message_key) {
+                console.warn(`Missing message_key for area ${a.area} in evals:`, a.evals);
+                return null; // Skip if no message_key
+            }
             return { area: a.area, ...top, usedSensors: a.usedSensors };
         });
         const anySensorsUsed = areaMessages.some((areaMsg) => areaMsg.usedSensors && areaMsg.usedSensors.length > 0 && areaMsg.usedSensors.some((s) => s.entity_id !== '[NOT FOUND]'));
         const anyRulesApplied = areaMessages.some((a) => a.evals.length > 0);
+        // Render the card content
         return x `
       <h2>👻 Hausgeist sagt:</h2>
       ${!anySensorsUsed ? x `<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>` :
@@ -964,7 +988,7 @@ HausgeistCard.styles = i$3 `
     }
   `;
 __decorate([
-    n({ attribute: false })
+    n({ type: Object })
 ], HausgeistCard.prototype, "hass", void 0);
 __decorate([
     n({ type: Object })
@@ -972,6 +996,15 @@ __decorate([
 __decorate([
     n({ type: Boolean })
 ], HausgeistCard.prototype, "debug", void 0);
+__decorate([
+    n({ type: Boolean })
+], HausgeistCard.prototype, "notify", void 0);
+__decorate([
+    n({ type: Number })
+], HausgeistCard.prototype, "highThreshold", void 0);
+__decorate([
+    n({ type: String })
+], HausgeistCard.prototype, "rulesJson", void 0);
 HausgeistCard = __decorate([
     t('hausgeist-card')
 ], HausgeistCard);

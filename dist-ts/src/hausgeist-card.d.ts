@@ -3,11 +3,18 @@ import './hausgeist-card-editor';
 export declare class HausgeistCard extends LitElement {
     hass: any;
     config: {
-        area_id: string;
+        area_id?: string;
         overrides?: any;
-    } | undefined;
-    static styles: import("lit").CSSResult;
+        debug?: boolean;
+        notify?: boolean;
+        highThreshold?: number;
+        rulesJson?: string;
+    };
     debug: boolean;
+    notify: boolean;
+    highThreshold: number;
+    rulesJson: string;
+    static styles: import("lit").CSSResult;
     private engine?;
     private texts;
     private ready;
@@ -16,6 +23,9 @@ export declare class HausgeistCard extends LitElement {
     static getConfigElement(): HTMLElement;
     static getStubConfig(): {
         debug: boolean;
+        notify: boolean;
+        highThreshold: number;
+        rulesJson: string;
     };
     render(): import("lit-html").TemplateResult<1>;
 }

@@ -13,7 +13,7 @@ export class HausgeistCardEditor extends LitElement {
   setConfig(config: any) {
     this.config = config;
   }
-
+    // Set the hass instance when available
   set hassInstance(hass: any) {
     this.hass = hass;
     this.requestUpdate();
@@ -25,7 +25,7 @@ export class HausgeistCardEditor extends LitElement {
     this.config = { ...this.config, debug };
     this._configChanged();
   };
-
+    // Handle sensor selection change for a specific area and type
   _onAreaSensorChange(areaId: string, type: string, e: Event) {
     const entity_id = (e.target as HTMLSelectElement).value;
     const overrides = { ...(this.config.overrides || {}) };
@@ -33,7 +33,7 @@ export class HausgeistCardEditor extends LitElement {
     this.config = { ...this.config, overrides };
     this._configChanged();
   }
-
+    // Dispatch a custom event to notify that the config has changed
   _configChanged() {
     const event = new CustomEvent('config-changed', {
       detail: { config: this.config },
@@ -42,28 +42,28 @@ export class HausgeistCardEditor extends LitElement {
     });
     this.dispatchEvent(event);
   }
-
+    // Handle test value changes for a specific area and type
   handleTestValueChange(areaId: string, type: string, e: any) {
     const value = e.target.value;
     this.testValues = { ...this.testValues, [areaId + '_' + type]: value };
     this.requestUpdate();
   }
-
+    // Handle changes in the rules JSON text area
   handleRulesChange(e: any) {
     this.rulesJson = e.target.value;
     this._configChanged();
   }
-
+    // Handle changes in the notification checkbox
   handleNotifyChange(e: any) {
     this.notify = e.target.checked;
     this._configChanged();
   }
-
+    // Handle changes in the high threshold input
   handleThresholdChange(e: any) {
     this.highThreshold = Number(e.target.value);
     this._configChanged();
   }
-
+    // Render the editor UI
   render() {
     const hass = this.hass;
     const areas: Array<{ area_id: string; name: string }> = hass?.areas
