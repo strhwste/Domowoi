@@ -715,6 +715,8 @@ let HausgeistCard = class HausgeistCard extends i {
             debugOut.push(`DEBUG: states.length: ${states.length}`);
             debugOut.push(`DEBUG: Erste 10 area_id aus states:`);
             debugOut.push(states.filter((s) => s.attributes && s.attributes.area_id).slice(0, 10).map((s) => `${s.entity_id}: '${s.attributes.area_id}'`).join('\n'));
+            debugOut.push('DEBUG: Erste 3 States als JSON:');
+            debugOut.push(states.slice(0, 3).map((s) => JSON.stringify(s, null, 2)).join('\n---\n'));
         }
         // Debug-Hinweis oben anzeigen
         const debugBanner = this.debug ? x `<div style="background:#ffe; color:#a00; padding:0.5em; border:1px solid #cc0; margin-bottom:1em;">Debug active! (hausgeist-card)</div>` : '';
