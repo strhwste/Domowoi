@@ -557,9 +557,9 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             const autoId = autodetect(area.area_id, type);
             const selected = this.config.overrides?.[area.area_id]?.[type] || '';
             return x `<li>${type}:
-                  <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected}>
-                    <option value="" disabled hidden>(auto${autoId ? ': ' + autoId : ': none'})</option>
-                    ${sensors.map((s) => x `<option value="${s.entity_id}">${s.entity_id} (${s.attributes.friendly_name || ''})</option>`)}
+                  <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
+                    <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
+                    ${sensors.map((s) => x `<option value="${s.entity_id}" ?selected=${selected === s.entity_id}>${s.entity_id} (${s.attributes.friendly_name || ''})</option>`)}
                   </select>
                   <span style="color: #888; font-size: 0.95em; margin-left: 0.5em;">${autoId ? `Auto: ${autoId}` : 'Auto: none gefunden'}</span>
                 </li>`;
@@ -717,6 +717,17 @@ let HausgeistCard = class HausgeistCard extends i {
         const areaMessages = areaIds.map((area) => {
             const sensors = filterSensorsByArea(states, area);
             const usedSensors = [];
+            if (this.debug) {
+                // Zeige alle area_id Werte aus states
+                const allAreaIds = states
+                    .filter((s) => s.attributes && s.attributes.area_id)
+                    .map((s) => `${s.entity_id}: '${s.attributes.area_id}'`)
+                    .join('\n');
+                debugOut.push(`All area_id values in states:\n${allAreaIds}`);
+                // Zeige die Anzahl der gefundenen Sensoren pro Area
+                debugOut.push(`Area: ${area} | sensors.length: ${sensors.length}`);
+                debugOut.push(`Sensors found by filterSensorsByArea: ${sensors.map((s) => s.entity_id + ' (' + (s.attributes.device_class || '-') + ')').join(', ')}`);
+            }
             // Multilingual sensor keywords for fallback
             const SENSOR_KEYWORDS = {
                 temperature: [

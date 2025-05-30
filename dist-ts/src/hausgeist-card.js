@@ -80,6 +80,17 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         const areaMessages = areaIds.map((area) => {
             const sensors = filterSensorsByArea(states, area);
             const usedSensors = [];
+            if (this.debug) {
+                // Zeige alle area_id Werte aus states
+                const allAreaIds = states
+                    .filter((s) => s.attributes && s.attributes.area_id)
+                    .map((s) => `${s.entity_id}: '${s.attributes.area_id}'`)
+                    .join('\n');
+                debugOut.push(`All area_id values in states:\n${allAreaIds}`);
+                // Zeige die Anzahl der gefundenen Sensoren pro Area
+                debugOut.push(`Area: ${area} | sensors.length: ${sensors.length}`);
+                debugOut.push(`Sensors found by filterSensorsByArea: ${sensors.map((s) => s.entity_id + ' (' + (s.attributes.device_class || '-') + ')').join(', ')}`);
+            }
             // Multilingual sensor keywords for fallback
             const SENSOR_KEYWORDS = {
                 temperature: [
