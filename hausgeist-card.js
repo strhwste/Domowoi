@@ -270,57 +270,66 @@ let HausgeistCard = class HausgeistCard extends i {
     constructor() {
         super(...arguments);
         this.texts = {};
+        this.ready = false;
     }
     async firstUpdated() {
         const rules = await loadRules();
         this.engine = new RuleEngine(rules);
+        this.ready = true;
+        this.requestUpdate();
     }
     setConfig(config) {
-        if (!config.area_id)
-            throw new Error('area_id fehlt');
         this.config = config;
     }
     render() {
-        const area = this.config.area_id;
+        if (!this.ready || !this.engine) {
+            return x `<p>Loading…</p>`;
+        }
         const lang = this.hass.selectedLanguage || 'de';
         const langKey = lang;
         if (!this.texts || Object.keys(this.texts).length === 0) {
             this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
         }
-        // Kontext-Objekt für die RuleEngine bauen
         const states = Object.values(this.hass.states);
-        const sensors = filterSensorsByArea(states, area);
-        // Hilfsfunktion für Wert aus Sensor holen
-        const get = (cls) => {
-            const s = sensors.find(st => st.attributes.device_class === cls);
-            return s ? Number(s.state) : undefined;
-        };
-        // Kontextdaten extrahieren
-        const context = {
-            temp: get('temperature'),
-            humidity: get('humidity'),
-            co2: get('co2'),
-            target: Number(states.find(e => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? 21),
-            window: states.find(e => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
-            heating: states.find(e => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
-            motion: states.find(e => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
-            occupied: states.find(e => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
-            outside_temp: Number(states.find(e => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
-            forecast_temp: Number(states.find(e => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
-            energy: Number(states.find(e => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
-            high_threshold: 2000,
-            temp_change_rate: 0, // Hier ggf. Logik für Temperaturänderung einbauen
-            now: Date.now(),
-        };
-        const evals = this.engine.evaluate(context);
-        // Priorität sortieren und top 3
+        // Find all unique area_ids from entities
+        const areaIds = Array.from(new Set(states.map(e => e.attributes?.area_id).filter(Boolean)));
+        // For each area, evaluate rules and pick the most important message
         const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
-        // evals enthält jetzt {message_key, priority}, daher RuleEngine anpassen!
-        const top = evals.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0)).slice(0, 3);
+        const areaMessages = areaIds.map(area => {
+            const sensors = filterSensorsByArea(states, area);
+            const get = (cls) => {
+                const s = sensors.find(st => st.attributes.device_class === cls);
+                return s ? Number(s.state) : undefined;
+            };
+            const context = {
+                temp: get('temperature'),
+                humidity: get('humidity'),
+                co2: get('co2'),
+                target: Number(states.find(e => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? 21),
+                window: states.find(e => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
+                heating: states.find(e => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
+                motion: states.find(e => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+                occupied: states.find(e => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
+                outside_temp: Number(states.find(e => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
+                forecast_temp: Number(states.find(e => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
+                energy: Number(states.find(e => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
+                high_threshold: 2000,
+                temp_change_rate: 0,
+                now: Date.now(),
+            };
+            const evals = this.engine.evaluate(context);
+            if (evals.length === 0)
+                return null;
+            // Pick the most important message for this area
+            const top = evals.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0))[0];
+            return { area, ...top };
+        }).filter(Boolean);
+        // Sort all area messages by priority and pick top 3
+        const topMessages = areaMessages.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0)).slice(0, 3);
         return x `
       <h2>👻 Hausgeist sagt:</h2>
-      ${top.length === 0 ? x `<p class="ok">${this.texts['all_ok'] || 'Alles in Ordnung!'}</p>` :
-            top.map(e => x `<p class="${e.priority}">${this.texts[e.message_key] || e.message_key}</p>`)}
+      ${topMessages.length === 0 ? x `<p class="ok">${this.texts['all_ok'] || 'Alles in Ordnung!'}</p>` :
+            topMessages.map(e => x `<p class="${e.priority}"><b>${e.area}:</b> ${this.texts[e.message_key] || e.message_key}</p>`)}
     `;
     }
 };

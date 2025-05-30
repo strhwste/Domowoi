@@ -8,6 +8,7 @@ export declare class HausgeistCard extends LitElement {
     static styles: import("lit").CSSResult;
     private engine;
     private texts;
+    private ready;
     firstUpdated(): Promise<void>;
     setConfig(config: any): void;
     render(): import("lit-html").TemplateResult<1>;
