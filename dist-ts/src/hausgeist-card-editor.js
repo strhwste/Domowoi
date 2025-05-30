@@ -10,14 +10,15 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     constructor() {
         super(...arguments);
         this.config = {};
+        // Use arrow function to auto-bind 'this'
+        this._onDebugChange = (e) => {
+            const debug = e.target.checked;
+            this.config = { ...this.config, debug };
+            this._configChanged();
+        };
     }
     setConfig(config) {
         this.config = config;
-    }
-    _onDebugChange(e) {
-        const debug = e.target.checked;
-        this.config = { ...this.config, debug };
-        this._configChanged();
     }
     _configChanged() {
         const event = new CustomEvent('config-changed', {
@@ -34,7 +35,6 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
           <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
           Debug mode
         </label>
-        <!-- Add more config options here as needed -->
       </div>
     `;
     }
@@ -46,6 +46,3 @@ HausgeistCardEditor = __decorate([
     customElement('hausgeist-card-editor')
 ], HausgeistCardEditor);
 export { HausgeistCardEditor };
-// For Home Assistant visual editor autodiscovery
-window.customElements = window.customElements || {};
-window.customElements['hausgeist-card-editor'] = HausgeistCardEditor;

@@ -1,15 +1,18 @@
 # Domowoi
-A friendly Ghost who watches over your home and gives recomendations.
+A friendly Ghost who watches over your home and gives recommendations.
 
 # Hausgeist Card
 
 Eine intelligente, mehrsprachige Home Assistant Lovelace Karte für Raumklima, Energie und Komforthinweise.
 
 ## Features
-- Flexible, konfigurierbare Regeln (src/rules.json)
+- Flexible, konfigurierbare Regeln (`src/rules.json`)
 - Mehrsprachigkeit (de/en, leicht erweiterbar)
-- Automatische Auswertung aller Sensoren im gewählten Bereich
-- Modernes, anpassbares Design
+- Automatische Auswertung aller Sensoren im gewählten Bereich, robuste Erkennung (mehrsprachig, device_class und Name)
+- Zeigt die wichtigsten Hinweise für alle Räume/Bereiche (nicht nur einen)
+- Debug-Modus: Zeigt alle evaluierten Regeln pro Raum (umschaltbar im Editor)
+- Visueller Editor für Home Assistant (Lovelace UI)
+- Modernes, anpassbares Design (nutzt Home Assistant Theme-Variablen)
 
 ## Installation
 1. **Build** (im Projektordner):
@@ -29,18 +32,25 @@ Eine intelligente, mehrsprachige Home Assistant Lovelace Karte für Raumklima, E
 4. **Karte im Lovelace Dashboard einbinden:**
    ```yaml
    type: 'custom:hausgeist-card'
-   area_id: wohnzimmer
+   # area_id ist optional, die Karte zeigt automatisch alle Bereiche an
+   debug: false  # Optional: Debug-Modus anzeigen
    ```
-   (Passe `area_id` an deinen Bereich an)
+   (Passe weitere Optionen im visuellen Editor oder YAML an)
 
 ## Regeln & Übersetzungen
 - Regeln: `src/rules.json` (message_key, Bedingung als JS-Ausdruck)
 - Übersetzungen: `translations/de.json`, `translations/en.json`
+- Neue Regeln: z.B. für "Fenster schließen bei Regen", "Tür schließen bei Wärmeverlust", etc.
+
+## Visueller Editor
+- Die Karte unterstützt den Home Assistant Visual Editor (Lovelace UI).
+- Debug-Modus und weitere Optionen können direkt im Editor konfiguriert werden.
 
 ## Entwicklung
 - Quellcode: `src/`
 - Übersetzungen: `translations/`
 - Build: `npm run build`
+- Automatisches Kopieren der gebauten Datei für HACS/Manuelle Installation
 
 ## Lizenz
 Siehe LICENSE.
