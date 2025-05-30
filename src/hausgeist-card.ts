@@ -399,6 +399,7 @@ export class HausgeistCard extends LitElement {
       ${!anySensorsUsed ? html`<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>` :
         (!anyRulesApplied ? html`<p class="warning">⚠️ No rules applied (no comparisons made for any area).</p>` :
         topMessages.map(e => html`<p class="${e.priority}"><b>${e.area}:</b> ${this.texts?.[e.message_key] || `Missing translation: ${e.message_key}`}</p>`))}
+      <div class="debug" style="white-space:pre-wrap; background:#f5f5f5; color:#333; font-size:0.95em; margin-top:1em;">${debugOut.join('\n\n')}</div>
       ${this.debug ? html`
         <div class="sensors-used">
           <b>Sensors used:</b>
@@ -412,7 +413,6 @@ export class HausgeistCard extends LitElement {
             `)}
           </ul>
         </div>
-        <div class="debug">${debugOut.join('\n\n')}</div>
       ` : ''}
     `;
   }
