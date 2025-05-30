@@ -5,6 +5,7 @@ export declare class HausgeistCard extends LitElement {
     config: {
         area_id?: string;
         overrides?: any;
+        auto?: any;
         debug?: boolean;
         notify?: boolean;
         highThreshold?: number;

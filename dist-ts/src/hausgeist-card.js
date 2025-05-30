@@ -169,45 +169,16 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                         return s;
                     }
                 }
-                // 2. Autodetect by device_class
-                let s = sensors.find((st) => st.attributes.device_class === cls);
-                if (s) {
-                    usedSensors.push({ type: cls, entity_id: s.entity_id, value: s.state });
-                    return s;
+                // 2. Check for auto-detected sensor from config (as set by the editor)
+                const autoId = this.config?.auto?.[area]?.[cls];
+                if (autoId) {
+                    const s = sensors.find((st) => st.entity_id === autoId);
+                    if (s) {
+                        usedSensors.push({ type: cls + ' (auto)', entity_id: s.entity_id, value: s.state });
+                        return s;
+                    }
                 }
-                // 3. Fallback: search by friendly_name or entity_id for keywords
-                const keywords = SENSOR_KEYWORDS[cls] || [];
-                let found = sensors.find((st) => {
-                    const name = (st.attributes.friendly_name || '').toLowerCase();
-                    const eid = st.entity_id.toLowerCase();
-                    return keywords.some((k) => name.includes(k) || eid.includes(k));
-                });
-                if (found) {
-                    usedSensors.push({ type: cls, entity_id: found.entity_id, value: found.state });
-                    return found;
-                }
-                // 4. Extra fallback: look for sensors whose entity_id or friendly_name contains the area name
-                let areaName;
-                if (this.hass.areas && this.hass.areas[area]) {
-                    areaName = this.hass.areas[area].name?.toLowerCase() || area.toLowerCase();
-                }
-                else if (areas && Array.isArray(areas)) {
-                    const foundArea = areas.find(a => a.area_id === area);
-                    areaName = foundArea ? foundArea.name.toLowerCase() : area.toLowerCase();
-                }
-                else {
-                    areaName = area.toLowerCase();
-                }
-                found = sensors.find((st) => {
-                    const name = (st.attributes.friendly_name || '').toLowerCase();
-                    const eid = st.entity_id.toLowerCase();
-                    return name.includes(areaName) || eid.includes(areaName);
-                });
-                if (found) {
-                    usedSensors.push({ type: cls + ' (area-fallback)', entity_id: found.entity_id, value: found.state });
-                    return found;
-                }
-                // If still not found, log a warning in debug
+                // 3. No sensor found (no fallback matching in the card)
                 if (this.debug) {
                     usedSensors.push({ type: cls, entity_id: '[NOT FOUND]', value: 'No matching sensor found' });
                 }
@@ -336,55 +307,20 @@ HausgeistCard.styles = css `
           return s;
         }
       }
-      // 2. Autodetect by device_class
-      let s = sensors.find((st) => (st as any).attributes.device_class === cls);
-      if (s) {
-        usedSensors.push({
-          type: cls,
-          entity_id: (s as any).entity_id,
-          value: (s as any).state,
-        });
-        return s;
+      // 2. Check for auto-detected sensor from config (as set by the editor)
+      const autoId = this.config?.auto?.[area]?.[cls];
+      if (autoId) {
+        const s = sensors.find((st) => (st as any).entity_id === autoId);
+        if (s) {
+          usedSensors.push({
+            type: cls + ' (auto)',
+            entity_id: (s as any).entity_id,
+            value: (s as any).state,
+          });
+          return s;
+        }
       }
-      // 3. Fallback: search by friendly_name or entity_id for keywords
-      const keywords = SENSOR_KEYWORDS[cls] || [];
-      let found = sensors.find((st) => {
-        const name = ((st as any).attributes.friendly_name || '').toLowerCase();
-        const eid = (st as any).entity_id.toLowerCase();
-        return keywords.some((k: string) => name.includes(k) || eid.includes(k));
-      });
-      if (found) {
-        usedSensors.push({
-          type: cls,
-          entity_id: (found as any).entity_id,
-          value: (found as any).state,
-        });
-        return found;
-      }
-      // 4. Extra fallback: look for sensors whose entity_id or friendly_name contains the area name
-      let areaName: string;
-      if (this.hass.areas && this.hass.areas[area]) {
-        areaName = this.hass.areas[area].name?.toLowerCase() || area.toLowerCase();
-      } else if (areas && Array.isArray(areas)) {
-        const foundArea = areas.find(a => a.area_id === area);
-        areaName = foundArea ? foundArea.name.toLowerCase() : area.toLowerCase();
-      } else {
-        areaName = area.toLowerCase();
-      }
-      found = sensors.find((st) => {
-        const name = ((st as any).attributes.friendly_name || '').toLowerCase();
-        const eid = (st as any).entity_id.toLowerCase();
-        return name.includes(areaName) || eid.includes(areaName);
-      });
-      if (found) {
-        usedSensors.push({
-          type: cls + ' (area-fallback)',
-          entity_id: (found as any).entity_id,
-          value: (found as any).state,
-        });
-        return found;
-      }
-      // If still not found, log a warning in debug
+      // 3. No sensor found (no fallback matching in the card)
       if (this.debug) {
         usedSensors.push({
           type: cls,
