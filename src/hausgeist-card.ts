@@ -75,9 +75,15 @@ export class HausgeistCard extends LitElement {
         return found;
       }
       // 4. Extra fallback: look for sensors whose entity_id or friendly_name contains the area name
-      const areaName =
-        (this.hass.areas && this.hass.areas[area]?.name?.toLowerCase()) ||
-        area.toLowerCase();
+      let areaName: string;
+      if (this.hass.areas && this.hass.areas[area]) {
+        areaName = this.hass.areas[area].name?.toLowerCase() || area.toLowerCase();
+      } else if (areas && Array.isArray(areas)) {
+        const foundArea = areas.find(a => a.area_id === area);
+        areaName = foundArea ? foundArea.name.toLowerCase() : area.toLowerCase();
+      } else {
+        areaName = area.toLowerCase();
+      }
       found = sensors.find((st) => {
         const name = ((st as any).attributes.friendly_name || '').toLowerCase();
         const eid = (st as any).entity_id.toLowerCase();
@@ -313,7 +319,15 @@ export class HausgeistCard extends LitElement {
           return found;
         }
         // 4. Extra fallback: look for sensors whose entity_id or friendly_name contains the area name
-        const areaName = (this.hass.areas && this.hass.areas[area]?.name?.toLowerCase()) || area.toLowerCase();
+        let areaName: string;
+        if (this.hass.areas && this.hass.areas[area]) {
+          areaName = this.hass.areas[area].name?.toLowerCase() || area.toLowerCase();
+        } else if (areas && Array.isArray(areas)) {
+          const foundArea = areas.find(a => a.area_id === area);
+          areaName = foundArea ? foundArea.name.toLowerCase() : area.toLowerCase();
+        } else {
+          areaName = area.toLowerCase();
+        }
         found = sensors.find((st: any) => {
           const name = (st.attributes.friendly_name || '').toLowerCase();
           const eid = st.entity_id.toLowerCase();
