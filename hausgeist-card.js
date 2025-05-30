@@ -359,7 +359,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
     constructor() {
         super(...arguments);
         this.config = {};
-        this.hass = undefined;
+        this._hass = undefined;
         this.testValues = {};
         this.rulesJson = '';
         this.notify = false;
@@ -374,10 +374,15 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
     setConfig(config) {
         this.config = config;
     }
-    set hassInstance(hass) {
-        this.hass = hass;
+    // Getter and setter for hass
+    get hass() {
+        return this._hass;
+    }
+    set hass(hass) {
+        this._hass = hass;
         this.requestUpdate();
     }
+    // Handle sensor selection change for a specific area and type
     _onAreaSensorChange(areaId, type, e) {
         const entity_id = e.target.value;
         const overrides = { ...(this.config.overrides || {}) };
@@ -385,6 +390,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         this.config = { ...this.config, overrides };
         this._configChanged();
     }
+    // Dispatch a custom event to notify that the config has changed
     _configChanged() {
         const event = new CustomEvent('config-changed', {
             detail: { config: this.config },
@@ -393,23 +399,28 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         });
         this.dispatchEvent(event);
     }
+    // Handle test value changes for a specific area and type
     handleTestValueChange(areaId, type, e) {
         const value = e.target.value;
         this.testValues = { ...this.testValues, [areaId + '_' + type]: value };
         this.requestUpdate();
     }
+    // Handle changes in the rules JSON text area
     handleRulesChange(e) {
         this.rulesJson = e.target.value;
         this._configChanged();
     }
+    // Handle changes in the notification checkbox
     handleNotifyChange(e) {
         this.notify = e.target.checked;
         this._configChanged();
     }
+    // Handle changes in the high threshold input
     handleThresholdChange(e) {
         this.highThreshold = Number(e.target.value);
         this._configChanged();
     }
+    // Render the editor UI
     render() {
         const hass = this.hass;
         const areas = hass?.areas
@@ -495,7 +506,17 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             this.rulesJson = JSON.stringify(hass.rules, null, 2);
         // Feature 8: Benachrichtigungsoptionen (Checkbox für Notification)
         // Feature 9: Konfigurierbare Schwellenwerte im Editor
+        // DEBUG: Show info about areas and states
+        const debugInfo = x `
+      <div style="background:#eee; color:#333; font-size:0.95em; padding:0.5em; margin-bottom:1em; border-radius:0.3em;">
+        <b>Debug Info:</b><br>
+        Areas: ${areas.length} | States: ${states.length}<br>
+        Areas: ${areas.map(a => a.name).join(', ')}<br>
+        Example state: ${states[0] && states[0].entity_id ? states[0].entity_id : 'none'}
+      </div>
+    `;
         return x `
+      ${debugInfo}
       <style>
         select { max-width: 260px; font-size: 1em; }
         .card-config { font-family: inherit; }
@@ -591,9 +612,6 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
 __decorate$1([
     n({ type: Object })
 ], HausgeistCardEditor.prototype, "config", void 0);
-__decorate$1([
-    n({ type: Object })
-], HausgeistCardEditor.prototype, "hass", void 0);
 __decorate$1([
     n({ type: Object })
 ], HausgeistCardEditor.prototype, "testValues", void 0);

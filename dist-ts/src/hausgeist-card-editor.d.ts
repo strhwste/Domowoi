@@ -4,7 +4,7 @@ export declare class HausgeistCardEditor extends LitElement {
         debug?: boolean;
         overrides?: Record<string, Record<string, string>>;
     };
-    hass: any;
+    private _hass;
     testValues: {
         [key: string]: any;
     };
@@ -12,7 +12,8 @@ export declare class HausgeistCardEditor extends LitElement {
     notify: boolean;
     highThreshold: number;
     setConfig(config: any): void;
-    set hassInstance(hass: any);
+    get hass(): any;
+    set hass(hass: any);
     _onDebugChange: (e: Event) => void;
     _onAreaSensorChange(areaId: string, type: string, e: Event): void;
     _configChanged(): void;

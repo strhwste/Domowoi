@@ -4,7 +4,7 @@ import { property, customElement } from 'lit/decorators.js';
 @customElement('hausgeist-card-editor')
 export class HausgeistCardEditor extends LitElement {
   @property({ type: Object }) config: { debug?: boolean, overrides?: Record<string, Record<string, string>> } = {};
-  @property({ type: Object }) hass: any = undefined;
+  private _hass: any = undefined;
   @property({ type: Object }) testValues: { [key: string]: any } = {};
   @property({ type: String }) rulesJson = '';
   @property({ type: Boolean }) notify = false;
@@ -13,9 +13,12 @@ export class HausgeistCardEditor extends LitElement {
   setConfig(config: any) {
     this.config = config;
   }
-    // Set the hass instance when available
-  set hassInstance(hass: any) {
-    this.hass = hass;
+  // Getter and setter for hass
+  get hass() {
+    return this._hass;
+  }
+  set hass(hass: any) {
+    this._hass = hass;
     this.requestUpdate();
   }
 
@@ -144,7 +147,17 @@ export class HausgeistCardEditor extends LitElement {
     if (!this.rulesJson && hass?.rules) this.rulesJson = JSON.stringify(hass.rules, null, 2);
     // Feature 8: Benachrichtigungsoptionen (Checkbox für Notification)
     // Feature 9: Konfigurierbare Schwellenwerte im Editor
+    // DEBUG: Show info about areas and states
+    const debugInfo = html`
+      <div style="background:#eee; color:#333; font-size:0.95em; padding:0.5em; margin-bottom:1em; border-radius:0.3em;">
+        <b>Debug Info:</b><br>
+        Areas: ${areas.length} | States: ${states.length}<br>
+        Areas: ${areas.map(a => a.name).join(', ')}<br>
+        Example state: ${states[0] && (states[0] as any).entity_id ? (states[0] as any).entity_id : 'none'}
+      </div>
+    `;
     return html`
+      ${debugInfo}
       <style>
         select { max-width: 260px; font-size: 1em; }
         .card-config { font-family: inherit; }
