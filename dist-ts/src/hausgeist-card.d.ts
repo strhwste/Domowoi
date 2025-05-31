@@ -39,5 +39,6 @@ export declare class HausgeistCard extends LitElement {
     private _findSensor;
     render(): import("lit-html").TemplateResult<1>;
     private _buildContext;
+    private _calculateTempChangeRate;
     private _getTargetTemperature;
 }

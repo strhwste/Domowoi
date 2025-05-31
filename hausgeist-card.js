@@ -1117,6 +1117,7 @@ let HausgeistCard = class HausgeistCard extends i {
             // Get target temperature, default to config override or 21°C
             const context = {
                 target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
+                temp: get('temperature'),
                 humidity: get('humidity'),
                 co2: get('co2'),
                 window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
@@ -1127,11 +1128,10 @@ let HausgeistCard = class HausgeistCard extends i {
                 forecast_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
                 energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
                 high_threshold: this.highThreshold,
-                temp_change_rate: 0,
+                temp_change_rate: this._calculateTempChangeRate(area, states),
                 now: Date.now(),
                 curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
                 blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
-                // Ergänzungen für Regeln
                 rain_soon: findState((e) => e.entity_id.includes('rain') && e.attributes.area_id === area)?.state === 'on' || false,
                 adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
                 air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
@@ -1245,6 +1245,25 @@ let HausgeistCard = class HausgeistCard extends i {
             adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
             air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
         };
+    }
+    _calculateTempChangeRate(area, states) {
+        try {
+            const tempSensor = states.find(s => s.attributes?.area_id === area && s.entity_id.includes('temperature'));
+            if (tempSensor) {
+                const history = tempSensor.attributes?.history || [];
+                if (history.length >= 2) {
+                    const [latest, previous] = history.slice(-2);
+                    const timeDiff = (latest.timestamp - previous.timestamp) / 3600000; // Convert ms to hours
+                    if (timeDiff > 0) {
+                        return (latest.value - previous.value) / timeDiff;
+                    }
+                }
+            }
+        }
+        catch (error) {
+            console.error('Error calculating temperature change rate:', error);
+        }
+        return 0; // Default to 0 if calculation fails
     }
     _getTargetTemperature(area, states, defaultTarget) {
         try {

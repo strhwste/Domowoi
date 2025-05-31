@@ -215,193 +215,233 @@ export class HausgeistCardEditor extends LitElement {
     // Styles einbinden
     return html`
       <style>
-        .card-config {
-          padding: 1em;
-        }
-        hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
-        select { min-width: 200px; }
-        li { margin: 0.2em 0; }
-        .sensor-row {
-          display: flex;
-          align-items: center;
-          gap: 0.5em;
-          margin-bottom: 0.5em;
-        }
-        .target-row {
-          margin-bottom: 1em;
-        }
-        .sensor-label {
-          min-width: 120px;
-          font-weight: bold;
-        }
-        .sensor-select {
-          flex-grow: 1;
-        }
-        .help-text {
-          color: #666;
-          font-size: 0.9em;
-          margin-top: 0.3em;
-        }
+      .card-config {
+        padding: 1em;
+      }
+      hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
+      select { min-width: 200px; }
+      li { margin: 0.2em 0; }
+      .sensor-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        margin-bottom: 0.5em;
+      }
+      .target-row {
+        margin-bottom: 1em;
+      }
+      .sensor-label {
+        min-width: 120px;
+        font-weight: bold;
+      }
+      .sensor-select {
+        flex-grow: 1;
+      }
+      .help-text {
+        color: #666;
+        font-size: 0.9em;
+        margin-top: 0.3em;
+      }
+      .weather-info {
+        margin-top: 0.5em;
+        font-size: 0.95em;
+        color: #333;
+      }
       </style>
       <div class="card-config">
-        <!-- Debug Mode -->
-        <label>
-          <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
-          Debug mode
-        </label>
+      <!-- Debug Mode -->
+      <label>
+        <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
+        Debug mode
+      </label>
 
-        <!-- Weather Entity Selection -->
-        <div style="margin-top:1em;">
-          <b>Weather Entity:</b>
-          <select @change=${(e: Event) => {
-            this.config = { 
-              ...this.config, 
-              weather_entity: (e.target as HTMLSelectElement).value 
-            };
-            this._configChanged();
-          }} .value=${this.config.weather_entity || 'weather.home'}>
-            ${weatherEntities.map(entity => html`
-              <option value="${entity.entity_id}">${entity.name} (${entity.entity_id})</option>
-            `)}
-          </select>
-        </div>
-
-        <!-- Default Target Temperature -->
-        <div style="margin-top:1em;">
-          <b>Default Target Temperature:</b>
-          <input 
-            type="number" 
-            min="15" 
-            max="30" 
-            step="0.5"
-            .value=${this.config.default_target || "21"} 
-            @change=${(e: Event) => {
-              this.config = {
-                ...this.config,
-                default_target: Number((e.target as HTMLInputElement).value)
-              };
-              this._configChanged();
-            }}
-          />°C
-        </div>
-
-        <hr />
-        <b>Areas and Sensors:</b>
-        ${areas.map(area => {
-          const isEnabled = this.config.areas?.find(a => a.area_id === area.area_id)?.enabled !== false;
+      <!-- Weather Entity Selection -->
+      <div style="margin-top:1em;">
+        <b>Weather Entity:</b>
+        <select 
+        @change=${(e: Event) => {
+          this.config = { 
+          ...this.config, 
+          weather_entity: (e.target as HTMLSelectElement).value 
+          };
+          this._configChanged();
+        }}
+        >
+        ${weatherEntities.map(entity => html`
+          <option 
+          value="${entity.entity_id}" 
+          ?selected=${(this.config.weather_entity || 'weather.home') === entity.entity_id}
+          >
+          ${entity.name} (${entity.entity_id})
+          </option>
+        `)}
+        </select>
+        ${
+        (() => {
+          const selectedWeather = hass?.states?.[this.config.weather_entity || 'weather.home'];
+          if (!selectedWeather) return '';
+          const temp = selectedWeather.attributes?.temperature;
+          const tempUnit = selectedWeather.attributes?.temperature_unit || selectedWeather.attributes?.unit_of_measurement || '°C';
+          // Rain: try precipitation, precipitation_probability, or forecast
+          let rain = selectedWeather.attributes?.precipitation;
+          let rainUnit = selectedWeather.attributes?.precipitation_unit || 'mm';
+          if (rain === undefined && selectedWeather.attributes?.forecast && Array.isArray(selectedWeather.attributes.forecast) && selectedWeather.attributes.forecast.length > 0) {
+          rain = selectedWeather.attributes.forecast[0].precipitation ?? selectedWeather.attributes.forecast[0].rain;
+          rainUnit = selectedWeather.attributes.forecast[0].precipitation_unit || rainUnit;
+          }
+          // Precipitation probability
+          let rainProb = selectedWeather.attributes?.precipitation_probability;
+          if (rainProb === undefined && selectedWeather.attributes?.forecast && Array.isArray(selectedWeather.attributes.forecast) && selectedWeather.attributes.forecast.length > 0) {
+          rainProb = selectedWeather.attributes.forecast[0].precipitation_probability;
+          }
           return html`
-          <div class="${isEnabled ? '' : 'disabled-area'}">
-            <div class="area-header">
-              <input 
-                type="checkbox" 
-                .checked=${isEnabled} 
-                @change=${(e: Event) => this._onAreaEnabledChange(area.area_id, e)}
-              />
-              <b>${area.name || area.area_id}</b>
-            </div>
-            <ul>
-              ${requiredSensorTypes.map(type => {
-                const areaSensors = states.filter((e: any) => e.attributes?.area_id === area.area_id);
-                const matchingByClass = areaSensors.filter((e: any) => e.attributes?.device_class === type);
-                const matchingByKeyword = areaSensors.filter((e: any) => {
-                  const keywords = SENSOR_KEYWORDS[type] || [type];
-                  return keywords.some(k => 
-                    e.entity_id.toLowerCase().includes(k) || 
-                    (e.attributes.friendly_name || '').toLowerCase().includes(k)
-                  ) && !matchingByClass.includes(e);
-                });
-                const otherSensors = areaSensors.filter(s => 
-                  !matchingByClass.includes(s) && !matchingByKeyword.includes(s)
-                );
-
-                const autoId = this._autodetect(area.area_id, type);
-                const selected = this.config.overrides?.[area.area_id]?.[type] || '';
-
-                return html`
-                <li>
-                  <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
-                    <span class="sensor-label">
-                      ${type === 'target' ? 'Zieltemperatur' : 
-                        type === 'heating' ? 'Heizung' :
-                        type === 'heating_level' ? 'Heizleistung' :
-                        type}:
-                    </span>
-                    <div class="sensor-select">
-                      <select @change=${(e: Event) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
-                        ${type === 'target' ? html`
-                          <option value="">(Standard: ${this.config.default_target || 21}°C)</option>
-                          <option value="none">Keine automatische Anpassung</option>
-                        ` : html`
-                          <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
-                          <option value="none">Kein Sensor</option>
-                        `}
-                        
-                        ${matchingByClass.length > 0 ? html`
-                          <optgroup label="Passende Sensoren (nach Device Class)">
-                            ${matchingByClass.map((s: any) => html`
-                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                                ${s.attributes.friendly_name || s.entity_id} 
-                                [${s.state}${type === 'target' || type === 'temperature' ? '°C' : 
-                                           type === 'heating_level' ? '%' : 
-                                           s.attributes.unit_of_measurement || ''}]
-                              </option>
-                            `)}
-                          </optgroup>
-                        ` : ''}
-                        
-                        ${matchingByKeyword.length > 0 ? html`
-                          <optgroup label="Passende Sensoren (nach Name)">
-                            ${matchingByKeyword.map((s: any) => html`
-                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                                ${s.attributes.friendly_name || s.entity_id} 
-                                [${s.state}${s.attributes.unit_of_measurement || ''}]
-                              </option>
-                            `)}
-                          </optgroup>
-                        ` : ''}
-                        
-                        ${otherSensors.length > 0 ? html`
-                          <optgroup label="Andere Sensoren">
-                            ${otherSensors.map((s: any) => html`
-                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                                ${s.attributes.friendly_name || s.entity_id} 
-                                [${s.state}${s.attributes.unit_of_measurement || ''}]
-                                ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
-                              </option>
-                            `)}
-                          </optgroup>
-                        ` : ''}
-                      </select>
-                      ${type === 'target' ? html`
-                        <div class="help-text">
-                          Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
-                          um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
-                        </div>
-                      ` : ''}
-                    </div>
-                  </div>
-                </li>
-                `;
-              })}
-            </ul>
+          <div class="weather-info">
+            Temperatur: ${temp !== undefined ? `${temp} ${tempUnit}` : 'n/a'}
+            <br />
+            Regen: ${rain !== undefined ? `${rain} ${rainUnit}` : 'n/a'}
+            ${rainProb !== undefined ? html`<br />Regenwahrscheinlichkeit: ${rainProb}%` : ''}
           </div>
-        `})}
+          `;
+        })()
+        }
+      </div>
+
+      <!-- Default Target Temperature -->
+      <div style="margin-top:1em;">
+        <b>Default Target Temperature:</b>
+        <input 
+        type="number" 
+        min="15" 
+        max="30" 
+        step="0.5"
+        .value=${this.config.default_target || "21"} 
+        @change=${(e: Event) => {
+          this.config = {
+          ...this.config,
+          default_target: Number((e.target as HTMLInputElement).value)
+          };
+          this._configChanged();
+        }}
+        />°C
+      </div>
+
+      <hr />
+      <b>Areas and Sensors:</b>
+      ${areas.map(area => {
+        const isEnabled = this.config.areas?.find(a => a.area_id === area.area_id)?.enabled !== false;
+        return html`
+        <div class="${isEnabled ? '' : 'disabled-area'}">
+        <div class="area-header">
+          <input 
+          type="checkbox" 
+          .checked=${isEnabled} 
+          @change=${(e: Event) => this._onAreaEnabledChange(area.area_id, e)}
+          />
+          <b>${area.name || area.area_id}</b>
+        </div>
+        <ul>
+          ${requiredSensorTypes.map(type => {
+          const areaSensors = states.filter((e: any) => e.attributes?.area_id === area.area_id);
+          const matchingByClass = areaSensors.filter((e: any) => e.attributes?.device_class === type);
+          const matchingByKeyword = areaSensors.filter((e: any) => {
+            const keywords = SENSOR_KEYWORDS[type] || [type];
+            return keywords.some(k => 
+            e.entity_id.toLowerCase().includes(k) || 
+            (e.attributes.friendly_name || '').toLowerCase().includes(k)
+            ) && !matchingByClass.includes(e);
+          });
+          const otherSensors = areaSensors.filter(s => 
+            !matchingByClass.includes(s) && !matchingByKeyword.includes(s)
+          );
+
+          const autoId = this._autodetect(area.area_id, type);
+          const selected = this.config.overrides?.[area.area_id]?.[type] || '';
+
+          return html`
+          <li>
+            <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
+            <span class="sensor-label">
+              ${type === 'target' ? 'Zieltemperatur' : 
+              type === 'heating' ? 'Heizung' :
+              type === 'heating_level' ? 'Heizleistung' :
+              type}:
+            </span>
+            <div class="sensor-select">
+              <select @change=${(e: Event) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
+              ${type === 'target' ? html`
+                <option value="">(Standard: ${this.config.default_target || 21}°C)</option>
+                <option value="none">Keine automatische Anpassung</option>
+              ` : html`
+                <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
+                <option value="none">Kein Sensor</option>
+              `}
+              
+              ${matchingByClass.length > 0 ? html`
+                <optgroup label="Passende Sensoren (nach Device Class)">
+                ${matchingByClass.map((s: any) => html`
+                  <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                  ${s.attributes.friendly_name || s.entity_id} 
+                  [${s.state}${type === 'target' || type === 'temperature' ? '°C' : 
+                         type === 'heating_level' ? '%' : 
+                         s.attributes.unit_of_measurement || ''}]
+                  </option>
+                `)}
+                </optgroup>
+              ` : ''}
+              
+              ${matchingByKeyword.length > 0 ? html`
+                <optgroup label="Passende Sensoren (nach Name)">
+                ${matchingByKeyword.map((s: any) => html`
+                  <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                  ${s.attributes.friendly_name || s.entity_id} 
+                  [${s.state}${s.attributes.unit_of_measurement || ''}]
+                  </option>
+                `)}
+                </optgroup>
+              ` : ''}
+              
+              ${otherSensors.length > 0 ? html`
+                <optgroup label="Andere Sensoren">
+                ${otherSensors.map((s: any) => html`
+                  <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                  ${s.attributes.friendly_name || s.entity_id} 
+                  [${s.state}${s.attributes.unit_of_measurement || ''}]
+                  ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
+                  </option>
+                `)}
+                </optgroup>
+              ` : ''}
+              </select>
+              ${type === 'target' ? html`
+              <div class="help-text">
+                Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
+                um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
+              </div>
+              ` : ''}
+            </div>
+            </div>
+          </li>
+          `;
+          })}
+        </ul>
+        </div>
+      `})}
       </div>
 
       <!-- Missing Sensors per Area -->
       <div style="margin-top:1em;">
-        <b>Fehlende Sensoren pro Bereich:</b>
-        <ul>
-          ${missingSensorsPerArea.map(a => html`<li><b>${a.area.name}</b>: ${a.missing.length === 0 ? 'Alle gefunden' : a.missing.join(', ')}</li>`)}
-        </ul>
+      <b>Fehlende Sensoren pro Bereich:</b>
+      <ul>
+        ${missingSensorsPerArea.map(a => html`<li><b>${a.area.name}</b>: ${a.missing.length === 0 ? 'Alle gefunden' : a.missing.join(', ')}</li>`)}
+      </ul>
       </div>
 
       <!-- Notifications & High Threshold -->
       <div style="margin-top:1em;">
-        <label><input type="checkbox" .checked=${this.notify} @change=${this.handleNotifyChange} /> Regel-Treffer als Home Assistant Notification anzeigen</label>
+      <label><input type="checkbox" .checked=${this.notify} @change=${this.handleNotifyChange} /> Regel-Treffer als Home Assistant Notification anzeigen</label>
       </div>
       <div style="margin-top:1em;">
-        <label>High Threshold: <input type="number" .value=${this.highThreshold} @input=${this.handleThresholdChange} /></label>
+      <label>High Threshold: <input type="number" .value=${this.highThreshold} @input=${this.handleThresholdChange} /></label>
       </div>
     `;
   }
