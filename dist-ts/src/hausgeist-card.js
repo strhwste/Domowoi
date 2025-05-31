@@ -197,6 +197,14 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
         };
     }
+    setConfig(config) {
+        this.config = config;
+        this.debug = !!config?.debug;
+        this.notify = !!config?.notify;
+        this.highThreshold = typeof config?.highThreshold === 'number' ? config.highThreshold : 2000;
+        this.rulesJson = config?.rulesJson || '';
+        this.requestUpdate();
+    }
 };
 HausgeistCard.styles = css `
     :host {

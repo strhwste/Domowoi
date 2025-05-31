@@ -27,5 +27,6 @@ export declare class HausgeistCard extends LitElement {
     private _findSensor;
     render(): import("lit-html").TemplateResult<1>;
     private _buildContext;
+    setConfig(config: any): void;
     static styles: import("lit").CSSResult;
 }

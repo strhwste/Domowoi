@@ -244,6 +244,15 @@ export class HausgeistCard extends LitElement {
     };
   }
 
+  public setConfig(config: any) {
+    this.config = config;
+    this.debug = !!config?.debug;
+    this.notify = !!config?.notify;
+    this.highThreshold = typeof config?.highThreshold === 'number' ? config.highThreshold : 2000;
+    this.rulesJson = config?.rulesJson || '';
+    this.requestUpdate();
+  }
+
   static styles = css`
     :host {
       display: block;
