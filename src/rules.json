@@ -1,7 +1,7 @@
 [
   {
     "id": "debug",
-    "condition": "true",
+    "condition": "debug === true",
     "message_key": "debug_rule_match",
     "priority": "info"
   },

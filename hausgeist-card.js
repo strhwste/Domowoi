@@ -37,36 +37,6 @@ const t=t=>(e,o)=>{ void 0!==o?o.addInitializer((()=>{customElements.define(t,e)
  * SPDX-License-Identifier: BSD-3-Clause
  */const o={attribute:true,type:String,converter:u$1,reflect:false,hasChanged:f$1},r=(t=o,e,r)=>{const{kind:n,metadata:i}=r;let s=globalThis.litPropertyMetadata.get(i);if(void 0===s&&globalThis.litPropertyMetadata.set(i,s=new Map),"setter"===n&&((t=Object.create(t)).wrapped=true),s.set(r.name,t),"accessor"===n){const{name:o}=r;return {set(r){const n=e.get.call(this);e.set.call(this,r),this.requestUpdate(o,n,t);},init(e){return void 0!==e&&this.C(o,void 0,t,e),e}}}if("setter"===n){const{name:o}=r;return function(r){const n=this[o];e.call(this,r),this.requestUpdate(o,n,t);}}throw Error("Unsupported decorator location: "+n)};function n(t){return (e,o)=>"object"==typeof o?r(t,e,o):((t,e,o)=>{const r=e.hasOwnProperty(o);return e.constructor.createProperty(o,t),r?Object.getOwnPropertyDescriptor(e,o):void 0})(t,e,o)}
 
-class RuleEngine {
-    constructor(rules) {
-        this.rules = [];
-        this.rules = rules;
-        console.log('[RuleEngine] Initialized with', rules.length, 'rules');
-    }
-    evaluate(context) {
-        // Debug: log available context
-        console.log('[RuleEngine] Evaluating rules with context:', context);
-        const results = [];
-        for (const rule of this.rules) {
-            let hit = false;
-            try {
-                // eslint-disable-next-line no-new-func
-                hit = Function(...Object.keys(context), `return (${rule.condition});`)(...Object.values(context));
-                console.log(`[RuleEngine] Rule '${rule.id || rule.message_key}' (${rule.condition}) => ${hit}`);
-            }
-            catch (e) {
-                console.warn(`[RuleEngine] Error evaluating rule '${rule.id || rule.message_key}':`, e);
-                continue;
-            }
-            if (hit) {
-                results.push({ message_key: rule.message_key, priority: rule.priority });
-            }
-        }
-        console.log('[RuleEngine] Evaluation complete,', results.length, 'rules matched');
-        return results;
-    }
-}
-
 function filterSensorsByArea(states, areaId) {
     // Vergleiche areaId und st.attributes.area_id getrimmt und in Kleinbuchstaben
     const norm = (v) => (v || '').toLowerCase().trim();
@@ -87,229 +57,6 @@ function filterSensorsByArea(states, areaId) {
     filtered.forEach(s => console.log(`- ${s.entity_id}`));
     return filtered;
 }
-
-var coreRules = [
-	{
-		id: "debug",
-		condition: "true",
-		message_key: "debug_rule_match",
-		priority: "info"
-	},
-	{
-		condition: "temp > target + 2",
-		message_key: "temp_above_target",
-		priority: "warn"
-	},
-	{
-		condition: "temp < target - 2",
-		message_key: "temp_below_target",
-		priority: "warn"
-	},
-	{
-		condition: "humidity < 35",
-		message_key: "humidity_low",
-		priority: "info"
-	},
-	{
-		condition: "humidity > 70",
-		message_key: "humidity_high",
-		priority: "alert"
-	},
-	{
-		condition: "co2 > 1000",
-		message_key: "co2_high",
-		priority: "warn"
-	},
-	{
-		condition: "window == 'open' && heating == 'on'",
-		message_key: "window_open_heating_on",
-		priority: "alert"
-	},
-	{
-		condition: "!occupied && temp > 21",
-		message_key: "room_empty_warm",
-		priority: "info"
-	},
-	{
-		condition: "outside_temp > 15 && temp > 23",
-		message_key: "outside_warm_inside_warm",
-		priority: "info"
-	},
-	{
-		condition: "forecast_temp > 18 && target > 21",
-		message_key: "forecast_warmer_target_high",
-		priority: "info"
-	},
-	{
-		condition: "energy > high_threshold",
-		message_key: "energy_high",
-		priority: "warn"
-	},
-	{
-		condition: "target == 0",
-		message_key: "eco_mode",
-		priority: "ok"
-	},
-	{
-		condition: "temp_change_rate > 2",
-		message_key: "temp_rising_fast",
-		priority: "warn"
-	},
-	{
-		condition: "motion == false && heating == 'on'",
-		message_key: "no_motion_heating_on",
-		priority: "info"
-	},
-	{
-		condition: "outside_temp < temp - 3 && now % 86400000 < 9 * 3600000",
-		message_key: "morning_cool_outside",
-		priority: "info"
-	},
-	{
-		condition: "outside_temp > temp && now % 86400000 > 11 * 3600000 && window == 'open'",
-		message_key: "afternoon_window_open_hot_outside",
-		priority: "warn"
-	},
-	{
-		condition: "forecast_temp > 26 && temp < 23 && now % 86400000 < 8 * 3600000",
-		message_key: "hot_day_morning_ventilate",
-		priority: "info"
-	},
-	{
-		condition: "forecast_temp > 28 && window == 'open' && now % 86400000 > 12 * 3600000",
-		message_key: "very_hot_window_open",
-		priority: "alert"
-	},
-	{
-		condition: "outside_temp < 18 && temp > 24 && now % 86400000 < 7 * 3600000",
-		message_key: "early_cool_outside_ventilate",
-		priority: "info"
-	},
-	{
-		condition: "window == 'closed' && outside_temp > temp && temp > 23 && now % 86400000 > 11 * 3600000",
-		message_key: "keep_window_closed_cool_inside",
-		priority: "info"
-	},
-	{
-		condition: "(curtain == 'open' || blind == 'open') && outside_temp > 26 && now % 86400000 > 11 * 3600000",
-		message_key: "close_curtains_to_keep_cool",
-		priority: "info"
-	},
-	{
-		condition: "window == 'open' && rain_soon == true",
-		message_key: "rain_soon_close_window",
-		priority: "alert"
-	},
-	{
-		condition: "door == 'open' && heating == 'on' && adjacent_room_temp > temp + 1",
-		message_key: "close_door_to_save_heat",
-		priority: "info"
-	},
-	{
-		condition: "air_quality == 'poor' && window == 'closed'",
-		message_key: "ventilate_air_quality_poor",
-		priority: "warn"
-	},
-	{
-		condition: "humidity > 70 && window == 'closed'",
-		message_key: "ventilate_high_humidity",
-		priority: "info"
-	},
-	{
-		condition: "forecast_sun == true && now % 86400000 > 7 * 3600000 && blind == 'closed' && temp < 21",
-		message_key: "open_blinds_for_sun_warmth",
-		priority: "info"
-	},
-	{
-		condition: "window == 'open' && outside_temp < 10 && now % 86400000 > 22 * 3600000",
-		message_key: "window_open_night_cold",
-		priority: "alert"
-	},
-	{
-		condition: "temp < 17 && window == 'open'",
-		message_key: "room_too_cold_window_open",
-		priority: "warn"
-	},
-	{
-		condition: "humidity > 70 && temp - (outside_temp + (humidity/100)*(temp-outside_temp)) < 2",
-		message_key: "mold_risk_dew_point",
-		priority: "alert"
-	}
-];
-
-async function loadRules() {
-    // Core-Regeln
-    return coreRules;
-}
-
-var low_humidity$1 = "Humidity below 35% – please ventilate or humidify";
-var high_co2$1 = "High CO₂ levels – please air out";
-var cold_temp$1 = "Temperature below 18 °C – check heating or windows";
-var all_ok$1 = "All good here 🎉";
-var temp_above_target$1 = "⚠️ Temperature well above target – check heating curve.";
-var temp_below_target$1 = "❄️ Room is undercooled – check heating or windows.";
-var humidity_low$1 = "💧 Humidity too low – consider using a humidifier.";
-var humidity_high$1 = "🌫️ Humidity too high – ventilation recommended (risk of mold).";
-var co2_high$1 = "🌬️ CO₂ level too high – ventilate to improve air quality.";
-var window_open_heating_on$1 = "🪟 Heating is on while window is open – avoid energy loss.";
-var room_empty_warm$1 = "📉 Room is empty but warm – adjust heating profile?";
-var outside_warm_inside_warm$1 = "☀️ It's warm outside – reduce heating demand.";
-var forecast_warmer_target_high$1 = "📅 Tomorrow will be warmer – lower target temperature?";
-var energy_high$1 = "💸 High energy consumption – check heating strategy.";
-var eco_mode$1 = "🛌 Temperature reduction active – Eco mode detected.";
-var temp_rising_fast$1 = "🔥 Temperature rising unusually fast – inefficient?";
-var no_motion_heating_on$1 = "🚪 No motion detected – room may be heated unnecessarily.";
-var morning_cool_outside$1 = "🌄 It's cooler outside in the morning – ventilate to cool down.";
-var afternoon_window_open_hot_outside$1 = "🌞 Warmer outside than inside – better close the window.";
-var hot_day_morning_ventilate$1 = "📊 Hot day ahead – ventilate well in the morning.";
-var very_hot_window_open$1 = "🔥 Very hot outside – close windows to avoid heating up.";
-var early_cool_outside_ventilate$1 = "🧊 Early cool outside – natural cooling by ventilation possible.";
-var keep_window_closed_cool_inside$1 = "Keep windows closed to keep it cool inside.";
-var close_curtains_to_keep_cool$1 = "Close curtains or blinds to keep the room cool.";
-var rain_soon_close_window$1 = "Rain is expected soon – please close the windows.";
-var close_door_to_save_heat$1 = "Close the door to prevent heat loss to other rooms.";
-var ventilate_air_quality_poor$1 = "Air quality is poor – ventilate the room.";
-var ventilate_high_humidity$1 = "Humidity is high – ventilate to reduce moisture.";
-var open_blinds_for_sun_warmth$1 = "Sunny soon – open blinds to warm up the room.";
-var window_open_night_cold$1 = "🌙 Window is open at night and it's cold outside – please close to avoid cooling down.";
-var room_too_cold_window_open$1 = "❄️ Room is below 17°C and window is open – please close to avoid undercooling.";
-var mold_risk_dew_point$1 = "⚠️ Mold risk: High humidity and dew point reached – please ventilate!";
-var debug_rule_match$1 = "Debug rule matched - rule engine is working";
-var en = {
-	low_humidity: low_humidity$1,
-	high_co2: high_co2$1,
-	cold_temp: cold_temp$1,
-	all_ok: all_ok$1,
-	temp_above_target: temp_above_target$1,
-	temp_below_target: temp_below_target$1,
-	humidity_low: humidity_low$1,
-	humidity_high: humidity_high$1,
-	co2_high: co2_high$1,
-	window_open_heating_on: window_open_heating_on$1,
-	room_empty_warm: room_empty_warm$1,
-	outside_warm_inside_warm: outside_warm_inside_warm$1,
-	forecast_warmer_target_high: forecast_warmer_target_high$1,
-	energy_high: energy_high$1,
-	eco_mode: eco_mode$1,
-	temp_rising_fast: temp_rising_fast$1,
-	no_motion_heating_on: no_motion_heating_on$1,
-	morning_cool_outside: morning_cool_outside$1,
-	afternoon_window_open_hot_outside: afternoon_window_open_hot_outside$1,
-	hot_day_morning_ventilate: hot_day_morning_ventilate$1,
-	very_hot_window_open: very_hot_window_open$1,
-	early_cool_outside_ventilate: early_cool_outside_ventilate$1,
-	keep_window_closed_cool_inside: keep_window_closed_cool_inside$1,
-	close_curtains_to_keep_cool: close_curtains_to_keep_cool$1,
-	rain_soon_close_window: rain_soon_close_window$1,
-	close_door_to_save_heat: close_door_to_save_heat$1,
-	ventilate_air_quality_poor: ventilate_air_quality_poor$1,
-	ventilate_high_humidity: ventilate_high_humidity$1,
-	open_blinds_for_sun_warmth: open_blinds_for_sun_warmth$1,
-	window_open_night_cold: window_open_night_cold$1,
-	room_too_cold_window_open: room_too_cold_window_open$1,
-	mold_risk_dew_point: mold_risk_dew_point$1,
-	debug_rule_match: debug_rule_match$1
-};
 
 var low_humidity = "Luftfeuchtigkeit unter 35 % – lüften oder befeuchten empfohlen";
 var high_co2 = "CO₂-Wert hoch – bitte Stoßlüften";
@@ -380,6 +127,54 @@ var de = {
 	debug_rule_match: debug_rule_match
 };
 
+const SENSOR_KEYWORDS = {
+    temperature: [
+        'temperature', 'temperatur', 'température', 'temperatura', 'temperatuur', 'температура', '温度', '온도'
+    ],
+    humidity: [
+        'humidity', 'feuchtigkeit', 'humidité', 'umidità', 'vochtigheid', 'humedad', 'влажность', '湿度', '습도'
+    ],
+    co2: [
+        'co2', 'kohlendioxid', 'dioxyde de carbone', 'anidride carbonica', 'kooldioxide', 'dióxido de carbono', 'углекислый газ', '二氧化碳', '이산화탄소'
+    ],
+    window: [
+        'window', 'fenster', 'fenêtre', 'finestra', 'raam', 'ventana', 'окно', '窗', '창문'
+    ],
+    door: [
+        'door', 'tür', 'porte', 'porta', 'deur', 'puerta', 'дверь', '문'
+    ],
+    curtain: [
+        'curtain', 'vorhang', 'rideau', 'tenda', 'gordijn', 'cortina', 'занавеска', '커튼'
+    ],
+    blind: [
+        'blind', 'jalousie', 'store', 'persiana', 'jaloezie', 'persiana', 'жалюзи', '블라인드'
+    ],
+    energy: [
+        'energy', 'energie', 'énergie', 'energia', 'energía', 'энергия', '에너지'
+    ],
+    motion: [
+        'motion', 'bewegung', 'mouvement', 'movimento', 'beweging', 'movimiento', 'движение', '움직임'
+    ],
+    occupancy: [
+        'occupancy', 'belegung', 'occupation', 'occupazione', 'bezetting', 'ocupación', 'занятость', '점유'
+    ],
+    air_quality: [
+        'air_quality', 'luftqualität', "qualité de l'air", "qualità dell'aria", 'luchtkwaliteit', 'calidad del aire', 'качество воздуха', '공기질'
+    ],
+    rain: [
+        'rain', 'regen', 'pluie', 'pioggia', 'lluvia', 'дождь', '비'
+    ],
+    sun: [
+        'sun', 'sonne', 'soleil', 'sole', 'zon', 'sol', 'солнце', '태양'
+    ],
+    adjacent: [
+        'adjacent', 'benachbart', 'adjacent', 'adiacente', 'aangrenzend', 'adyacente', 'смежный', '인접'
+    ],
+    forecast: [
+        'forecast', 'vorhersage', 'prévision', 'previsione', 'voorspelling', 'pronóstico', 'прогноз', '예보'
+    ]
+};
+
 var __decorate$1 = (undefined && undefined.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -409,25 +204,16 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
         if (s && s.entity_id)
             return s.entity_id;
-        // 2. keywords
-        const keywords = {
-            temperature: ['temperature', 'temperatur', 'température'],
-            humidity: ['humidity', 'feuchtigkeit', 'humidité'],
-            co2: ['co2'],
-            window: ['window', 'fenster'],
-            door: ['door', 'tür'],
-            curtain: ['curtain', 'vorhang'],
-            blind: ['blind', 'jalousie'],
-            heating: ['heating', 'heizung', 'thermostat'],
-            target: ['target', 'soll', 'setpoint']
-        };
-        const kw = keywords[type] || [type];
-        s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name || '').toLowerCase().includes(k)));
+        // 2. keywords from centralized list
+        const kw = SENSOR_KEYWORDS[type] || [type];
+        s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) ||
+            (st.attributes.friendly_name || '').toLowerCase().includes(k)));
         if (s && s.entity_id)
             return s.entity_id;
         // 3. fallback: area name
         const areaName = (this.hass?.areas && this.hass.areas[areaId]?.name?.toLowerCase()) || areaId.toLowerCase();
-        s = states.find((st) => (st.entity_id.toLowerCase().includes(areaName) || (st.attributes.friendly_name || '').toLowerCase().includes(areaName)) && kw.some(k => st.entity_id.toLowerCase().includes(k)));
+        s = states.find((st) => (st.entity_id.toLowerCase().includes(areaName) ||
+            (st.attributes.friendly_name || '').toLowerCase().includes(areaName)) && kw.some(k => st.entity_id.toLowerCase().includes(k)));
         return s && s.entity_id ? s.entity_id : undefined;
     }
     setConfig(config) {
@@ -522,9 +308,30 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         this.highThreshold = Number(e.target.value);
         this._configChanged();
     }
+    // Handle area enable/disable
+    _onAreaEnabledChange(areaId, e) {
+        const checked = e.target.checked;
+        const areas = [...(this.config.areas || this._lastAreas.map(a => ({ ...a })))];
+        const areaIndex = areas.findIndex(a => a.area_id === areaId);
+        if (areaIndex >= 0) {
+            areas[areaIndex] = { ...areas[areaIndex], enabled: checked };
+        }
+        else {
+            areas.push({ area_id: areaId, name: areaId, enabled: checked });
+        }
+        this.config = { ...this.config, areas };
+        this._configChanged();
+    }
     // Render the editor UI
     render() {
         const hass = this.hass;
+        // Find all Weather Entities
+        const weatherEntities = Object.entries(hass?.states || {})
+            .filter(([entity_id, state]) => entity_id.startsWith('weather.'))
+            .map(([entity_id, state]) => ({
+            entity_id,
+            name: state.attributes?.friendly_name || entity_id
+        }));
         const areas = hass?.areas
             ? Object.values(hass.areas)
             : Array.from(new Set(Object.values(hass?.states || {}).map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
@@ -572,21 +379,16 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         select { min-width: 200px; }
         li { margin: 0.2em 0; }
         .auto-sensor-info { color: #888; font-size: 0.95em; margin-left: 0.5em; }
-        button.use-auto {
-          margin-left: 0.5em;
-          font-size: 0.9em;
-          padding: 0.2em 0.5em;
-          border-radius: 0.3em;
-          border: 1px solid #ccc;
-          background: #f5f5f5;
-          cursor: pointer;
+        .area-header {
+          display: flex;
+          align-items: center;
+          margin-bottom: 0.5em;
         }
-        button.use-auto:hover {
-          background: #e5e5e5;
+        .area-header input[type="checkbox"] {
+          margin-right: 0.5em;
         }
-        button.use-auto:disabled {
+        .disabled-area {
           opacity: 0.5;
-          cursor: not-allowed;
         }
       </style>
       <div class="card-config">
@@ -594,66 +396,49 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
           <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
           Debug mode
         </label>
+        <div style="margin-top:1em;">
+          <b>Weather Entity:</b>
+          <select @change=${(e) => {
+            this.config = {
+                ...this.config,
+                weather_entity: e.target.value
+            };
+            this._configChanged();
+        }} .value=${this.config.weather_entity || 'weather.home'}>
+            ${weatherEntities.map(entity => x `
+              <option value="${entity.entity_id}">${entity.name} (${entity.entity_id})</option>
+            `)}
+          </select>
+        </div>
         <hr />
-        <b>Sensor Overrides:</b>
-        ${areas.map(area => x `
-          <div style="margin-bottom: 1em;">
-            <b>${area.name}</b>
+        <b>Areas and Sensors:</b>
+        ${areas.map(area => {
+            const isEnabled = this.config.areas?.find(a => a.area_id === area.area_id)?.enabled !== false;
+            return x `
+          <div class="${isEnabled ? '' : 'disabled-area'}">
+            <div class="area-header">
+              <input 
+                type="checkbox" 
+                .checked=${isEnabled} 
+                @change=${(e) => this._onAreaEnabledChange(area.area_id, e)}
+              />
+              <b>${area.name || area.area_id}</b>
+            </div>
             <ul>
               ${sensorTypes.map(type => {
-            // Get all sensors for this area
-            const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
-            // Group sensors by relevance
-            const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type);
-            const matchingByKeyword = areaSensors.filter((e) => {
-                const keywords = {
-                    temperature: ['temperature', 'temperatur', 'température'],
-                    humidity: ['humidity', 'feuchtigkeit', 'humidité'],
-                    co2: ['co2'],
-                    window: ['window', 'fenster'],
-                    door: ['door', 'tür'],
-                    curtain: ['curtain', 'vorhang'],
-                    blind: ['blind', 'jalousie'],
-                    heating: ['heating', 'heizung', 'thermostat'],
-                    target: ['target', 'soll', 'setpoint']
-                }[type] || [type];
-                return keywords.some(k => e.entity_id.toLowerCase().includes(k) ||
-                    (e.attributes.friendly_name || '').toLowerCase().includes(k));
-            });
-            const otherSensors = areaSensors.filter(s => !matchingByClass.includes(s) && !matchingByKeyword.includes(s));
-            const autoId = this._autodetect(area.area_id, type);
-            const selected = this.config.overrides?.[area.area_id]?.[type] || '';
-            return x `<li>${type}:
+                // Get all sensors for this area
+                const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
+                const autoId = this._autodetect(area.area_id, type);
+                const selected = this.config.overrides?.[area.area_id]?.[type] || '';
+                return x `<li>${type}:
                   <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
                     <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
                     <option value="none">None (no sensor)</option>
-                    ${matchingByClass.length > 0 ? x `
-                      <optgroup label="Matching device_class">
-                        ${matchingByClass.map((s) => x `
-                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                            ${s.entity_id} (${s.attributes.friendly_name || ''}) [${s.attributes.device_class}]
-                          </option>
-                        `)}
-                      </optgroup>
-                    ` : ''}
-                    ${matchingByKeyword.length > 0 ? x `
-                      <optgroup label="Matching by name">
-                        ${matchingByKeyword.map((s) => x `
-                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                            ${s.entity_id} (${s.attributes.friendly_name || ''})
-                          </option>
-                        `)}
-                      </optgroup>
-                    ` : ''}
-                    ${otherSensors.length > 0 ? x `
-                      <optgroup label="Other sensors">
-                        ${otherSensors.map((s) => x `
-                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                            ${s.entity_id} (${s.attributes.friendly_name || ''})
-                          </option>
-                        `)}
-                      </optgroup>
-                    ` : ''}
+                    ${areaSensors.map((s) => x `
+                      <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                        ${s.entity_id} ${s.attributes.device_class ? `[${s.attributes.device_class}]` : ''} ${s.attributes.friendly_name ? `(${s.attributes.friendly_name})` : ''}
+                      </option>
+                    `)}
                   </select>
                   ${autoId && !selected ? x `
                     <button 
@@ -664,10 +449,11 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
                     </button>
                   ` : ''}
                 </li>`;
-        })}
+            })}
             </ul>
           </div>
-        `)}
+        `;
+        })}
       </div>
 
       ${missingHelpers.length > 0 ? x `
@@ -750,7 +536,7 @@ var __decorate = (undefined && undefined.__decorate) || function (decorators, ta
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-const TRANSLATIONS = { de, en };
+const TRANSLATIONS = { de};
 let HausgeistCard = class HausgeistCard extends i {
     constructor() {
         super(...arguments);
@@ -762,200 +548,85 @@ let HausgeistCard = class HausgeistCard extends i {
         this.texts = TRANSLATIONS['de'];
         this.ready = false;
     }
-    _findSensor(sensors, area, usedSensors, cls) {
+    // Find sensor by type in area, with overrides and auto-detection
+    _findSensor(sensors, area, usedSensors, sensorType) {
         if (this.debug) {
-            console.log(`[_findSensor] Looking for ${cls} in area ${area}`);
+            console.log(`[_findSensor] Looking for ${sensorType} in area ${area}`);
             console.log(`[_findSensor] config.overrides[${area}]:`, this.config?.overrides?.[area]);
             console.log(`[_findSensor] config.auto[${area}]:`, this.config?.auto?.[area]);
         }
-        // Use the passed sensors list directly
-        const allStates = sensors;
-        // Log all available entities if in debug mode
-        if (this.debug) {
-            console.log(`[_findSensor] Available entities:`, allStates.map(s => s.entity_id).join(', '));
-        }
         // 1. Check for manual override in config
-        const overrideId = this.config?.overrides?.[area]?.[cls];
+        const overrideId = this.config?.overrides?.[area]?.[sensorType];
         if (overrideId) {
-            if (this.debug)
-                console.log(`[_findSensor] Found override for ${cls}: ${overrideId}`);
-            const s = allStates.find((st) => st.entity_id === overrideId);
-            if (s) {
+            const sensor = sensors.find((s) => s.entity_id === overrideId);
+            if (sensor) {
                 usedSensors.push({
-                    type: cls + ' (override)',
-                    entity_id: s.entity_id,
-                    value: s.state,
+                    type: `${sensorType} (override)`,
+                    entity_id: sensor.entity_id,
+                    value: sensor.state
                 });
-                return s;
+                return sensor;
             }
             if (this.debug)
-                console.log(`[_findSensor] Override sensor ${overrideId} not found in states`);
+                console.log(`[_findSensor] Override sensor ${overrideId} not found`);
         }
-        // 2. Check for auto-detected sensor from config (as set by the editor)
-        const autoId = this.config?.auto?.[area]?.[cls];
+        // 2. Check auto-detected sensor from config
+        const autoId = this.config?.auto?.[area]?.[sensorType];
         if (autoId) {
-            if (this.debug)
-                console.log(`[_findSensor] Found auto-detected for ${cls}: ${autoId}`);
-            const s = allStates.find((st) => st.entity_id === autoId);
-            if (s) {
+            const sensor = sensors.find((s) => s.entity_id === autoId);
+            if (sensor) {
                 usedSensors.push({
-                    type: cls + ' (auto)',
-                    entity_id: s.entity_id,
-                    value: s.state,
+                    type: `${sensorType} (auto)`,
+                    entity_id: sensor.entity_id,
+                    value: sensor.state
                 });
-                return s;
+                return sensor;
             }
             if (this.debug)
-                console.log(`[_findSensor] Auto-detected sensor ${autoId} not found in states`);
+                console.log(`[_findSensor] Auto sensor ${autoId} not found`);
         }
-        // 3. No sensor found (no fallback matching in the card)
+        // 3. Not found
         if (this.debug) {
             usedSensors.push({
-                type: cls,
+                type: sensorType,
                 entity_id: '[NOT FOUND]',
-                value: 'No matching sensor found',
+                value: 'No matching sensor found'
             });
         }
         return undefined;
     }
-    async firstUpdated() {
-        try {
-            let rules;
-            if (this.config.rulesJson) {
-                rules = JSON.parse(this.config.rulesJson);
-            }
-            else {
-                rules = await loadRules();
-            }
-            this.engine = new RuleEngine(rules);
-            this.ready = true;
-        }
-        catch (error) {
-            console.error('Failed to load rules:', error);
-            this.ready = false;
-        }
-        this.requestUpdate();
-    }
-    setConfig(config) {
-        this.config = config;
-        this.debug = !!config?.debug;
-        this.notify = !!config?.notify;
-        this.highThreshold = typeof config?.highThreshold === 'number' ? config.highThreshold : 2000;
-        this.rulesJson = config?.rulesJson || '';
-    }
-    static getConfigElement() {
-        return document.createElement('hausgeist-card-editor');
-    }
-    static getStubConfig() {
-        return { debug: false, notify: false, highThreshold: 2000, rulesJson: '' };
-    }
     render() {
-        if (!this.ready || !this.engine) {
-            return x `<p>Loading…</p>`;
+        if (!this.engine || !this.ready) {
+            return x `<div>Loading...</div>`;
         }
-        // Debug-Flag direkt aus Config übernehmen (zur Sicherheit)
-        this.debug = !!this.config?.debug;
-        let debugOut = [];
-        const states = Object.values(this.hass.states);
-        // Prefer config.areas if present, then hass.areas, then fallback
-        const areas = (this.config.areas && this.config.areas.length)
-            ? this.config.areas
-            : (this.hass.areas
-                ? Object.values(this.hass.areas)
-                : Array.from(new Set(states.map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id })));
+        const debugBanner = this.debug ? x `<p class="debug-banner">🛠️ Debug mode active</p>` : '';
+        const debugOut = [];
+        const { states } = this.hass;
+        const areas = (this.config.areas || []).filter(a => a.enabled !== false);
         const areaIds = areas.map(a => a.area_id);
         const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
         const defaultTarget = this.config?.overrides?.default_target || 21;
+        const weatherEntity = this.config.weather_entity || 'weather.home';
         if (this.debug) {
-            debugOut.push(`DEBUG: areaIds: ${JSON.stringify(areaIds)}`);
-            debugOut.push(`DEBUG: states.length: ${states.length}`);
-            debugOut.push(`DEBUG: Erste 10 area_id aus states:`);
-            debugOut.push(states.filter((s) => s.attributes && s.attributes.area_id).slice(0, 10).map((s) => `${s.entity_id}: '${s.attributes.area_id}'`).join('\n'));
-            debugOut.push('DEBUG: Erste 3 States als JSON:');
-            debugOut.push(states.slice(0, 3).map((s) => JSON.stringify(s, null, 2)).join('\n---\n'));
+            debugOut.push(`DEBUG: Enabled areas: ${JSON.stringify(areas.map(a => a.name || a.area_id))}`);
+            debugOut.push(`DEBUG: Weather entity: ${weatherEntity}`);
         }
-        // Debug-Hinweis oben anzeigen
-        const debugBanner = this.debug ? x `<div style="background:#ffe; color:#a00; padding:0.5em; border:1px solid #cc0; margin-bottom:1em;">Debug active! (hausgeist-card)</div>` : '';
-        const lang = this.hass.selectedLanguage || 'de';
-        const langKey = lang;
-        this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
-        if (!this.texts || Object.keys(this.texts).length === 0) {
-            this.texts = TRANSLATIONS['de'];
-        }
-        // Mapping areaId -> Klartextname (aus config.areas)
+        // Create area name lookup
         const areaIdToName = {};
         areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
-        // Fix: add type annotations and correct scoping
+        // Process each enabled area
         const areaMessages = areaIds.map((area) => {
-            const sensors = filterSensorsByArea(states, area);
             const usedSensors = [];
             if (this.debug) {
-                // Zeige alle area_id Werte aus states
-                const allAreaIds = states
-                    .filter((s) => s.attributes && s.attributes.area_id)
-                    .map((s) => `${s.entity_id}: '${s.attributes.area_id}'`)
-                    .join('\n');
-                debugOut.push(`All area_id values in states:\n${allAreaIds}`);
-                // Zeige die Area-IDs, die für die Schleife verwendet werden
-                debugOut.push(`areaIds used for mapping: ${JSON.stringify(areaIds)}`);
-                // Zeige für die erste Area die Entity-IDs, die filterSensorsByArea zurückgibt
-                if (areaIds.length > 0) {
-                    const sensorsForFirst = filterSensorsByArea(states, areaIds[0]);
-                    debugOut.push(`Entities for areaIds[0] ('${areaIds[0]}'): ${sensorsForFirst.map((s) => s.entity_id).join(', ')}`);
-                }
-                // Zeige die Anzahl der gefundenen Sensoren pro Area
-                debugOut.push(`Area: ${area} | sensors.length: ${sensors.length}`);
-                debugOut.push(`Sensors found by filterSensorsByArea: ${sensors.map((s) => s.entity_id + ' (' + (s.attributes.device_class || '-') + ')').join(', ')}`);
-                // Neue Debug-Ausgaben für auto-Erkennung
-                debugOut.push(`config.auto for area ${area}: ${JSON.stringify(this.config?.auto?.[area])}`);
-                debugOut.push(`Selected sensors for area ${area}:`);
-                const sensorTypes = ['temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'];
-                sensorTypes.forEach((type) => {
-                    const overrideId = this.config?.overrides?.[area]?.[type];
-                    const autoId = this.config?.auto?.[area]?.[type];
-                    debugOut.push(`  ${type}: override=${overrideId || 'none'}, auto=${autoId || 'none'}`);
-                });
+                const sensors = filterSensorsByArea(states, area);
+                debugOut.push(`Processing area: ${area}`);
+                debugOut.push(`Available sensors: ${sensors.map((s) => s.entity_id).join(', ')}`);
+                debugOut.push(`Configured overrides: ${JSON.stringify(this.config?.overrides?.[area])}`);
+                debugOut.push(`Auto-detected sensors: ${JSON.stringify(this.config?.auto?.[area])}`);
             }
-            const findSensor = (cls) => {
-                return this._findSensor(Object.values(this.hass.states), area, usedSensors, cls);
-            };
-            // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
-            const requiredSensorTypes = [
-                'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'energy', 'motion', 'occupancy', 'air_quality', 'rain', 'sun', 'adjacent', 'forecast'
-            ];
-            // Call findSensor for all required types to populate usedSensors, even if not used in context
-            requiredSensorTypes.forEach(type => { findSensor(type); });
-            const get = (cls) => {
-                const s = findSensor(cls);
-                return s ? Number(s.state) : undefined;
-            };
-            // Helper to always cast to 'any' for state lookups
-            const findState = (fn) => {
-                const found = states.find(fn);
-                return found ? found : undefined;
-            };
-            const context = {
-                target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
-                humidity: get('humidity'),
-                co2: get('co2'),
-                window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
-                heating: findState((e) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
-                motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
-                occupied: findState((e) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
-                outside_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
-                forecast_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
-                energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
-                high_threshold: this.highThreshold,
-                temp_change_rate: 0,
-                now: Date.now(),
-                curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
-                blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
-                // Ergänzungen für Regeln
-                rain_soon: findState((e) => e.entity_id.includes('rain') && e.attributes.area_id === area)?.state === 'on' || false,
-                adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
-                air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
-                forecast_sun: findState((e) => e.entity_id.includes('forecast') && e.entity_id.includes('sun') && e.attributes.area_id === area)?.state === 'on' || false,
-            };
+            // Build evaluation context
+            const context = this._buildContext(area, usedSensors, states, weatherEntity, defaultTarget);
+            // Evaluate rules
             const evals = this.engine ? this.engine.evaluate(context) : [];
             if (this.debug) {
                 debugOut.push(`--- ${area} ---\n` +
@@ -965,37 +636,35 @@ let HausgeistCard = class HausgeistCard extends i {
                     `Rules matched: ${evals.length}\n` +
                     evals.map((ev) => `${ev.priority}: ${ev.message_key}`).join("\n"));
             }
-            // Attach usedSensors to area for later display
             return { area: areaIdToName[area] || area, evals, usedSensors };
         });
-        // Top messages: only areas with at least one rule hit
-        const topMessages = areaMessages.filter((a) => a.evals.length > 0)
+        // Only show areas with rule matches
+        const topMessages = areaMessages
+            .filter((a) => a.evals.length > 0)
             .map((a) => {
-            // Pick highest prio message for each area
+            // Pick highest priority message for each area
             const top = a.evals.sort((a, b) => (prioOrder[b.priority] || 0) - (prioOrder[a.priority] || 0))[0];
-            if (!top)
-                return null; // Skip if no evals
-            // Return area with its top message and used sensors
+            if (!top || !top.message_key) {
+                return undefined; // Skip if no valid message
+            }
             if (this.debug) {
                 debugOut.push(`Top message for ${a.area}: ${top.priority} - ${top.message_key}`);
             }
-            if (!top.message_key) {
-                console.warn(`Missing message_key for area ${a.area} in evals:`, a.evals);
-                return null; // Skip if no message_key
-            }
             return { area: a.area, ...top, usedSensors: a.usedSensors };
-        });
-        const anySensorsUsed = areaMessages.some((areaMsg) => areaMsg.usedSensors && areaMsg.usedSensors.length > 0 && areaMsg.usedSensors.some((s) => s.entity_id !== '[NOT FOUND]'));
+        })
+            .filter((e) => !!e);
+        const anySensorsUsed = areaMessages.some((areaMsg) => areaMsg.usedSensors?.some((s) => s.entity_id !== '[NOT FOUND]'));
         const anyRulesApplied = areaMessages.some((a) => a.evals.length > 0);
-        // Render the card content
         return x `
       ${debugBanner}
       <h2>👻 Hausgeist sagt:</h2>
-      ${!anySensorsUsed ? x `<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>` :
-            (!anyRulesApplied ? x `<p class="warning">⚠️ No rules applied (no comparisons made for any area).</p>` :
-                topMessages.map(e => x `<p class="${e.priority}"><b>${e.area}:</b> ${this.texts?.[e.message_key] || `Missing translation: ${e.message_key}`}</p>`))}
-      <div class="debug" style="white-space:pre-wrap; background:#f5f5f5; color:#333; font-size:0.95em; margin-top:1em;">${debugOut.join('\n\n')}</div>
+      ${!anySensorsUsed
+            ? x `<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>`
+            : !anyRulesApplied
+                ? x `<p class="warning">⚠️ No rules applied (no comparisons made for any area).</p>`
+                : topMessages.map(e => x `<p class="${e.priority}"><b>${e.area}:</b> ${this.texts?.[e.message_key] || `Missing translation: ${e.message_key}`}</p>`)}
       ${this.debug ? x `
+        <div class="debug">${debugOut.join('\n\n')}</div>
         <div class="sensors-used">
           <b>Sensors used:</b>
           <ul>
@@ -1010,6 +679,49 @@ let HausgeistCard = class HausgeistCard extends i {
         </div>
       ` : ''}
     `;
+    }
+    // Build evaluation context for rules with weather data and sensor values
+    _buildContext(area, usedSensors, states, weatherEntity, defaultTarget) {
+        const findSensor = (type) => {
+            return this._findSensor(Object.values(this.hass.states), area, usedSensors, type);
+        };
+        const get = (type) => {
+            const s = findSensor(type);
+            return s ? Number(s.state) : undefined;
+        };
+        const findState = (fn) => {
+            const found = states.find(fn);
+            return found ? found : undefined;
+        };
+        // Get weather data
+        const weather = findState((e) => e.entity_id === weatherEntity);
+        const weatherAttributes = weather?.attributes || {};
+        const forecast = weatherAttributes.forecast?.[0] || {};
+        return {
+            debug: this.debug,
+            target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
+            temp: get('temperature'),
+            humidity: get('humidity'),
+            co2: get('co2'),
+            window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
+            heating: findState((e) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
+            motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+            occupied: findState((e) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
+            energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
+            high_threshold: this.highThreshold,
+            temp_change_rate: 0,
+            now: Date.now(),
+            curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
+            blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
+            // Weather data directly from weather entity
+            outside_temp: Number(weatherAttributes.temperature ?? 15),
+            forecast_temp: Number(forecast.temperature ?? 15),
+            rain_soon: (forecast.precipitation ?? 0) > 0,
+            forecast_sun: forecast.condition === 'sunny',
+            // Additional sensor data
+            adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
+            air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
+        };
     }
 };
 HausgeistCard.styles = i$3 `

@@ -1,15 +1,22 @@
 import { LitElement, html } from 'lit';
 import { property, customElement } from 'lit/decorators.js';
+import { SENSOR_KEYWORDS } from './sensor-keywords';
 
 @customElement('hausgeist-card-editor')
 export class HausgeistCardEditor extends LitElement {
-  @property({ type: Object }) config: { debug?: boolean, overrides?: Record<string, Record<string, string>>, areas?: Array<{ area_id: string; name: string }>, auto?: Record<string, Record<string, string>> } = {};
+  @property({ type: Object }) config: { 
+    debug?: boolean, 
+    overrides?: Record<string, Record<string, string>>, 
+    areas?: Array<{ area_id: string; name: string; enabled?: boolean }>, 
+    auto?: Record<string, Record<string, string>>,
+    weather_entity?: string
+  } = {};
   private _hass: any = undefined;
   @property({ type: Object }) testValues: { [key: string]: any } = {};
   @property({ type: String }) rulesJson = '';
   @property({ type: Boolean }) notify = false;
   @property({ type: Number }) highThreshold = 2000;
-  private _lastAreas: Array<{ area_id: string; name: string }> = [];
+  private _lastAreas: Array<{ area_id: string; name: string; enabled?: boolean }> = [];
 
   private _autodetect(areaId: string, type: string): string | undefined {
     const states = Object.values(this.hass?.states || {});
@@ -17,25 +24,20 @@ export class HausgeistCardEditor extends LitElement {
     let s = states.find((st: any) => st.attributes?.area_id === areaId && st.attributes?.device_class === type) as any;
     if (s && s.entity_id) return s.entity_id;
     
-    // 2. keywords
-    const keywords: Record<string, string[]> = {
-      temperature: ['temperature','temperatur','température'],
-      humidity: ['humidity','feuchtigkeit','humidité'],
-      co2: ['co2'],
-      window: ['window','fenster'],
-      door: ['door','tür'],
-      curtain: ['curtain','vorhang'],
-      blind: ['blind','jalousie'],
-      heating: ['heating','heizung','thermostat'],
-      target: ['target','soll','setpoint']
-    };
-    const kw = keywords[type] || [type];
-    s = states.find((st: any) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name||'').toLowerCase().includes(k))) as any;
+    // 2. keywords from centralized list
+    const kw = SENSOR_KEYWORDS[type] || [type];
+    s = states.find((st: any) => st.attributes?.area_id === areaId && kw.some(k => 
+      st.entity_id.toLowerCase().includes(k) || 
+      (st.attributes.friendly_name||'').toLowerCase().includes(k)
+    )) as any;
     if (s && s.entity_id) return s.entity_id;
     
     // 3. fallback: area name
     const areaName = (this.hass?.areas && this.hass.areas[areaId]?.name?.toLowerCase()) || areaId.toLowerCase();
-    s = states.find((st: any) => (st.entity_id.toLowerCase().includes(areaName) || (st.attributes.friendly_name||'').toLowerCase().includes(areaName)) && kw.some(k => st.entity_id.toLowerCase().includes(k))) as any;
+    s = states.find((st: any) => (
+      st.entity_id.toLowerCase().includes(areaName) || 
+      (st.attributes.friendly_name||'').toLowerCase().includes(areaName)
+    ) && kw.some(k => st.entity_id.toLowerCase().includes(k))) as any;
     return s && s.entity_id ? s.entity_id : undefined;
   }
 
@@ -149,12 +151,35 @@ export class HausgeistCardEditor extends LitElement {
     this._configChanged();
   }
 
+  // Handle area enable/disable
+  private _onAreaEnabledChange(areaId: string, e: Event) {
+    const checked = (e.target as HTMLInputElement).checked;
+    const areas = [...(this.config.areas || this._lastAreas.map(a => ({ ...a })))];
+    const areaIndex = areas.findIndex(a => a.area_id === areaId);
+    if (areaIndex >= 0) {
+      areas[areaIndex] = { ...areas[areaIndex], enabled: checked };
+    } else {
+      areas.push({ area_id: areaId, name: areaId, enabled: checked });
+    }
+    this.config = { ...this.config, areas };
+    this._configChanged();
+  }
+
   // Render the editor UI
   render() {
     const hass = this.hass;
+    // Find all Weather Entities
+    const weatherEntities = Object.entries(hass?.states || {})
+      .filter(([entity_id, state]: [string, any]) => entity_id.startsWith('weather.'))
+      .map(([entity_id, state]: [string, any]) => ({
+        entity_id,
+        name: state.attributes?.friendly_name || entity_id
+      }));
+    
     const areas: Array<{ area_id: string; name: string }> = hass?.areas
       ? Object.values(hass.areas)
       : Array.from(new Set(Object.values(hass?.states || {}).map((e: any) => e.attributes?.area_id).filter(Boolean))).map((area_id: string) => ({ area_id, name: area_id }));
+    
     this._lastAreas = areas;
     const states = Object.values(hass?.states || {});
     const sensorTypes = [
@@ -207,21 +232,16 @@ export class HausgeistCardEditor extends LitElement {
         select { min-width: 200px; }
         li { margin: 0.2em 0; }
         .auto-sensor-info { color: #888; font-size: 0.95em; margin-left: 0.5em; }
-        button.use-auto {
-          margin-left: 0.5em;
-          font-size: 0.9em;
-          padding: 0.2em 0.5em;
-          border-radius: 0.3em;
-          border: 1px solid #ccc;
-          background: #f5f5f5;
-          cursor: pointer;
+        .area-header {
+          display: flex;
+          align-items: center;
+          margin-bottom: 0.5em;
         }
-        button.use-auto:hover {
-          background: #e5e5e5;
+        .area-header input[type="checkbox"] {
+          margin-right: 0.5em;
         }
-        button.use-auto:disabled {
+        .disabled-area {
           opacity: 0.5;
-          cursor: not-allowed;
         }
       </style>
       <div class="card-config">
@@ -229,40 +249,38 @@ export class HausgeistCardEditor extends LitElement {
           <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
           Debug mode
         </label>
+        <div style="margin-top:1em;">
+          <b>Weather Entity:</b>
+          <select @change=${(e: Event) => {
+            this.config = { 
+              ...this.config, 
+              weather_entity: (e.target as HTMLSelectElement).value 
+            };
+            this._configChanged();
+          }} .value=${this.config.weather_entity || 'weather.home'}>
+            ${weatherEntities.map(entity => html`
+              <option value="${entity.entity_id}">${entity.name} (${entity.entity_id})</option>
+            `)}
+          </select>
+        </div>
         <hr />
-        <b>Sensor Overrides:</b>
-        ${areas.map(area => html`
-          <div style="margin-bottom: 1em;">
-            <b>${area.name}</b>
+        <b>Areas and Sensors:</b>
+        ${areas.map(area => {
+          const isEnabled = this.config.areas?.find(a => a.area_id === area.area_id)?.enabled !== false;
+          return html`
+          <div class="${isEnabled ? '' : 'disabled-area'}">
+            <div class="area-header">
+              <input 
+                type="checkbox" 
+                .checked=${isEnabled} 
+                @change=${(e: Event) => this._onAreaEnabledChange(area.area_id, e)}
+              />
+              <b>${area.name || area.area_id}</b>
+            </div>
             <ul>
               ${sensorTypes.map(type => {
                 // Get all sensors for this area
                 const areaSensors = states.filter((e: any) => e.attributes?.area_id === area.area_id);
-                
-                // Group sensors by relevance
-                const matchingByClass = areaSensors.filter((e: any) => e.attributes?.device_class === type);
-                const matchingByKeyword = areaSensors.filter((e: any) => {
-                  const keywords = {
-                    temperature: ['temperature','temperatur','température'],
-                    humidity: ['humidity','feuchtigkeit','humidité'],
-                    co2: ['co2'],
-                    window: ['window','fenster'],
-                    door: ['door','tür'],
-                    curtain: ['curtain','vorhang'],
-                    blind: ['blind','jalousie'],
-                    heating: ['heating','heizung','thermostat'],
-                    target: ['target','soll','setpoint']
-                  }[type] || [type];
-                  
-                  return keywords.some(k => 
-                    e.entity_id.toLowerCase().includes(k) || 
-                    (e.attributes.friendly_name || '').toLowerCase().includes(k)
-                  );
-                });
-                const otherSensors = areaSensors.filter(s => 
-                  !matchingByClass.includes(s) && !matchingByKeyword.includes(s)
-                );
-
                 const autoId = this._autodetect(area.area_id, type);
                 const selected = this.config.overrides?.[area.area_id]?.[type] || '';
                 
@@ -270,33 +288,11 @@ export class HausgeistCardEditor extends LitElement {
                   <select style="max-width: 260px;" @change=${(e: Event) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
                     <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
                     <option value="none">None (no sensor)</option>
-                    ${matchingByClass.length > 0 ? html`
-                      <optgroup label="Matching device_class">
-                        ${matchingByClass.map((s: any) => html`
-                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                            ${s.entity_id} (${s.attributes.friendly_name || ''}) [${s.attributes.device_class}]
-                          </option>
-                        `)}
-                      </optgroup>
-                    ` : ''}
-                    ${matchingByKeyword.length > 0 ? html`
-                      <optgroup label="Matching by name">
-                        ${matchingByKeyword.map((s: any) => html`
-                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                            ${s.entity_id} (${s.attributes.friendly_name || ''})
-                          </option>
-                        `)}
-                      </optgroup>
-                    ` : ''}
-                    ${otherSensors.length > 0 ? html`
-                      <optgroup label="Other sensors">
-                        ${otherSensors.map((s: any) => html`
-                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                            ${s.entity_id} (${s.attributes.friendly_name || ''})
-                          </option>
-                        `)}
-                      </optgroup>
-                    ` : ''}
+                    ${areaSensors.map((s: any) => html`
+                      <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                        ${s.entity_id} ${s.attributes.device_class ? `[${s.attributes.device_class}]` : ''} ${s.attributes.friendly_name ? `(${s.attributes.friendly_name})` : ''}
+                      </option>
+                    `)}
                   </select>
                   ${autoId && !selected ? html`
                     <button 
@@ -310,7 +306,7 @@ export class HausgeistCardEditor extends LitElement {
               })}
             </ul>
           </div>
-        `)}
+        `})}
       </div>
 
       ${missingHelpers.length > 0 ? html`
