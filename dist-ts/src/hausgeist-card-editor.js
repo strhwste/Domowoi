@@ -30,6 +30,10 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
         if (s && s.entity_id)
             return s.entity_id;
+        // 2. keywords from centralized list
+        const kw = SENSOR_KEYWORDS[type] || [type];
+        s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) ||
+            (st.attributes.friendly_name || '').toLowerCase().includes(k)));
         if (s && s.entity_id)
             return s.entity_id;
         // 3. fallback: area name
@@ -247,6 +251,20 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
             </div>
             <ul>
               ${sensorTypes.map(type => {
+                // Get all sensors for this area
+                const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
+                // Group sensors by relevance
+                const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type);
+                const matchingByKeyword = areaSensors.filter((e) => {
+                    // Use the imported SENSOR_KEYWORDS
+                    const keywords = SENSOR_KEYWORDS[type] || [type];
+                    return keywords.some(k => e.entity_id.toLowerCase().includes(k) ||
+                        (e.attributes.friendly_name || '').toLowerCase().includes(k));
+                });
+                const otherSensors = areaSensors.filter(s => !matchingByClass.includes(s) && !matchingByKeyword.includes(s));
+                const autoId = this._autodetect(area.area_id, type);
+                const selected = this.config.overrides?.[area.area_id]?.[type] || '';
+                return html `<li>${type}:
                   <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
                     <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
                     <option value="none">None (no sensor)</option>

@@ -4,12 +4,13 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-import { LitElement, html, css } from 'lit';
+import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { filterSensorsByArea } from './utils';
 import en from '../translations/en.json';
 import de from '../translations/de.json';
 import './hausgeist-card-editor';
+import { styles } from './styles';
 const TRANSLATIONS = { de, en };
 let HausgeistCard = class HausgeistCard extends LitElement {
     constructor() {
@@ -85,10 +86,17 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             debugOut.push(`DEBUG: Enabled areas: ${JSON.stringify(areas.map(a => a.name || a.area_id))}`);
             debugOut.push(`DEBUG: Weather entity: ${weatherEntity}`);
         }
-        // Create area name lookup
+        const lang = this.hass.selectedLanguage || 'de';
+        const langKey = lang;
+        this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
+        if (!this.texts || Object.keys(this.texts).length === 0) {
+            this.texts = TRANSLATIONS['de'];
+        }
+        // Mapping areaId -> Klartextname (aus config.areas)
         const areaIdToName = {};
         areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
         const areaMessages = areaIds.map((area) => {
+            const sensors = filterSensorsByArea(states, area);
             const usedSensors = [];
             if (this.debug) {
                 const sensors = filterSensorsByArea(states, area);
@@ -97,7 +105,48 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                 debugOut.push(`Configured overrides: ${JSON.stringify(this.config?.overrides?.[area])}`);
                 debugOut.push(`Auto-detected sensors: ${JSON.stringify(this.config?.auto?.[area])}`);
             }
-
+            // Use imported SENSOR_KEYWORDS from sensor-keywords.ts
+            const findSensor = (cls) => {
+                return this._findSensor(Object.values(this.hass.states), area, usedSensors, cls);
+            };
+            // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
+            const requiredSensorTypes = [
+                'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'energy', 'motion', 'occupancy', 'air_quality', 'rain', 'sun', 'adjacent', 'forecast'
+            ];
+            // Call findSensor for all required types to populate usedSensors, even if not used in context
+            requiredSensorTypes.forEach(type => { findSensor(type); });
+            const get = (cls) => {
+                const s = findSensor(cls);
+                return s ? Number(s.state) : undefined;
+            };
+            // Helper to always cast to 'any' for state lookups
+            const findState = (fn) => {
+                const found = states.find(fn);
+                return found ? found : undefined;
+            };
+            // Get target temperature, default to config override or 21°C
+            const context = {
+                target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
+                humidity: get('humidity'),
+                co2: get('co2'),
+                window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
+                heating: findState((e) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
+                motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+                occupied: findState((e) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
+                outside_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
+                forecast_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
+                energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
+                high_threshold: this.highThreshold,
+                temp_change_rate: 0,
+                now: Date.now(),
+                curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
+                blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
+                // Ergänzungen für Regeln
+                rain_soon: findState((e) => e.entity_id.includes('rain') && e.attributes.area_id === area)?.state === 'on' || false,
+                adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
+                air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
+                forecast_sun: findState((e) => e.entity_id.includes('forecast') && e.entity_id.includes('sun') && e.attributes.area_id === area)?.state === 'on' || false,
+            };
             const evals = this.engine ? this.engine.evaluate(context) : [];
             if (this.debug) {
                 debugOut.push(`--- ${area} ---\n` +
@@ -203,56 +252,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         this.requestUpdate();
     }
 };
-HausgeistCard.styles = css `
-    :host {
-      display: block;
-      background: var(--ha-card-background, var(--card-background-color, #fff));
-      border-radius: var(--ha-card-border-radius, 1em);
-      box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,0.07));
-      padding: 1.5em;
-      font-family: var(--primary-font-family, inherit);
-      color: var(--primary-text-color, #222);
-    }
-  
-    h2 {
-      margin-top: 0;
-      font-size: 1.3em;
-      color: var(--primary-text-color, #4a4a4a);
-    }
-    p.warning {
-      color: var(--warning-color, #b85c00);
-      background: var(--warning-bg, #fff7e6);
-      border-left: 4px solid var(--warning-border, #ffb300);
-      padding: 0.5em 1em;
-      border-radius: 0.5em;
-      margin: 0.5em 0;
-    }
-    p.info {
-      color: var(--info-color, #0288d1);
-      background: var(--info-bg, #e6f4ff);
-      border-left: 4px solid var(--info-border, #2196f3);
-      padding: 0.5em 1em;
-      border-radius: 0.5em;
-      margin: 0.5em 0;
-    }
-    p.ok {
-      color: var(--success-color, #357a38);
-      background: var(--success-bg, #e6f9e6);
-      border-left: 4px solid var(--success-border, #4caf50);
-      padding: 0.5em 1em;
-      border-radius: 0.5em;
-      margin: 0.5em 0;
-    }
-    .debug {
-      font-size: 0.9em;
-      color: var(--secondary-text-color, #888);
-      background: var(--secondary-background-color, #f5f5f5);
-      border-radius: 0.5em;
-      padding: 0.5em 1em;
-      margin: 0.5em 0;
-      white-space: pre-wrap;
-    }
-  `;
+HausgeistCard.styles = styles;
 __decorate([
     property({ type: Object })
 ], HausgeistCard.prototype, "hass", void 0);

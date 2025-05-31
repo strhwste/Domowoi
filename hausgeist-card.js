@@ -58,6 +58,75 @@ function filterSensorsByArea(states, areaId) {
     return filtered;
 }
 
+var low_humidity$1 = "Humidity below 35% – please ventilate or humidify";
+var high_co2$1 = "High CO₂ levels – please air out";
+var cold_temp$1 = "Temperature below 18 °C – check heating or windows";
+var all_ok$1 = "All good here 🎉";
+var temp_above_target$1 = "⚠️ Temperature well above target – check heating curve.";
+var temp_below_target$1 = "❄️ Room is undercooled – check heating or windows.";
+var humidity_low$1 = "💧 Humidity too low – consider using a humidifier.";
+var humidity_high$1 = "🌫️ Humidity too high – ventilation recommended (risk of mold).";
+var co2_high$1 = "🌬️ CO₂ level too high – ventilate to improve air quality.";
+var window_open_heating_on$1 = "🪟 Heating is on while window is open – avoid energy loss.";
+var room_empty_warm$1 = "📉 Room is empty but warm – adjust heating profile?";
+var outside_warm_inside_warm$1 = "☀️ It's warm outside – reduce heating demand.";
+var forecast_warmer_target_high$1 = "📅 Tomorrow will be warmer – lower target temperature?";
+var energy_high$1 = "💸 High energy consumption – check heating strategy.";
+var eco_mode$1 = "🛌 Temperature reduction active – Eco mode detected.";
+var temp_rising_fast$1 = "🔥 Temperature rising unusually fast – inefficient?";
+var no_motion_heating_on$1 = "🚪 No motion detected – room may be heated unnecessarily.";
+var morning_cool_outside$1 = "🌄 It's cooler outside in the morning – ventilate to cool down.";
+var afternoon_window_open_hot_outside$1 = "🌞 Warmer outside than inside – better close the window.";
+var hot_day_morning_ventilate$1 = "📊 Hot day ahead – ventilate well in the morning.";
+var very_hot_window_open$1 = "🔥 Very hot outside – close windows to avoid heating up.";
+var early_cool_outside_ventilate$1 = "🧊 Early cool outside – natural cooling by ventilation possible.";
+var keep_window_closed_cool_inside$1 = "Keep windows closed to keep it cool inside.";
+var close_curtains_to_keep_cool$1 = "Close curtains or blinds to keep the room cool.";
+var rain_soon_close_window$1 = "Rain is expected soon – please close the windows.";
+var close_door_to_save_heat$1 = "Close the door to prevent heat loss to other rooms.";
+var ventilate_air_quality_poor$1 = "Air quality is poor – ventilate the room.";
+var ventilate_high_humidity$1 = "Humidity is high – ventilate to reduce moisture.";
+var open_blinds_for_sun_warmth$1 = "Sunny soon – open blinds to warm up the room.";
+var window_open_night_cold$1 = "🌙 Window is open at night and it's cold outside – please close to avoid cooling down.";
+var room_too_cold_window_open$1 = "❄️ Room is below 17°C and window is open – please close to avoid undercooling.";
+var mold_risk_dew_point$1 = "⚠️ Mold risk: High humidity and dew point reached – please ventilate!";
+var debug_rule_match$1 = "Debug rule matched - rule engine is working";
+var en = {
+	low_humidity: low_humidity$1,
+	high_co2: high_co2$1,
+	cold_temp: cold_temp$1,
+	all_ok: all_ok$1,
+	temp_above_target: temp_above_target$1,
+	temp_below_target: temp_below_target$1,
+	humidity_low: humidity_low$1,
+	humidity_high: humidity_high$1,
+	co2_high: co2_high$1,
+	window_open_heating_on: window_open_heating_on$1,
+	room_empty_warm: room_empty_warm$1,
+	outside_warm_inside_warm: outside_warm_inside_warm$1,
+	forecast_warmer_target_high: forecast_warmer_target_high$1,
+	energy_high: energy_high$1,
+	eco_mode: eco_mode$1,
+	temp_rising_fast: temp_rising_fast$1,
+	no_motion_heating_on: no_motion_heating_on$1,
+	morning_cool_outside: morning_cool_outside$1,
+	afternoon_window_open_hot_outside: afternoon_window_open_hot_outside$1,
+	hot_day_morning_ventilate: hot_day_morning_ventilate$1,
+	very_hot_window_open: very_hot_window_open$1,
+	early_cool_outside_ventilate: early_cool_outside_ventilate$1,
+	keep_window_closed_cool_inside: keep_window_closed_cool_inside$1,
+	close_curtains_to_keep_cool: close_curtains_to_keep_cool$1,
+	rain_soon_close_window: rain_soon_close_window$1,
+	close_door_to_save_heat: close_door_to_save_heat$1,
+	ventilate_air_quality_poor: ventilate_air_quality_poor$1,
+	ventilate_high_humidity: ventilate_high_humidity$1,
+	open_blinds_for_sun_warmth: open_blinds_for_sun_warmth$1,
+	window_open_night_cold: window_open_night_cold$1,
+	room_too_cold_window_open: room_too_cold_window_open$1,
+	mold_risk_dew_point: mold_risk_dew_point$1,
+	debug_rule_match: debug_rule_match$1
+};
+
 var low_humidity = "Luftfeuchtigkeit unter 35 % – lüften oder befeuchten empfohlen";
 var high_co2 = "CO₂-Wert hoch – bitte Stoßlüften";
 var cold_temp = "Temperatur unter 18 °C – Heizung prüfen bzw. Fenster schließen";
@@ -204,11 +273,10 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
         if (s && s.entity_id)
             return s.entity_id;
-
-        // 2. keywords - use imported SENSOR_KEYWORDS
+        // 2. keywords from centralized list
         const kw = SENSOR_KEYWORDS[type] || [type];
-        s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name || '').toLowerCase().includes(k)));
-
+        s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) ||
+            (st.attributes.friendly_name || '').toLowerCase().includes(k)));
         if (s && s.entity_id)
             return s.entity_id;
         // 3. fallback: area name
@@ -426,148 +494,20 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             </div>
             <ul>
               ${sensorTypes.map(type => {
-
-101
- 
-            // Use imported SENSOR_KEYWORDS from sensor-keywords.ts
-102
- 
-            const findSensor = (cls) => {
-103
- 
-                return this._findSensor(Object.values(this.hass.states), area, usedSensors, cls);
-104
- 
-            };
-105
- 
-            // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
-106
- 
-            const requiredSensorTypes = [
-107
- 
-                'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'energy', 'motion', 'occupancy', 'air_quality', 'rain', 'sun', 'adjacent', 'forecast'
-108
- 
-            ];
-109
- 
-            // Call findSensor for all required types to populate usedSensors, even if not used in context
-110
- 
-            requiredSensorTypes.forEach(type => { findSensor(type); });
-111
- 
-            const get = (cls) => {
-112
- 
-                const s = findSensor(cls);
-113
- 
-                return s ? Number(s.state) : undefined;
-114
- 
-            };
-115
- 
-            // Helper to always cast to 'any' for state lookups
-116
- 
-            const findState = (fn) => {
-117
- 
-                const found = states.find(fn);
-118
- 
-                return found ? found : undefined;
-119
- 
-            };
-120
- 
-            // Get target temperature, default to config override or 21°C
-121
- 
-            const context = {
-122
- 
-                target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
-123
- 
-                humidity: get('humidity'),
-124
- 
-                co2: get('co2'),
-125
- 
-                window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
-126
- 
-                heating: findState((e) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
-127
- 
-                motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
-128
- 
-                occupied: findState((e) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
-129
- 
-                outside_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
-130
- 
-                forecast_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
-131
- 
-                energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
-132
- 
-                high_threshold: this.highThreshold,
-133
- 
-                temp_change_rate: 0,
-134
- 
-                now: Date.now(),
-135
- 
-                curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
-136
- 
-                blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
-137
- 
-                // Ergänzungen für Regeln
-138
- 
-                rain_soon: findState((e) => e.entity_id.includes('rain') && e.attributes.area_id === area)?.state === 'on' || false,
-139
- 
-                adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
-140
- 
-                air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
-141
- 
-                forecast_sun: findState((e) => e.entity_id.includes('forecast') && e.entity_id.includes('sun') && e.attributes.area_id === area)?.state === 'on' || false,
-142
- 
-            };
-143
- 
-
-144
- 
-            // Build evaluation context
-145
- 
-            const context = this._buildContext(area, usedSensors, states, weatherEntity, defaultTarget);
-146
- 
-            // Evaluate rules
-147
- 
-
+                // Get all sensors for this area
+                const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
+                // Group sensors by relevance
+                const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type);
+                const matchingByKeyword = areaSensors.filter((e) => {
+                    // Use the imported SENSOR_KEYWORDS
+                    const keywords = SENSOR_KEYWORDS[type] || [type];
+                    return keywords.some(k => e.entity_id.toLowerCase().includes(k) ||
+                        (e.attributes.friendly_name || '').toLowerCase().includes(k));
+                });
+                areaSensors.filter(s => !matchingByClass.includes(s) && !matchingByKeyword.includes(s));
+                const autoId = this._autodetect(area.area_id, type);
+                const selected = this.config.overrides?.[area.area_id]?.[type] || '';
+                return x `<li>${type}:
                   <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
                     <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
                     <option value="none">None (no sensor)</option>
@@ -667,13 +607,67 @@ HausgeistCardEditor = __decorate$1([
     t('hausgeist-card-editor')
 ], HausgeistCardEditor);
 
+const styles = i$3 `
+:host {
+  display: block;
+  background: var(--ha-card-background, var(--card-background-color, #fff));
+  border-radius: var(--ha-card-border-radius, 1em);
+  box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,0.07));
+  padding: 1.5em;
+  font-family: var(--primary-font-family, inherit);
+  color: var(--primary-text-color, #222);
+}
+
+h2 {
+  margin-top: 0;
+  font-size: 1.3em;
+  color: var(--primary-text-color, #4a4a4a);
+}
+
+p.warning {
+  color: var(--warning-color, #b85c00);
+  background: var(--warning-bg, #fff7e6);
+  border-left: 4px solid var(--warning-border, #ffb300);
+  padding: 0.5em 1em;
+  border-radius: 0.5em;
+  margin: 0.5em 0;
+}
+
+p.info {
+  color: var(--info-color, #0288d1);
+  background: var(--info-bg, #e6f4ff);
+  border-left: 4px solid var(--info-border, #2196f3);
+  padding: 0.5em 1em;
+  border-radius: 0.5em;
+  margin: 0.5em 0;
+}
+
+p.ok {
+  color: var(--success-color, #357a38);
+  background: var(--success-bg, #e6f9e6);
+  border-left: 4px solid var(--success-border, #4caf50);
+  padding: 0.5em 1em;
+  border-radius: 0.5em;
+  margin: 0.5em 0;
+}
+
+.debug {
+  font-size: 0.9em;
+  color: var(--secondary-text-color, #888);
+  background: var(--secondary-background-color, #f5f5f5);
+  border-radius: 0.5em;
+  padding: 0.5em 1em;
+  margin: 0.5em 0;
+  white-space: pre-wrap;
+}`;
+
 var __decorate = (undefined && undefined.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-const TRANSLATIONS = { de};
+const TRANSLATIONS = { de, en };
 let HausgeistCard = class HausgeistCard extends i {
     constructor() {
         super(...arguments);
@@ -748,11 +742,17 @@ let HausgeistCard = class HausgeistCard extends i {
             debugOut.push(`DEBUG: Enabled areas: ${JSON.stringify(areas.map(a => a.name || a.area_id))}`);
             debugOut.push(`DEBUG: Weather entity: ${weatherEntity}`);
         }
-        // Create area name lookup
+        const lang = this.hass.selectedLanguage || 'de';
+        const langKey = lang;
+        this.texts = TRANSLATIONS[langKey] || TRANSLATIONS['de'];
+        if (!this.texts || Object.keys(this.texts).length === 0) {
+            this.texts = TRANSLATIONS['de'];
+        }
+        // Mapping areaId -> Klartextname (aus config.areas)
         const areaIdToName = {};
         areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
-
         const areaMessages = areaIds.map((area) => {
+            filterSensorsByArea(states, area);
             const usedSensors = [];
             if (this.debug) {
                 const sensors = filterSensorsByArea(states, area);
@@ -761,7 +761,6 @@ let HausgeistCard = class HausgeistCard extends i {
                 debugOut.push(`Configured overrides: ${JSON.stringify(this.config?.overrides?.[area])}`);
                 debugOut.push(`Auto-detected sensors: ${JSON.stringify(this.config?.auto?.[area])}`);
             }
-
             // Use imported SENSOR_KEYWORDS from sensor-keywords.ts
             const findSensor = (cls) => {
                 return this._findSensor(Object.values(this.hass.states), area, usedSensors, cls);
@@ -804,7 +803,6 @@ let HausgeistCard = class HausgeistCard extends i {
                 air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
                 forecast_sun: findState((e) => e.entity_id.includes('forecast') && e.entity_id.includes('sun') && e.attributes.area_id === area)?.state === 'on' || false,
             };
-
             const evals = this.engine ? this.engine.evaluate(context) : [];
             if (this.debug) {
                 debugOut.push(`--- ${area} ---\n` +
@@ -910,56 +908,7 @@ let HausgeistCard = class HausgeistCard extends i {
         this.requestUpdate();
     }
 };
-HausgeistCard.styles = i$3 `
-    :host {
-      display: block;
-      background: var(--ha-card-background, var(--card-background-color, #fff));
-      border-radius: var(--ha-card-border-radius, 1em);
-      box-shadow: var(--ha-card-box-shadow, 0 2px 8px rgba(0,0,0,0.07));
-      padding: 1.5em;
-      font-family: var(--primary-font-family, inherit);
-      color: var(--primary-text-color, #222);
-    }
-  
-    h2 {
-      margin-top: 0;
-      font-size: 1.3em;
-      color: var(--primary-text-color, #4a4a4a);
-    }
-    p.warning {
-      color: var(--warning-color, #b85c00);
-      background: var(--warning-bg, #fff7e6);
-      border-left: 4px solid var(--warning-border, #ffb300);
-      padding: 0.5em 1em;
-      border-radius: 0.5em;
-      margin: 0.5em 0;
-    }
-    p.info {
-      color: var(--info-color, #0288d1);
-      background: var(--info-bg, #e6f4ff);
-      border-left: 4px solid var(--info-border, #2196f3);
-      padding: 0.5em 1em;
-      border-radius: 0.5em;
-      margin: 0.5em 0;
-    }
-    p.ok {
-      color: var(--success-color, #357a38);
-      background: var(--success-bg, #e6f9e6);
-      border-left: 4px solid var(--success-border, #4caf50);
-      padding: 0.5em 1em;
-      border-radius: 0.5em;
-      margin: 0.5em 0;
-    }
-    .debug {
-      font-size: 0.9em;
-      color: var(--secondary-text-color, #888);
-      background: var(--secondary-background-color, #f5f5f5);
-      border-radius: 0.5em;
-      padding: 0.5em 1em;
-      margin: 0.5em 0;
-      white-space: pre-wrap;
-    }
-  `;
+HausgeistCard.styles = styles;
 __decorate([
     n({ type: Object })
 ], HausgeistCard.prototype, "hass", void 0);

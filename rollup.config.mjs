@@ -1,6 +1,7 @@
 import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import json from '@rollup/plugin-json';
+import postcss from 'rollup-plugin-postcss';
 
 export default {
   input: 'dist-ts/src/hausgeist-card.js',
@@ -12,6 +13,10 @@ export default {
   plugins: [
     resolve(),
     commonjs(),
-    json()
+    json(),
+    postcss({
+      inject: false,
+      extract: false
+    })
   ]
 };

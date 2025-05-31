@@ -21,6 +21,7 @@ export declare class HausgeistCard extends LitElement {
     notify: boolean;
     highThreshold: number;
     rulesJson: string;
+    static styles: import("lit").CSSResult;
     private engine?;
     private texts;
     private ready;
@@ -28,5 +29,4 @@ export declare class HausgeistCard extends LitElement {
     render(): import("lit-html").TemplateResult<1>;
     private _buildContext;
     setConfig(config: any): void;
-    static styles: import("lit").CSSResult;
 }
