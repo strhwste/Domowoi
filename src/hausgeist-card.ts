@@ -393,8 +393,9 @@ export class HausgeistCard extends LitElement {
     weatherEntity: string,
     defaultTarget: number
   ): Record<string, any> {
+    // Use the passed-in states array everywhere
     const findSensor = (type: string) => {
-      return this._findSensor(Object.values(this.hass.states), area, usedSensors, type);
+      return this._findSensor(states, area, usedSensors, type);
     };
 
     const get = (type: string) => {

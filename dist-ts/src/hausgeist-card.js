@@ -320,8 +320,9 @@ let HausgeistCard = class HausgeistCard extends LitElement {
     }
     // Build evaluation context for rules with weather data and sensor values
     _buildContext(area, usedSensors, states, weatherEntity, defaultTarget) {
+        // Use the passed-in states array everywhere
         const findSensor = (type) => {
-            return this._findSensor(Object.values(this.hass.states), area, usedSensors, type);
+            return this._findSensor(states, area, usedSensors, type);
         };
         const get = (type) => {
             const s = findSensor(type);
