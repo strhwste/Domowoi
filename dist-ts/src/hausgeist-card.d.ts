@@ -1,4 +1,4 @@
-import { LitElement } from 'lit';
+import { LitElement, PropertyValues } from 'lit';
 import './hausgeist-card-editor';
 declare module 'three/examples/jsm/loaders/GLTFLoader.js';
 export declare class HausgeistCard extends LitElement {
@@ -20,6 +20,7 @@ export declare class HausgeistCard extends LitElement {
         default_target?: number;
         default_adjacent_room_temp?: number;
         default_outside_temp?: number;
+        ghost_model_url?: string;
     };
     debug: boolean;
     notify: boolean;
@@ -46,8 +47,9 @@ export declare class HausgeistCard extends LitElement {
     private ghostAnimationId?;
     private ghostCanvas?;
     private lastTip;
+    private ghostLoadError;
     connectedCallback(): Promise<void>;
-    firstUpdated(): void;
+    updated(changedProps: PropertyValues): void;
     disconnectedCallback(): void;
     private _initGhost3D;
     private _animateGhost;

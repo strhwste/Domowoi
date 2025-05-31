@@ -27,6 +27,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         this.texts = TRANSLATIONS['de'];
         this.ready = false;
         this.lastTip = '';
+        this.ghostLoadError = false;
     }
     // Support the editor UI
     static async getConfigElement() {
@@ -97,7 +98,9 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             this.ready = false;
         }
     }
-    firstUpdated() {
+    // Canvas-Initialisierung nach jedem Render sicherstellen
+    updated(changedProps) {
+        super.updated(changedProps);
         this._initGhost3D();
     }
     disconnectedCallback() {
@@ -139,12 +142,17 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         this.ghostScene.add(new THREE.AmbientLight(0xffffff, 0.7));
         // Load GLB
         const loader = new GLTFLoader();
-        loader.load('/assets/98ecd537dd35b3b246c2e6a6e255bc2a.glb', (gltf) => {
+        const modelUrl = this.config.ghost_model_url || '/local/ghost.glb';
+        loader.load(modelUrl, (gltf) => {
             this.ghostModel = gltf.scene;
             this.ghostModel.position.set(0, 0.5, 0);
             this.ghostModel.scale.set(1.2, 1.2, 1.2);
             this.ghostScene.add(this.ghostModel);
+            this.ghostLoadError = false;
             this._animateGhost();
+        }, undefined, (err) => {
+            this.ghostLoadError = true;
+            this.requestUpdate();
         });
     }
     _animateGhost() {
@@ -359,7 +367,10 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         const anyRulesApplied = areaMessages.some((a) => a.evals.length > 0);
         // Finde den aktuellen Tipp (höchste Priorität)
         let currentTip = '';
-        if (topMessages.length > 0) {
+        if (this.ghostLoadError) {
+            currentTip = 'Geist-Modell nicht gefunden! Bitte ghost_model_url prüfen.';
+        }
+        else if (topMessages.length > 0) {
             currentTip = this.texts?.[topMessages[0].message_key] || topMessages[0].message_key;
         }
         return html `
@@ -525,23 +536,17 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             if (targetSensor) {
                 // Bei climate Entities nehmen wir temperature aus den Attributen
                 if (targetSensor.entity_id.startsWith('climate.')) {
-                    const value = Number(targetSensor.attributes.temperature);
-                    if (!isNaN(value)) {
-                        return value;
-                    }
+                    return Number(targetSensor.attributes.temperature);
                 }
-                // Sonst den State
-                const value = Number(targetSensor.state);
-                if (!isNaN(value)) {
-                    return value;
-                }
+                return Number(targetSensor.state);
             }
+            // 3. Als letzten Ausweg den Standardwert verwenden
+            return defaultTarget;
         }
         catch (error) {
             console.error('Error getting target temperature:', error);
         }
-        // 3. Fallback auf den Default-Wert
-        return this.config.default_target || defaultTarget;
+        return defaultTarget; // Default to config value on error
     }
 };
 HausgeistCard.styles = styles;

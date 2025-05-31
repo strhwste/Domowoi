@@ -139,7 +139,9 @@ export class HausgeistCard extends LitElement {
     }
   }
 
-  firstUpdated() {
+  // Canvas-Initialisierung nach jedem Render sicherstellen
+  updated(changedProps: PropertyValues) {
+    super.updated(changedProps);
     this._initGhost3D();
   }
 
@@ -643,22 +645,16 @@ export class HausgeistCard extends LitElement {
       if (targetSensor) {
         // Bei climate Entities nehmen wir temperature aus den Attributen
         if (targetSensor.entity_id.startsWith('climate.')) {
-          const value = Number(targetSensor.attributes.temperature);
-          if (!isNaN(value)) {
-            return value;
-          }
+          return Number(targetSensor.attributes.temperature);
         }
-        // Sonst den State
-        const value = Number(targetSensor.state);
-        if (!isNaN(value)) {
-          return value;
-        }
+        return Number(targetSensor.state);
       }
+
+      // 3. Als letzten Ausweg den Standardwert verwenden
+      return defaultTarget;
     } catch (error) {
       console.error('Error getting target temperature:', error);
     }
-
-    // 3. Fallback auf den Default-Wert
-    return this.config.default_target || defaultTarget;
+    return defaultTarget; // Default to config value on error
   }
 }
