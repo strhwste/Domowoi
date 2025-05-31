@@ -346,7 +346,25 @@ export class HausgeistCardEditor extends LitElement {
           const autoId = this._autodetect(area.area_id, type);
           // Zeige nur Entities aus der Area (keine weitere Filterung nach Typ)
           const allEntities = Object.values(this.hass?.states || {});
-          const relevantEntities = allEntities.filter((e: any) => e.attributes?.area_id === area.area_id);
+          if (this.config.debug) {
+            console.log('All entities:', allEntities.map((e: any) => ({
+              id: e.entity_id,
+              area_id: e.attributes?.area_id,
+              name: e.attributes?.friendly_name
+            })));
+            console.log('Current area:', area.area_id, area.name);
+          }
+          let relevantEntities = allEntities.filter((e: any) => e.attributes?.area_id === area.area_id);
+          if (relevantEntities.length === 0 && this.config.debug) {
+            console.warn('No entities found for area_id', area.area_id, 'Trying fallback by area name');
+          }
+          // Fallback: try to match by area name if area_id is missing
+          if (relevantEntities.length === 0) {
+            relevantEntities = allEntities.filter((e: any) => {
+              const areaName = area.name?.toLowerCase() || area.area_id?.toLowerCase();
+              return (e.attributes?.friendly_name || '').toLowerCase().includes(areaName);
+            });
+          }
           relevantEntities.sort((a: any, b: any) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
           const selected = this.config.overrides?.[area.area_id]?.[type] || '';
 
