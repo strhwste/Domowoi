@@ -39,6 +39,26 @@ export class HausgeistCard extends LitElement {
   private texts: Record<string, string> = TRANSLATIONS['de'];
   private ready = false;
 
+  async connectedCallback() {
+    super.connectedCallback();
+    
+    try {
+      // Load rules from rulesJson if provided, otherwise from plugin-loader
+      const rules = this.rulesJson 
+        ? JSON.parse(this.rulesJson)
+        : await loadRules();
+      
+      if (rules) {
+        this.engine = new RuleEngine(rules);
+        this.ready = true;
+        this.requestUpdate();
+      }
+    } catch (error) {
+      console.error('Error initializing Hausgeist:', error);
+      this.ready = false;
+    }
+  }
+
   // Find sensor by type in area, with overrides and auto-detection
   private _findSensor(
     sensors: Array<{ entity_id: string; state: any; attributes: { [key: string]: any } }>,
@@ -302,12 +322,28 @@ export class HausgeistCard extends LitElement {
     };
   }
 
-  public setConfig(config: any) {
+  public async setConfig(config: any) {
     this.config = config;
     this.debug = !!config?.debug;
     this.notify = !!config?.notify;
     this.highThreshold = typeof config?.highThreshold === 'number' ? config.highThreshold : 2000;
     this.rulesJson = config?.rulesJson || '';
+
+    try {
+      // Load rules from rulesJson if provided, otherwise from plugin-loader
+      const rules = this.rulesJson 
+        ? JSON.parse(this.rulesJson)
+        : await loadRules();
+      
+      if (rules) {
+        this.engine = new RuleEngine(rules);
+        this.ready = true;
+      }
+    } catch (error) {
+      console.error('Error initializing Hausgeist:', error);
+      this.ready = false;
+    }
+
     this.requestUpdate();
   }
 }

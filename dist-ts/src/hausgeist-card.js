@@ -6,7 +6,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 import { LitElement, html } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { RuleEngine } from './rule-engine';
 import { filterSensorsByArea } from './utils';
+import { loadRules } from './plugin-loader';
 import en from '../translations/en.json';
 import de from '../translations/de.json';
 import './hausgeist-card-editor';
@@ -22,6 +24,24 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         this.rulesJson = '';
         this.texts = TRANSLATIONS['de'];
         this.ready = false;
+    }
+    async connectedCallback() {
+        super.connectedCallback();
+        try {
+            // Load rules from rulesJson if provided, otherwise from plugin-loader
+            const rules = this.rulesJson
+                ? JSON.parse(this.rulesJson)
+                : await loadRules();
+            if (rules) {
+                this.engine = new RuleEngine(rules);
+                this.ready = true;
+                this.requestUpdate();
+            }
+        }
+        catch (error) {
+            console.error('Error initializing Hausgeist:', error);
+            this.ready = false;
+        }
     }
     // Find sensor by type in area, with overrides and auto-detection
     _findSensor(sensors, area, usedSensors, sensorType) {
@@ -243,12 +263,26 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
         };
     }
-    setConfig(config) {
+    async setConfig(config) {
         this.config = config;
         this.debug = !!config?.debug;
         this.notify = !!config?.notify;
         this.highThreshold = typeof config?.highThreshold === 'number' ? config.highThreshold : 2000;
         this.rulesJson = config?.rulesJson || '';
+        try {
+            // Load rules from rulesJson if provided, otherwise from plugin-loader
+            const rules = this.rulesJson
+                ? JSON.parse(this.rulesJson)
+                : await loadRules();
+            if (rules) {
+                this.engine = new RuleEngine(rules);
+                this.ready = true;
+            }
+        }
+        catch (error) {
+            console.error('Error initializing Hausgeist:', error);
+            this.ready = false;
+        }
         this.requestUpdate();
     }
 };

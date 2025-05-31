@@ -37,6 +37,36 @@ const t=t=>(e,o)=>{ void 0!==o?o.addInitializer((()=>{customElements.define(t,e)
  * SPDX-License-Identifier: BSD-3-Clause
  */const o={attribute:true,type:String,converter:u$1,reflect:false,hasChanged:f$1},r=(t=o,e,r)=>{const{kind:n,metadata:i}=r;let s=globalThis.litPropertyMetadata.get(i);if(void 0===s&&globalThis.litPropertyMetadata.set(i,s=new Map),"setter"===n&&((t=Object.create(t)).wrapped=true),s.set(r.name,t),"accessor"===n){const{name:o}=r;return {set(r){const n=e.get.call(this);e.set.call(this,r),this.requestUpdate(o,n,t);},init(e){return void 0!==e&&this.C(o,void 0,t,e),e}}}if("setter"===n){const{name:o}=r;return function(r){const n=this[o];e.call(this,r),this.requestUpdate(o,n,t);}}throw Error("Unsupported decorator location: "+n)};function n(t){return (e,o)=>"object"==typeof o?r(t,e,o):((t,e,o)=>{const r=e.hasOwnProperty(o);return e.constructor.createProperty(o,t),r?Object.getOwnPropertyDescriptor(e,o):void 0})(t,e,o)}
 
+class RuleEngine {
+    constructor(rules) {
+        this.rules = [];
+        this.rules = rules;
+        console.log('[RuleEngine] Initialized with', rules.length, 'rules');
+    }
+    evaluate(context) {
+        // Debug: log available context
+        console.log('[RuleEngine] Evaluating rules with context:', context);
+        const results = [];
+        for (const rule of this.rules) {
+            let hit = false;
+            try {
+                // eslint-disable-next-line no-new-func
+                hit = Function(...Object.keys(context), `return (${rule.condition});`)(...Object.values(context));
+                console.log(`[RuleEngine] Rule '${rule.id || rule.message_key}' (${rule.condition}) => ${hit}`);
+            }
+            catch (e) {
+                console.warn(`[RuleEngine] Error evaluating rule '${rule.id || rule.message_key}':`, e);
+                continue;
+            }
+            if (hit) {
+                results.push({ message_key: rule.message_key, priority: rule.priority });
+            }
+        }
+        console.log('[RuleEngine] Evaluation complete,', results.length, 'rules matched');
+        return results;
+    }
+}
+
 function filterSensorsByArea(states, areaId) {
     // Vergleiche areaId und st.attributes.area_id getrimmt und in Kleinbuchstaben
     const norm = (v) => (v || '').toLowerCase().trim();
@@ -56,6 +86,160 @@ function filterSensorsByArea(states, areaId) {
     console.log(`[filterSensorsByArea] Found ${filtered.length} sensors for area '${areaId}':`);
     filtered.forEach(s => console.log(`- ${s.entity_id}`));
     return filtered;
+}
+
+var coreRules = [
+	{
+		id: "debug",
+		condition: "debug === true",
+		message_key: "debug_rule_match",
+		priority: "info"
+	},
+	{
+		condition: "temp > target + 2",
+		message_key: "temp_above_target",
+		priority: "warn"
+	},
+	{
+		condition: "temp < target - 2",
+		message_key: "temp_below_target",
+		priority: "warn"
+	},
+	{
+		condition: "humidity < 35",
+		message_key: "humidity_low",
+		priority: "info"
+	},
+	{
+		condition: "humidity > 70",
+		message_key: "humidity_high",
+		priority: "alert"
+	},
+	{
+		condition: "co2 > 1000",
+		message_key: "co2_high",
+		priority: "warn"
+	},
+	{
+		condition: "window == 'open' && heating == 'on'",
+		message_key: "window_open_heating_on",
+		priority: "alert"
+	},
+	{
+		condition: "!occupied && temp > 21",
+		message_key: "room_empty_warm",
+		priority: "info"
+	},
+	{
+		condition: "outside_temp > 15 && temp > 23",
+		message_key: "outside_warm_inside_warm",
+		priority: "info"
+	},
+	{
+		condition: "forecast_temp > 18 && target > 21",
+		message_key: "forecast_warmer_target_high",
+		priority: "info"
+	},
+	{
+		condition: "energy > high_threshold",
+		message_key: "energy_high",
+		priority: "warn"
+	},
+	{
+		condition: "target == 0",
+		message_key: "eco_mode",
+		priority: "ok"
+	},
+	{
+		condition: "temp_change_rate > 2",
+		message_key: "temp_rising_fast",
+		priority: "warn"
+	},
+	{
+		condition: "motion == false && heating == 'on'",
+		message_key: "no_motion_heating_on",
+		priority: "info"
+	},
+	{
+		condition: "outside_temp < temp - 3 && now % 86400000 < 9 * 3600000",
+		message_key: "morning_cool_outside",
+		priority: "info"
+	},
+	{
+		condition: "outside_temp > temp && now % 86400000 > 11 * 3600000 && window == 'open'",
+		message_key: "afternoon_window_open_hot_outside",
+		priority: "warn"
+	},
+	{
+		condition: "forecast_temp > 26 && temp < 23 && now % 86400000 < 8 * 3600000",
+		message_key: "hot_day_morning_ventilate",
+		priority: "info"
+	},
+	{
+		condition: "forecast_temp > 28 && window == 'open' && now % 86400000 > 12 * 3600000",
+		message_key: "very_hot_window_open",
+		priority: "alert"
+	},
+	{
+		condition: "outside_temp < 18 && temp > 24 && now % 86400000 < 7 * 3600000",
+		message_key: "early_cool_outside_ventilate",
+		priority: "info"
+	},
+	{
+		condition: "window == 'closed' && outside_temp > temp && temp > 23 && now % 86400000 > 11 * 3600000",
+		message_key: "keep_window_closed_cool_inside",
+		priority: "info"
+	},
+	{
+		condition: "(curtain == 'open' || blind == 'open') && outside_temp > 26 && now % 86400000 > 11 * 3600000",
+		message_key: "close_curtains_to_keep_cool",
+		priority: "info"
+	},
+	{
+		condition: "window == 'open' && rain_soon == true",
+		message_key: "rain_soon_close_window",
+		priority: "alert"
+	},
+	{
+		condition: "door == 'open' && heating == 'on' && adjacent_room_temp > temp + 1",
+		message_key: "close_door_to_save_heat",
+		priority: "info"
+	},
+	{
+		condition: "air_quality == 'poor' && window == 'closed'",
+		message_key: "ventilate_air_quality_poor",
+		priority: "warn"
+	},
+	{
+		condition: "humidity > 70 && window == 'closed'",
+		message_key: "ventilate_high_humidity",
+		priority: "info"
+	},
+	{
+		condition: "forecast_sun == true && now % 86400000 > 7 * 3600000 && blind == 'closed' && temp < 21",
+		message_key: "open_blinds_for_sun_warmth",
+		priority: "info"
+	},
+	{
+		condition: "window == 'open' && outside_temp < 10 && now % 86400000 > 22 * 3600000",
+		message_key: "window_open_night_cold",
+		priority: "alert"
+	},
+	{
+		condition: "temp < 17 && window == 'open'",
+		message_key: "room_too_cold_window_open",
+		priority: "warn"
+	},
+	{
+		condition: "humidity > 70 && temp - (outside_temp + (humidity/100)*(temp-outside_temp)) < 2",
+		message_key: "mold_risk_dew_point",
+		priority: "alert"
+	}
+];
+
+async function loadRules() {
+    // Core-Regeln
+    return coreRules;
 }
 
 var low_humidity$1 = "Humidity below 35% – please ventilate or humidify";
@@ -679,6 +863,24 @@ let HausgeistCard = class HausgeistCard extends i {
         this.texts = TRANSLATIONS['de'];
         this.ready = false;
     }
+    async connectedCallback() {
+        super.connectedCallback();
+        try {
+            // Load rules from rulesJson if provided, otherwise from plugin-loader
+            const rules = this.rulesJson
+                ? JSON.parse(this.rulesJson)
+                : await loadRules();
+            if (rules) {
+                this.engine = new RuleEngine(rules);
+                this.ready = true;
+                this.requestUpdate();
+            }
+        }
+        catch (error) {
+            console.error('Error initializing Hausgeist:', error);
+            this.ready = false;
+        }
+    }
     // Find sensor by type in area, with overrides and auto-detection
     _findSensor(sensors, area, usedSensors, sensorType) {
         if (this.debug) {
@@ -899,12 +1101,26 @@ let HausgeistCard = class HausgeistCard extends i {
             air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
         };
     }
-    setConfig(config) {
+    async setConfig(config) {
         this.config = config;
         this.debug = !!config?.debug;
         this.notify = !!config?.notify;
         this.highThreshold = typeof config?.highThreshold === 'number' ? config.highThreshold : 2000;
         this.rulesJson = config?.rulesJson || '';
+        try {
+            // Load rules from rulesJson if provided, otherwise from plugin-loader
+            const rules = this.rulesJson
+                ? JSON.parse(this.rulesJson)
+                : await loadRules();
+            if (rules) {
+                this.engine = new RuleEngine(rules);
+                this.ready = true;
+            }
+        }
+        catch (error) {
+            console.error('Error initializing Hausgeist:', error);
+            this.ready = false;
+        }
         this.requestUpdate();
     }
 };

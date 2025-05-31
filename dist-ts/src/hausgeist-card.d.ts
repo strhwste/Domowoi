@@ -25,8 +25,9 @@ export declare class HausgeistCard extends LitElement {
     private engine?;
     private texts;
     private ready;
+    connectedCallback(): Promise<void>;
     private _findSensor;
     render(): import("lit-html").TemplateResult<1>;
     private _buildContext;
-    setConfig(config: any): void;
+    setConfig(config: any): Promise<void>;
 }
