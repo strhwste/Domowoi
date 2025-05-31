@@ -101,6 +101,20 @@ let HausgeistCard = class HausgeistCard extends LitElement {
     // Canvas-Initialisierung nach jedem Render sicherstellen
     updated(changedProps) {
         super.updated(changedProps);
+        // Versuche, die Größe des Containers an die Kartengröße anzupassen
+        const container = this.renderRoot?.querySelector('.ghost-3d-container');
+        if (container) {
+            const card = container.closest('ha-card');
+            if (card) {
+                const width = card.offsetWidth || 320;
+                const height = Math.max(240, Math.round(width * 0.8));
+                if (this.ghostRenderer) {
+                    this.ghostRenderer.setSize(width, height);
+                }
+                container.style.width = width + 'px';
+                container.style.height = height + 'px';
+            }
+        }
         this._initGhost3D();
     }
     disconnectedCallback() {
@@ -162,7 +176,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         const modelUrl = this.config.ghost_model_url || '/local/ghost.glb';
         loader.load(modelUrl, (gltf) => {
             this.ghostModel = gltf.scene;
-            this.ghostModel.position.set(0, 0.5, 0);
+            this.ghostModel.position.set(0, 0.8, 0);
             this.ghostModel.scale.set(1.2, 1.2, 1.2);
             // Schatten aktivieren und Material aufhellen
             this.ghostModel.traverse((obj) => {
@@ -170,7 +184,9 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                     obj.castShadow = true;
                     obj.receiveShadow = false;
                     if (obj.material && obj.material.color) {
-                        obj.material.color.multiplyScalar(1.3);
+                        obj.material.color.multiplyScalar(1.8); // Helle das Material auf
+                        obj.material.emissive.set(0x222222); // Leichtes Emissive für sanftes Leuchten
+                        obj.material.emissiveIntensity = 0.2; // Sanftes Leuchten
                     }
                 }
             });
@@ -187,18 +203,18 @@ let HausgeistCard = class HausgeistCard extends LitElement {
     _createGhostSpeechBubble(text) {
         // Create canvas for speech bubble
         this.ghostSpeechCanvas = document.createElement('canvas');
-        this.ghostSpeechCanvas.width = 400;
-        this.ghostSpeechCanvas.height = 120;
+        this.ghostSpeechCanvas.width = 380;
+        this.ghostSpeechCanvas.height = 100;
         this.ghostSpeechCtx = this.ghostSpeechCanvas.getContext('2d');
         // Initial draw
         this._updateGhostSpeechTexture(text);
         this.ghostSpeechTexture = new THREE.Texture(this.ghostSpeechCanvas);
         this.ghostSpeechTexture.needsUpdate = true;
         // Plane geometry for speech bubble
-        const geometry = new THREE.PlaneGeometry(2.6, 0.8);
+        const geometry = new THREE.PlaneGeometry(2.2, 0.6);
         const material = new THREE.MeshBasicMaterial({ map: this.ghostSpeechTexture, transparent: true });
         this.ghostSpeechMesh = new THREE.Mesh(geometry, material);
-        this.ghostSpeechMesh.position.set(0, 1.7, 0);
+        this.ghostSpeechMesh.position.set(0, 2.0, 0);
         this.ghostSpeechMesh.renderOrder = 2;
         this.ghostScene.add(this.ghostSpeechMesh);
     }
@@ -212,32 +228,29 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         ctx.strokeStyle = 'rgba(180,180,180,0.7)';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(30, 15);
-        ctx.lineTo(370, 15);
-        ctx.quadraticCurveTo(390, 15, 390, 40);
-        ctx.lineTo(390, 90);
-        ctx.quadraticCurveTo(390, 110, 370, 110);
-        ctx.lineTo(30, 110);
-        ctx.quadraticCurveTo(10, 110, 10, 90);
-        ctx.lineTo(10, 40);
-        ctx.quadraticCurveTo(10, 15, 30, 15);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        // Bubble tail
-        ctx.beginPath();
-        ctx.moveTo(200, 110);
-        ctx.lineTo(220, 135);
-        ctx.lineTo(180, 110);
+        // Bubble-Form:
+        ctx.moveTo(25, 10);
+        ctx.lineTo(355, 10);
+        ctx.quadraticCurveTo(370, 10, 370, 30);
+        ctx.lineTo(370, 80);
+        ctx.quadraticCurveTo(370, 95, 355, 95);
+        ctx.lineTo(25, 95);
+        ctx.quadraticCurveTo(10, 95, 10, 80);
+        ctx.lineTo(10, 30);
+        ctx.quadraticCurveTo(10, 10, 25, 10);
+        // Bubble tail:
+        ctx.moveTo(190, 95);
+        ctx.lineTo(205, 120);
+        ctx.lineTo(175, 95);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
         // Text
-        ctx.font = 'bold 28px sans-serif';
+        ctx.font = 'bold 20px sans-serif';
         ctx.fillStyle = '#222';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        this._wrapText(ctx, text, 200, 60, 340, 34);
+        this._wrapText(ctx, text, 190, 52, 320, 24);
         if (this.ghostSpeechTexture) {
             this.ghostSpeechTexture.needsUpdate = true;
         }
@@ -286,7 +299,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         if (this.ghostSpeechMesh) {
             this.ghostSpeechMesh.position.x = this.ghostModel.position.x;
             this.ghostSpeechMesh.position.z = this.ghostModel.position.z;
-            this.ghostSpeechMesh.position.y = this.ghostModel.position.y + 0.9;
+            this.ghostSpeechMesh.position.y = this.ghostModel.position.y + 1.1;
             this.ghostSpeechMesh.lookAt(this.ghostCamera.position);
         }
         this.ghostRenderer.render(this.ghostScene, this.ghostCamera);
@@ -509,8 +522,8 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         return html `
       <style>
         .ghost-3d-container {
-          width: 320px;
-          height: 320px;
+          width: 100%;
+          height: 100%;
           margin: 0 auto;
           position: relative;
           z-index: 2;
