@@ -134,7 +134,7 @@ export class HausgeistCard extends LitElement {
     if (this.debug) {
       console.log(`[_findSensor] Looking for ${sensorType} in area ${area}`);
       console.log(`[_findSensor] config.overrides[${area}]:`, this.config?.overrides?.[area]);
-      console.log(`[_findSensor] config.auto[${area}]:`, this.config?.auto?.[area]);
+      // console.log(`[_findSensor] config.auto[${area}]:`, this.config?.auto?.[area]);
     }
 
     // 1. Check for manual override in config
@@ -152,20 +152,20 @@ export class HausgeistCard extends LitElement {
       if (this.debug) console.log(`[_findSensor] Override sensor ${overrideId} not found`);
     }
 
-    // 2. Check auto-detected sensor from config
-    const autoId = this.config?.auto?.[area]?.[sensorType];
-    if (autoId) {
-      const sensor = sensors.find((s) => s.entity_id === autoId);
-      if (sensor) {
-        usedSensors.push({
-          type: `${sensorType} (auto)`,
-          entity_id: sensor.entity_id,
-          value: sensor.state
-        });
-        return sensor;
-      }
-      if (this.debug) console.log(`[_findSensor] Auto sensor ${autoId} not found`);
-    }
+    // 2. Check auto-detected sensor from config (auskommentiert)
+    // const autoId = this.config?.auto?.[area]?.[sensorType];
+    // if (autoId) {
+    //   const sensor = sensors.find((s) => s.entity_id === autoId);
+    //   if (sensor) {
+    //     usedSensors.push({
+    //       type: `${sensorType} (auto)`,
+    //       entity_id: sensor.entity_id,
+    //       value: sensor.state
+    //     });
+    //     return sensor;
+    //   }
+    //   if (this.debug) console.log(`[_findSensor] Auto sensor ${autoId} not found`);
+    // }
 
     // 3. Not found
     if (this.debug) {

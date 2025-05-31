@@ -71,17 +71,6 @@ export class HausgeistCardEditor extends LitElement {
     this._configChanged();
   }
 
-  // Handle "Use Auto-Detected" button click
-  private _onUseAutoDetected(areaId: string, type: string) {
-    const autoId = this._autodetect(areaId, type);
-    if (!autoId) return;
-
-    const overrides = { ...(this.config.overrides || {}) };
-    overrides[areaId] = { ...(overrides[areaId] || {}), [type]: autoId };
-    this.config = { ...this.config, overrides };
-    this._configChanged();
-  }
-
   // Dispatch a custom event to notify that the config has changed
   _configChanged() {
     // Always include the current areas in the config
@@ -357,8 +346,8 @@ export class HausgeistCardEditor extends LitElement {
           const autoId = this._autodetect(area.area_id, type);
           const selected = this.config.overrides?.[area.area_id]?.[type] || '';
 
-          return html`
-          <li>
+            return html`
+            <li>
             <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
             <span class="sensor-label">
               ${type === 'target' ? 'Zieltemperatur' : 
@@ -368,29 +357,28 @@ export class HausgeistCardEditor extends LitElement {
             </span>
             <div class="sensor-select">
               <select @change=${(e: Event) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
-                <option value="">(kein Sensor ausgewählt)</option>
-                <option value="none">Kein Sensor</option>
-                ${areaSensors
-                  .sort((a: any, b: any) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id))
-                  .map((s: any) => html`
-                    <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                      ${s.attributes.friendly_name || s.entity_id} 
-                      [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]
-                      ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
-                    </option>
-                  `)}
+              <option value="">(kein Sensor ausgewählt)</option>
+              <option value="none">Kein Sensor</option>
+              ${areaSensors
+                .sort((a: any, b: any) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id))
+                .map((s: any) => html`
+                <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                  ${s.attributes.friendly_name || s.entity_id} 
+                  [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]
+                  ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
+                </option>
+                `)}
               </select>
-              <button type="button" @click=${() => this._onUseAutoDetected(area.area_id, type)} style="margin-left:0.5em;">Auto-Detect</button>
               ${type === 'target' ? html`
               <div class="help-text">
-                Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
-                um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
+              Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
+              um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
               </div>
               ` : ''}
             </div>
             </div>
-          </li>
-          `;
+            </li>
+            `;
           })}
         </ul>
         </div>

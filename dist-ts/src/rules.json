@@ -6,9 +6,19 @@
         "priority": "info"
     },
     {
-        "condition": "temp > target + 2",
+        "condition": "temp > target + 2 && !(outside_temp > temp)",
         "message_key": "temp_above_target",
         "priority": "warn"
+    },
+    {
+        "condition": "temp > target + 2 && outside_temp < temp && window == 'closed'",
+        "message_key": "temp_above_target_ventilate_possible",
+        "priority": "info"
+    },
+    {
+        "condition": "temp > target + 2 && outside_temp > temp",
+        "message_key": "temp_above_target_outside_hot",
+        "priority": "info"
     },
     {
         "condition": "temp < target - 2",

@@ -101,9 +101,19 @@ var coreRules = [
 		priority: "info"
 	},
 	{
-		condition: "temp > target + 2",
+		condition: "temp > target + 2 && !(outside_temp > temp)",
 		message_key: "temp_above_target",
 		priority: "warn"
+	},
+	{
+		condition: "temp > target + 2 && outside_temp < temp && window == 'closed'",
+		message_key: "temp_above_target_ventilate_possible",
+		priority: "info"
+	},
+	{
+		condition: "temp > target + 2 && outside_temp > temp",
+		message_key: "temp_above_target_outside_hot",
+		priority: "info"
 	},
 	{
 		condition: "temp < target - 2",
@@ -512,16 +522,6 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         this.config = { ...this.config, overrides };
         this._configChanged();
     }
-    // Handle "Use Auto-Detected" button click
-    _onUseAutoDetected(areaId, type) {
-        const autoId = this._autodetect(areaId, type);
-        if (!autoId)
-            return;
-        const overrides = { ...(this.config.overrides || {}) };
-        overrides[areaId] = { ...(overrides[areaId] || {}), [type]: autoId };
-        this.config = { ...this.config, overrides };
-        this._configChanged();
-    }
     // Dispatch a custom event to notify that the config has changed
     _configChanged() {
         // Always include the current areas in the config
@@ -774,7 +774,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
                 this._autodetect(area.area_id, type);
                 const selected = this.config.overrides?.[area.area_id]?.[type] || '';
                 return x `
-          <li>
+            <li>
             <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
             <span class="sensor-label">
               ${type === 'target' ? 'Zieltemperatur' :
@@ -784,29 +784,28 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             </span>
             <div class="sensor-select">
               <select @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
-                <option value="">(kein Sensor ausgewählt)</option>
-                <option value="none">Kein Sensor</option>
-                ${areaSensors
+              <option value="">(kein Sensor ausgewählt)</option>
+              <option value="none">Kein Sensor</option>
+              ${areaSensors
                     .sort((a, b) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id))
                     .map((s) => x `
-                    <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                      ${s.attributes.friendly_name || s.entity_id} 
-                      [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]
-                      ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
-                    </option>
-                  `)}
+                <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                  ${s.attributes.friendly_name || s.entity_id} 
+                  [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]
+                  ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
+                </option>
+                `)}
               </select>
-              <button type="button" @click=${() => this._onUseAutoDetected(area.area_id, type)} style="margin-left:0.5em;">Auto-Detect</button>
               ${type === 'target' ? x `
               <div class="help-text">
-                Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
-                um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
+              Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
+              um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
               </div>
               ` : ''}
             </div>
             </div>
-          </li>
-          `;
+            </li>
+            `;
             })}
         </ul>
         </div>
@@ -997,7 +996,7 @@ let HausgeistCard = class HausgeistCard extends i {
         if (this.debug) {
             console.log(`[_findSensor] Looking for ${sensorType} in area ${area}`);
             console.log(`[_findSensor] config.overrides[${area}]:`, this.config?.overrides?.[area]);
-            console.log(`[_findSensor] config.auto[${area}]:`, this.config?.auto?.[area]);
+            // console.log(`[_findSensor] config.auto[${area}]:`, this.config?.auto?.[area]);
         }
         // 1. Check for manual override in config
         const overrideId = this.config?.overrides?.[area]?.[sensorType];
@@ -1014,21 +1013,20 @@ let HausgeistCard = class HausgeistCard extends i {
             if (this.debug)
                 console.log(`[_findSensor] Override sensor ${overrideId} not found`);
         }
-        // 2. Check auto-detected sensor from config
-        const autoId = this.config?.auto?.[area]?.[sensorType];
-        if (autoId) {
-            const sensor = sensors.find((s) => s.entity_id === autoId);
-            if (sensor) {
-                usedSensors.push({
-                    type: `${sensorType} (auto)`,
-                    entity_id: sensor.entity_id,
-                    value: sensor.state
-                });
-                return sensor;
-            }
-            if (this.debug)
-                console.log(`[_findSensor] Auto sensor ${autoId} not found`);
-        }
+        // 2. Check auto-detected sensor from config (auskommentiert)
+        // const autoId = this.config?.auto?.[area]?.[sensorType];
+        // if (autoId) {
+        //   const sensor = sensors.find((s) => s.entity_id === autoId);
+        //   if (sensor) {
+        //     usedSensors.push({
+        //       type: `${sensorType} (auto)`,
+        //       entity_id: sensor.entity_id,
+        //       value: sensor.state
+        //     });
+        //     return sensor;
+        //   }
+        //   if (this.debug) console.log(`[_findSensor] Auto sensor ${autoId} not found`);
+        // }
         // 3. Not found
         if (this.debug) {
             usedSensors.push({
@@ -1161,6 +1159,9 @@ let HausgeistCard = class HausgeistCard extends i {
                     return airQualityState !== undefined ? airQualityState : 'unknown';
                 })(),
                 forecast_sun: forecast.condition === 'sunny',
+                debug: this.debug,
+                motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+                door: findState((e) => e.entity_id.includes('door') && e.attributes.area_id === area)?.state,
             };
             const evals = this.engine ? this.engine.evaluate(context) : [];
             if (this.debug) {
