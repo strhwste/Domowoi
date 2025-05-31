@@ -311,9 +311,23 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
                 });
                 const otherSensors = areaSensors.filter(s => !matchingByClass.includes(s) && !matchingByKeyword.includes(s));
                 const autoId = this._autodetect(area.area_id, type);
-                // Zeige wirklich ALLE Entities im Dropdown, ohne Bereichs-Filter
+                // Zeige nur Entities, die zum Bereich gehören (area_id oder device_id->area_id oder Bereichsname im Namen)
                 const allEntities = Object.values(this.hass?.states || {});
-                allEntities.sort((a, b) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
+                const devices = this.hass?.devices || {};
+                const areaNames = [area.name?.toLowerCase(), area.area_id?.toLowerCase()].filter(Boolean);
+                const relevantEntities = allEntities.filter((e) => {
+                    // 1. area_id direkt
+                    if (e.attributes?.area_id === area.area_id)
+                        return true;
+                    // 2. device_id -> area_id
+                    if (e.attributes?.device_id && devices[e.attributes.device_id]?.area_id === area.area_id)
+                        return true;
+                    // 3. Bereichsname im friendly_name oder entity_id (z.B. "arbeitszimmer" oder "work")
+                    const friendly = (e.attributes?.friendly_name || '').toLowerCase();
+                    const entityId = (e.entity_id || '').toLowerCase();
+                    return areaNames.some(an => an && (friendly.includes(an) || entityId.includes(an)));
+                });
+                relevantEntities.sort((a, b) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
                 const selected = this.config.overrides?.[area.area_id]?.[type] || '';
                 return html `
             <li>
@@ -327,7 +341,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
             <div class="sensor-select">
             <select @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
             <option value="none">(kein Sensor ausgewählt)</option>
-            ${allEntities.map((s) => html `
+            ${relevantEntities.map((s) => html `
               <option 
                 value="${s.entity_id}" 
                 ?selected=${selected === s.entity_id}
