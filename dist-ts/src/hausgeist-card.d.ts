@@ -13,25 +13,20 @@ export declare class HausgeistCard extends LitElement {
         areas?: Array<{
             area_id: string;
             name: string;
+            enabled?: boolean;
         }>;
+        weather_entity?: string;
     };
     debug: boolean;
     notify: boolean;
     highThreshold: number;
     rulesJson: string;
-    static styles: import("lit").CSSResult;
     private engine?;
     private texts;
     private ready;
     private _findSensor;
-    firstUpdated(): Promise<void>;
-    setConfig(config: any): void;
-    static getConfigElement(): HTMLElement;
-    static getStubConfig(): {
-        debug: boolean;
-        notify: boolean;
-        highThreshold: number;
-        rulesJson: string;
-    };
     render(): import("lit-html").TemplateResult<1>;
+    private _buildContext;
+    setConfig(config: any): void;
+    static styles: import("lit").CSSResult;
 }

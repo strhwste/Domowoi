@@ -6,8 +6,10 @@ export declare class HausgeistCardEditor extends LitElement {
         areas?: Array<{
             area_id: string;
             name: string;
+            enabled?: boolean;
         }>;
         auto?: Record<string, Record<string, string>>;
+        weather_entity?: string;
     };
     private _hass;
     testValues: {
@@ -29,5 +31,6 @@ export declare class HausgeistCardEditor extends LitElement {
     handleRulesChange(e: any): void;
     handleNotifyChange(e: any): void;
     handleThresholdChange(e: any): void;
+    private _onAreaEnabledChange;
     render(): import("lit-html").TemplateResult<1>;
 }
