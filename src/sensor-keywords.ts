@@ -2,6 +2,12 @@ export const SENSOR_KEYWORDS: Record<string, string[]> = {
   temperature: [
     'temperature', 'temperatur', 'température', 'temperatura', 'temperatuur', 'температура', '温度', '온도'
   ],
+  heating: [
+    'heating', 'heizung', 'climate', 'heat', 'thermostat', 'chauffage', 'riscaldamento', 'verwarming', 'calefacción', 'отопление', '난방'
+  ],
+  heating_level: [
+    'heating_level', 'heizungsstufe', 'heat_level', 'level', 'stufe', 'power', 'leistung'
+  ],
   humidity: [
     'humidity', 'feuchtigkeit', 'humidité', 'umidità', 'vochtigheid', 'humedad', 'влажность', '湿度', '습도'
   ],
@@ -43,5 +49,10 @@ export const SENSOR_KEYWORDS: Record<string, string[]> = {
   ],
   forecast: [
     'forecast', 'vorhersage', 'prévision', 'previsione', 'voorspelling', 'pronóstico', 'прогноз', '예보'
+  ],
+  target: [
+    'target', 'temperature_target', 'target_temp', 'soll', 'sollwert', 'ziel', 'zieltemperatur',
+    'setpoint', 'set_temperature', 'climate', 'thermostat', 'target_heating',
+    'target_temperature', 'solltemperatur', 'heating_target'
   ]
 };

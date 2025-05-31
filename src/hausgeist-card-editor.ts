@@ -9,7 +9,8 @@ export class HausgeistCardEditor extends LitElement {
     overrides?: Record<string, Record<string, string>>, 
     areas?: Array<{ area_id: string; name: string; enabled?: boolean }>, 
     auto?: Record<string, Record<string, string>>,
-    weather_entity?: string
+    weather_entity?: string,
+    default_target?: number
   } = {};
   private _hass: any = undefined;
   @property({ type: Object }) testValues: { [key: string]: any } = {};
@@ -62,19 +63,19 @@ export class HausgeistCardEditor extends LitElement {
     this._configChanged();
   };
   // Handle sensor selection change for a specific area and type
-  _onAreaSensorChange(areaId: string, type: string, e: Event) {
+  private _onAreaSensorChange(areaId: string, type: string, e: Event) {
     const entity_id = (e.target as HTMLSelectElement).value;
     const overrides = { ...(this.config.overrides || {}) };
     overrides[areaId] = { ...(overrides[areaId] || {}), [type]: entity_id };
     this.config = { ...this.config, overrides };
     this._configChanged();
   }
-  // Handle "Use Auto-Detected" button click
-  _onUseAutoDetected(areaId: string, type: string) {
-    const autoId = this._autodetect(areaId, type);
-    if (!autoId) return;  // Should never happen as button is only shown when autoId exists
 
-    // Update overrides to use the auto-detected sensor
+  // Handle "Use Auto-Detected" button click
+  private _onUseAutoDetected(areaId: string, type: string) {
+    const autoId = this._autodetect(areaId, type);
+    if (!autoId) return;
+
     const overrides = { ...(this.config.overrides || {}) };
     overrides[areaId] = { ...(overrides[areaId] || {}), [type]: autoId };
     this.config = { ...this.config, overrides };
@@ -184,44 +185,32 @@ export class HausgeistCardEditor extends LitElement {
     
     this._lastAreas = areas;
     const states = Object.values(hass?.states || {});
-    // Use Object.keys of SENSOR_KEYWORDS for consistent typing
-    const sensorTypes = Object.keys(SENSOR_KEYWORDS) as Array<keyof typeof SENSOR_KEYWORDS>;
 
-    // Felder, für die oft ein Helper/Template-Sensor benötigt wird
-    const helperFields: Array<{key: string, name: string, yaml: string}> = [
-      {
-        key: 'rain_soon',
-        name: 'Rain soon',
-        yaml: `template:\n  - sensor:\n      - name: "Rain Soon"\n        state: >\n          {{ state_attr('weather.home', 'forecast')[0].precipitation > 0 }}\n        unique_id: rain_soon`
-      },
-      {
-        key: 'forecast_sun',
-        name: 'Forecast sun',
-        yaml: `template:\n  - sensor:\n      - name: "Forecast Sun"\n        state: >\n          {{ state_attr('weather.home', 'forecast')[0].condition == 'sunny' }}\n        unique_id: forecast_sun`
-      },
-    ];
-
-    // Prüfen, ob Helper fehlen
-    const missingHelpers = helperFields.filter(hf => !states.some((s: any) => s.entity_id.includes(hf.key)));
-
+    // Nur die Sensoren die wir pro Raum brauchen
     const requiredSensorTypes = [
-      'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
+      'temperature',    // Raumtemperatur
+      'humidity',       // Luftfeuchtigkeit
+      'co2',           // CO2-Gehalt
+      'window',        // Fenster-Status
+      'door',          // Tür-Status
+      'curtain',       // Vorhang-Status
+      'blind',         // Rolladen-Status
+      'heating',       // Heizungs-Status (an/aus)
+      'heating_level', // Heizungs-Level (0-100%)
+      'target'         // Zieltemperatur
     ];
 
     const missingSensorsPerArea = areas.map(area => {
       const missing = requiredSensorTypes.filter(type => {
         const found = states.some((e: any) => e.attributes?.area_id === area.area_id && (
-          type === 'heating'
-            ? ['heating','heizung','thermostat'].some(k => e.entity_id.toLowerCase().includes(k))
+          type === 'heating' || type === 'heating_level'
+            ? ['heating', 'heizung', 'thermostat', 'climate'].some(k => e.entity_id.toLowerCase().includes(k))
             : e.attributes?.device_class === type || (e.entity_id.toLowerCase().includes(type))
         ));
         return !found;
       });
       return { area, missing };
     });
-
-    // Link zur Helper-Verwaltung
-    const helperLink = '/config/helpers';
 
     // Styles einbinden
     return html`
@@ -232,24 +221,36 @@ export class HausgeistCardEditor extends LitElement {
         hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
         select { min-width: 200px; }
         li { margin: 0.2em 0; }
-        .auto-sensor-info { color: #888; font-size: 0.95em; margin-left: 0.5em; }
-        .area-header {
+        .sensor-row {
           display: flex;
           align-items: center;
+          gap: 0.5em;
           margin-bottom: 0.5em;
         }
-        .area-header input[type="checkbox"] {
-          margin-right: 0.5em;
+        .target-row {
+          margin-bottom: 1em;
         }
-        .disabled-area {
-          opacity: 0.5;
+        .sensor-label {
+          min-width: 120px;
+          font-weight: bold;
+        }
+        .sensor-select {
+          flex-grow: 1;
+        }
+        .help-text {
+          color: #666;
+          font-size: 0.9em;
+          margin-top: 0.3em;
         }
       </style>
       <div class="card-config">
+        <!-- Debug Mode -->
         <label>
           <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
           Debug mode
         </label>
+
+        <!-- Weather Entity Selection -->
         <div style="margin-top:1em;">
           <b>Weather Entity:</b>
           <select @change=${(e: Event) => {
@@ -264,6 +265,26 @@ export class HausgeistCardEditor extends LitElement {
             `)}
           </select>
         </div>
+
+        <!-- Default Target Temperature -->
+        <div style="margin-top:1em;">
+          <b>Default Target Temperature:</b>
+          <input 
+            type="number" 
+            min="15" 
+            max="30" 
+            step="0.5"
+            .value=${this.config.default_target || "21"} 
+            @change=${(e: Event) => {
+              this.config = {
+                ...this.config,
+                default_target: Number((e.target as HTMLInputElement).value)
+              };
+              this._configChanged();
+            }}
+          />°C
+        </div>
+
         <hr />
         <b>Areas and Sensors:</b>
         ${areas.map(area => {
@@ -279,103 +300,106 @@ export class HausgeistCardEditor extends LitElement {
               <b>${area.name || area.area_id}</b>
             </div>
             <ul>
-              ${sensorTypes.map(type => {
-                // Get all sensors for this area
+              ${requiredSensorTypes.map(type => {
                 const areaSensors = states.filter((e: any) => e.attributes?.area_id === area.area_id);
-
-                
-                // Group sensors by relevance
                 const matchingByClass = areaSensors.filter((e: any) => e.attributes?.device_class === type);
                 const matchingByKeyword = areaSensors.filter((e: any) => {
-                  // Use the imported SENSOR_KEYWORDS
                   const keywords = SENSOR_KEYWORDS[type] || [type];
                   return keywords.some(k => 
                     e.entity_id.toLowerCase().includes(k) || 
                     (e.attributes.friendly_name || '').toLowerCase().includes(k)
-                  );
+                  ) && !matchingByClass.includes(e);
                 });
                 const otherSensors = areaSensors.filter(s => 
                   !matchingByClass.includes(s) && !matchingByKeyword.includes(s)
                 );
 
-
                 const autoId = this._autodetect(area.area_id, type);
                 const selected = this.config.overrides?.[area.area_id]?.[type] || '';
-                
-                return html`<li>${type}:
-                  <select style="max-width: 260px;" @change=${(e: Event) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
-                    <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
-                    <option value="none">None (no sensor)</option>
-                    ${areaSensors.map((s: any) => html`
-                      <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                        ${s.entity_id} ${s.attributes.device_class ? `[${s.attributes.device_class}]` : ''} ${s.attributes.friendly_name ? `(${s.attributes.friendly_name})` : ''}
-                      </option>
-                    `)}
-                  </select>
-                  ${autoId && !selected ? html`
-                    <button 
-                      class="use-auto" 
-                      @click=${() => this._onUseAutoDetected(area.area_id, type)}
-                      title="Use the auto-detected sensor as an override">
-                      Use Auto-Detected
-                    </button>
-                  ` : ''}
-                </li>`;
+
+                return html`
+                <li>
+                  <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
+                    <span class="sensor-label">
+                      ${type === 'target' ? 'Zieltemperatur' : 
+                        type === 'heating' ? 'Heizung' :
+                        type === 'heating_level' ? 'Heizleistung' :
+                        type}:
+                    </span>
+                    <div class="sensor-select">
+                      <select @change=${(e: Event) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
+                        ${type === 'target' ? html`
+                          <option value="">(Standard: ${this.config.default_target || 21}°C)</option>
+                          <option value="none">Keine automatische Anpassung</option>
+                        ` : html`
+                          <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
+                          <option value="none">Kein Sensor</option>
+                        `}
+                        
+                        ${matchingByClass.length > 0 ? html`
+                          <optgroup label="Passende Sensoren (nach Device Class)">
+                            ${matchingByClass.map((s: any) => html`
+                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                                ${s.attributes.friendly_name || s.entity_id} 
+                                [${s.state}${type === 'target' || type === 'temperature' ? '°C' : 
+                                           type === 'heating_level' ? '%' : 
+                                           s.attributes.unit_of_measurement || ''}]
+                              </option>
+                            `)}
+                          </optgroup>
+                        ` : ''}
+                        
+                        ${matchingByKeyword.length > 0 ? html`
+                          <optgroup label="Passende Sensoren (nach Name)">
+                            ${matchingByKeyword.map((s: any) => html`
+                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                                ${s.attributes.friendly_name || s.entity_id} 
+                                [${s.state}${s.attributes.unit_of_measurement || ''}]
+                              </option>
+                            `)}
+                          </optgroup>
+                        ` : ''}
+                        
+                        ${otherSensors.length > 0 ? html`
+                          <optgroup label="Andere Sensoren">
+                            ${otherSensors.map((s: any) => html`
+                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                                ${s.attributes.friendly_name || s.entity_id} 
+                                [${s.state}${s.attributes.unit_of_measurement || ''}]
+                                ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
+                              </option>
+                            `)}
+                          </optgroup>
+                        ` : ''}
+                      </select>
+                      ${type === 'target' ? html`
+                        <div class="help-text">
+                          Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
+                          um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
+                        </div>
+                      ` : ''}
+                    </div>
+                  </div>
+                </li>
+                `;
               })}
             </ul>
           </div>
         `})}
       </div>
 
-      ${missingHelpers.length > 0 ? html`
-        <div style="margin-top:2em; padding:1em; background:#fffbe6; border:1px solid #ffe58f; border-radius:0.5em;">
-          <b>⚠️ Zusätzliche Sensoren/Helper benötigt:</b>
-          <ul>
-            ${missingHelpers.map((hf: {key: string, name: string, yaml: string}) => html`<li>
-              <b>${hf.name}</b>:<br/>
-              <span style="font-size:0.95em; color:#888;">Sensor nicht gefunden. Füge folgenden YAML-Code in deine <b>configuration.yaml</b> oder nutze die Helper-Verwaltung:</span>
-              <pre style="background:#f5f5f5; border-radius:0.3em; padding:0.5em; margin:0.5em 0;">${hf.yaml}</pre>
-            </li>`)}
-          </ul>
-        </div>
-      ` : ''}
-      <!-- Feature 1: Fehlende Sensoren pro Bereich anzeigen -->
+      <!-- Missing Sensors per Area -->
       <div style="margin-top:1em;">
         <b>Fehlende Sensoren pro Bereich:</b>
         <ul>
           ${missingSensorsPerArea.map(a => html`<li><b>${a.area.name}</b>: ${a.missing.length === 0 ? 'Alle gefunden' : a.missing.join(', ')}</li>`)}
         </ul>
       </div>
-      <!-- Feature 2: Link zur Helper-Verwaltung -->
-      <div style="margin-top:1em;">
-        <a href="${helperLink}" target="_blank" rel="noopener" style="color:#00529b; text-decoration:underline;">Home Assistant Helper-Verwaltung öffnen</a>
-      </div>
-      <!-- Feature 3: Testmodus/Simulation -->
-      <div style="margin-top:1em;">
-        <b>Testmodus / Simulation:</b>
-        <ul>
-          ${areas.map(area => html`
-            <li><b>${area.name}</b>:
-              <ul>
-                ${requiredSensorTypes.map((type: string) => html`
-                  <li>${type}: <input type="text" .value=${this.testValues[area.area_id + '_' + type] || ''} @change=${(e: Event) => this.handleTestValueChange(area.area_id, type, e)}></li>
-                `)}
-              </ul>
-            </li>
-          `)}
-        </ul>
-      </div>
-      <!-- Feature 6: Regel-Editor (JSON) -->
-      <div style="margin-top:1em;">
-        <b>Regeln bearbeiten (JSON):</b><br/>
-        <textarea style="width:100%; min-height:120px; font-family:monospace;" @input=${this.handleRulesChange} .value=${this.rulesJson}></textarea>
-        <span style="font-size:0.95em; color:#888;">(Bearbeite die Regeln als JSON. Änderungen werden übernommen.)</span>
-      </div>
-      <!-- Feature 8: Benachrichtigungsoptionen -->
+
+      <!-- Notifications & High Threshold -->
       <div style="margin-top:1em;">
         <label><input type="checkbox" .checked=${this.notify} @change=${this.handleNotifyChange} /> Regel-Treffer als Home Assistant Notification anzeigen</label>
       </div>
-      <!-- Feature 9: Schwellenwert -->
       <div style="margin-top:1em;">
         <label>High Threshold: <input type="number" .value=${this.highThreshold} @input=${this.handleThresholdChange} /></label>
       </div>

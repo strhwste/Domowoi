@@ -25,6 +25,7 @@ export class HausgeistCard extends LitElement {
     rulesJson?: string; 
     areas?: Array<{ area_id: string; name: string; enabled?: boolean }>;
     weather_entity?: string;
+    default_target?: number;
   } = {};
   @property({ type: Boolean }) public debug = false;
   @property({ type: Boolean }) public notify = false;
@@ -142,7 +143,30 @@ export class HausgeistCard extends LitElement {
     const debugOut: string[] = [];
 
     const { states } = this.hass;
-    const areas = (this.config.areas || []).filter(a => a.enabled !== false);
+    
+    // If no areas are configured, use all areas from Home Assistant
+    let areas = this.config.areas || [];
+    if (areas.length === 0 && this.hass.areas) {
+      areas = Object.entries(this.hass.areas).map(([id, area]: [string, any]) => ({ 
+        area_id: id, 
+        name: area.name || id,
+        enabled: true 
+      }));
+    }
+    
+    // Filter enabled areas
+    areas = areas.filter(a => a.enabled !== false);
+    
+    // If no areas are enabled, show a message
+    if (areas.length === 0) {
+      return html`<ha-card>
+        <div class="card-content">
+          <h2>👻 Hausgeist</h2>
+          <p>No areas enabled. Please enable at least one area in the card configuration.</p>
+        </div>
+      </ha-card>`;
+    }
+
     const areaIds: string[] = areas.map(a => a.area_id);
     const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
     const defaultTarget = this.config?.overrides?.default_target || 21;
@@ -261,28 +285,38 @@ export class HausgeistCard extends LitElement {
 
     return html`
       ${debugBanner}
-      <h2>👻 Hausgeist sagt:</h2>
-      ${!anySensorsUsed 
-        ? html`<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>` 
-        : !anyRulesApplied 
-          ? html`<p class="warning">⚠️ No rules applied (no comparisons made for any area).</p>` 
-          : topMessages.map(e => html`<p class="${e.priority}"><b>${e.area}:</b> ${this.texts?.[e.message_key] || `Missing translation: ${e.message_key}`}</p>`)
-      }
-      ${this.debug ? html`
-        <div class="debug">${debugOut.join('\n\n')}</div>
-        <div class="sensors-used">
-          <b>Sensors used:</b>
-          <ul>
-            ${areaMessages.map(areaMsg => html`
-              <li><b>${areaMsg.area}:</b>
-                <ul>
-                  ${areaMsg.usedSensors.map(s => html`<li>[${s.type}] ${s.entity_id}: ${s.value}</li>`)}
-                </ul>
-              </li>
-            `)}
-          </ul>
+      <ha-card>
+        <div class="card-content">
+          <h2>👻 Hausgeist sagt:</h2>
+          ${!anySensorsUsed 
+            ? html`<p class="warning">⚠️ Keine Sensoren in den aktivierten Bereichen gefunden!<br>Bitte überprüfen Sie die Sensor-Konfiguration oder weisen Sie den Sensoren die entsprechenden Bereiche zu.</p>` 
+            : !anyRulesApplied 
+              ? html`<p class="info">ℹ️ Alle Bereiche in Ordnung - keine Handlungsempfehlungen.</p>` 
+              : html`
+                ${topMessages.map(e => html`
+                  <p class="${e.priority}">
+                    <b>${e.area}:</b> ${this.texts?.[e.message_key] || `Fehlende Übersetzung: ${e.message_key}`}
+                  </p>
+                `)}
+              `
+          }
+          ${this.debug ? html`
+            <div class="debug">${debugOut.join('\n\n')}</div>
+            <div class="sensors-used">
+              <b>Verwendete Sensoren:</b>
+              <ul>
+                ${areaMessages.map(areaMsg => html`
+                  <li><b>${areaMsg.area}:</b>
+                    <ul>
+                      ${areaMsg.usedSensors.map(s => html`<li>[${s.type}] ${s.entity_id}: ${s.value}</li>`)}
+                    </ul>
+                  </li>
+                `)}
+              </ul>
+            </div>
+          ` : ''}
         </div>
-      ` : ''}
+      </ha-card>
     `;
   }
 
@@ -313,10 +347,13 @@ export class HausgeistCard extends LitElement {
     const weatherAttributes = weather?.attributes || {};
     const forecast = weatherAttributes.forecast?.[0] || {};
 
+    const target = this._getTargetTemperature(area, states, defaultTarget);
+
     return {
       debug: this.debug,
-      target: Number(findState((e: any) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
+      target,
       temp: get('temperature'),
+      heating_level: get('heating_level'),
       humidity: get('humidity'),
       co2: get('co2'),
       window: findState((e: any) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
@@ -342,52 +379,51 @@ export class HausgeistCard extends LitElement {
     };
   }
 
-  public async setConfig(config: any) {
-    if (!config) {
-      throw new Error('Invalid configuration');
-    }
-    
-    this.config = config;
-    this.debug = !!config?.debug;
-    this.notify = !!config?.notify;
-    this.highThreshold = typeof config?.highThreshold === 'number' ? config.highThreshold : 2000;
-    this.rulesJson = config?.rulesJson || '';
-
+  private _getTargetTemperature(area: string, states: any[], defaultTarget: number): number {
     try {
-      const rules = this.rulesJson 
-        ? JSON.parse(this.rulesJson)
-        : await loadRules();
-      
-      if (rules) {
-        this.engine = new RuleEngine(rules);
-        this.ready = true;
+      // 1. Prüfe auf Override in den Einstellungen
+      const override = this.config?.overrides?.[area]?.target;
+      if (override) {
+        const overrideSensor = states.find(s => s.entity_id === override);
+        if (overrideSensor) {
+          const value = Number(overrideSensor.state);
+          if (!isNaN(value)) {
+            return value;
+          }
+        }
+      }
+
+      // 2. Suche nach einem Zieltemperatur-Sensor im Raum
+      const targetSensor = states.find(s => 
+        s.attributes?.area_id === area && (
+          // Prüfe auf climate.* Entities
+          (s.entity_id.startsWith('climate.') && s.attributes?.temperature !== undefined) ||
+          // Prüfe auf dedizierte Zieltemperatur-Sensoren
+          s.entity_id.includes('target_temp') ||
+          s.entity_id.includes('temperature_target') ||
+          s.entity_id.includes('setpoint')
+        )
+      );
+
+      if (targetSensor) {
+        // Bei climate Entities nehmen wir temperature aus den Attributen
+        if (targetSensor.entity_id.startsWith('climate.')) {
+          const value = Number(targetSensor.attributes.temperature);
+          if (!isNaN(value)) {
+            return value;
+          }
+        }
+        // Sonst den State
+        const value = Number(targetSensor.state);
+        if (!isNaN(value)) {
+          return value;
+        }
       }
     } catch (error) {
-      console.error('Error initializing Hausgeist:', error);
-      this.ready = false;
+      console.error('Error getting target temperature:', error);
     }
 
-    this.requestUpdate();
-  }
-
-  public static async getConfigElement() {
-    return document.createElement('hausgeist-card-editor');
-  }
-
-  public static getStubConfig() {
-    return {
-      type: "custom:hausgeist-card",
-      debug: false,
-      notify: false,
-      highThreshold: 2000,
-      weather_entity: "weather.home"
-    };
-  }
-
-  public static get properties() {
-    return {
-      hass: { type: Object },
-      config: { type: Object },
-    };
+    // 3. Fallback auf den Default-Wert
+    return this.config.default_target || defaultTarget;
   }
 }

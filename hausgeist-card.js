@@ -384,6 +384,12 @@ const SENSOR_KEYWORDS = {
     temperature: [
         'temperature', 'temperatur', 'température', 'temperatura', 'temperatuur', 'температура', '温度', '온도'
     ],
+    heating: [
+        'heating', 'heizung', 'climate', 'heat', 'thermostat', 'chauffage', 'riscaldamento', 'verwarming', 'calefacción', 'отопление', '난방'
+    ],
+    heating_level: [
+        'heating_level', 'heizungsstufe', 'heat_level', 'level', 'stufe', 'power', 'leistung'
+    ],
     humidity: [
         'humidity', 'feuchtigkeit', 'humidité', 'umidità', 'vochtigheid', 'humedad', 'влажность', '湿度', '습도'
     ],
@@ -425,6 +431,11 @@ const SENSOR_KEYWORDS = {
     ],
     forecast: [
         'forecast', 'vorhersage', 'prévision', 'previsione', 'voorspelling', 'pronóstico', 'прогноз', '예보'
+    ],
+    target: [
+        'target', 'temperature_target', 'target_temp', 'soll', 'sollwert', 'ziel', 'zieltemperatur',
+        'setpoint', 'set_temperature', 'climate', 'thermostat', 'target_heating',
+        'target_temperature', 'solltemperatur', 'heating_target'
     ]
 };
 
@@ -492,8 +503,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
     _onUseAutoDetected(areaId, type) {
         const autoId = this._autodetect(areaId, type);
         if (!autoId)
-            return; // Should never happen as button is only shown when autoId exists
-        // Update overrides to use the auto-detected sensor
+            return;
         const overrides = { ...(this.config.overrides || {}) };
         overrides[areaId] = { ...(overrides[areaId] || {}), [type]: autoId };
         this.config = { ...this.config, overrides };
@@ -590,37 +600,28 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             : Array.from(new Set(Object.values(hass?.states || {}).map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
         this._lastAreas = areas;
         const states = Object.values(hass?.states || {});
-        // Use Object.keys of SENSOR_KEYWORDS for consistent typing
-        const sensorTypes = Object.keys(SENSOR_KEYWORDS);
-        // Felder, für die oft ein Helper/Template-Sensor benötigt wird
-        const helperFields = [
-            {
-                key: 'rain_soon',
-                name: 'Rain soon',
-                yaml: `template:\n  - sensor:\n      - name: "Rain Soon"\n        state: >\n          {{ state_attr('weather.home', 'forecast')[0].precipitation > 0 }}\n        unique_id: rain_soon`
-            },
-            {
-                key: 'forecast_sun',
-                name: 'Forecast sun',
-                yaml: `template:\n  - sensor:\n      - name: "Forecast Sun"\n        state: >\n          {{ state_attr('weather.home', 'forecast')[0].condition == 'sunny' }}\n        unique_id: forecast_sun`
-            },
-        ];
-        // Prüfen, ob Helper fehlen
-        const missingHelpers = helperFields.filter(hf => !states.some((s) => s.entity_id.includes(hf.key)));
+        // Nur die Sensoren die wir pro Raum brauchen
         const requiredSensorTypes = [
-            'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
+            'temperature', // Raumtemperatur
+            'humidity', // Luftfeuchtigkeit
+            'co2', // CO2-Gehalt
+            'window', // Fenster-Status
+            'door', // Tür-Status
+            'curtain', // Vorhang-Status
+            'blind', // Rolladen-Status
+            'heating', // Heizungs-Status (an/aus)
+            'heating_level', // Heizungs-Level (0-100%)
+            'target' // Zieltemperatur
         ];
         const missingSensorsPerArea = areas.map(area => {
             const missing = requiredSensorTypes.filter(type => {
-                const found = states.some((e) => e.attributes?.area_id === area.area_id && (type === 'heating'
-                    ? ['heating', 'heizung', 'thermostat'].some(k => e.entity_id.toLowerCase().includes(k))
+                const found = states.some((e) => e.attributes?.area_id === area.area_id && (type === 'heating' || type === 'heating_level'
+                    ? ['heating', 'heizung', 'thermostat', 'climate'].some(k => e.entity_id.toLowerCase().includes(k))
                     : e.attributes?.device_class === type || (e.entity_id.toLowerCase().includes(type))));
                 return !found;
             });
             return { area, missing };
         });
-        // Link zur Helper-Verwaltung
-        const helperLink = '/config/helpers';
         // Styles einbinden
         return x `
       <style>
@@ -630,24 +631,36 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
         select { min-width: 200px; }
         li { margin: 0.2em 0; }
-        .auto-sensor-info { color: #888; font-size: 0.95em; margin-left: 0.5em; }
-        .area-header {
+        .sensor-row {
           display: flex;
           align-items: center;
+          gap: 0.5em;
           margin-bottom: 0.5em;
         }
-        .area-header input[type="checkbox"] {
-          margin-right: 0.5em;
+        .target-row {
+          margin-bottom: 1em;
         }
-        .disabled-area {
-          opacity: 0.5;
+        .sensor-label {
+          min-width: 120px;
+          font-weight: bold;
+        }
+        .sensor-select {
+          flex-grow: 1;
+        }
+        .help-text {
+          color: #666;
+          font-size: 0.9em;
+          margin-top: 0.3em;
         }
       </style>
       <div class="card-config">
+        <!-- Debug Mode -->
         <label>
           <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
           Debug mode
         </label>
+
+        <!-- Weather Entity Selection -->
         <div style="margin-top:1em;">
           <b>Weather Entity:</b>
           <select @change=${(e) => {
@@ -662,6 +675,26 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             `)}
           </select>
         </div>
+
+        <!-- Default Target Temperature -->
+        <div style="margin-top:1em;">
+          <b>Default Target Temperature:</b>
+          <input 
+            type="number" 
+            min="15" 
+            max="30" 
+            step="0.5"
+            .value=${this.config.default_target || "21"} 
+            @change=${(e) => {
+            this.config = {
+                ...this.config,
+                default_target: Number(e.target.value)
+            };
+            this._configChanged();
+        }}
+          />°C
+        </div>
+
         <hr />
         <b>Areas and Sensors:</b>
         ${areas.map(area => {
@@ -677,39 +710,82 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
               <b>${area.name || area.area_id}</b>
             </div>
             <ul>
-              ${sensorTypes.map(type => {
-                // Get all sensors for this area
+              ${requiredSensorTypes.map(type => {
                 const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
-                // Group sensors by relevance
                 const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type);
                 const matchingByKeyword = areaSensors.filter((e) => {
-                    // Use the imported SENSOR_KEYWORDS
                     const keywords = SENSOR_KEYWORDS[type] || [type];
                     return keywords.some(k => e.entity_id.toLowerCase().includes(k) ||
-                        (e.attributes.friendly_name || '').toLowerCase().includes(k));
+                        (e.attributes.friendly_name || '').toLowerCase().includes(k)) && !matchingByClass.includes(e);
                 });
-                areaSensors.filter(s => !matchingByClass.includes(s) && !matchingByKeyword.includes(s));
+                const otherSensors = areaSensors.filter(s => !matchingByClass.includes(s) && !matchingByKeyword.includes(s));
                 const autoId = this._autodetect(area.area_id, type);
                 const selected = this.config.overrides?.[area.area_id]?.[type] || '';
-                return x `<li>${type}:
-                  <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
-                    <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
-                    <option value="none">None (no sensor)</option>
-                    ${areaSensors.map((s) => x `
-                      <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                        ${s.entity_id} ${s.attributes.device_class ? `[${s.attributes.device_class}]` : ''} ${s.attributes.friendly_name ? `(${s.attributes.friendly_name})` : ''}
-                      </option>
-                    `)}
-                  </select>
-                  ${autoId && !selected ? x `
-                    <button 
-                      class="use-auto" 
-                      @click=${() => this._onUseAutoDetected(area.area_id, type)}
-                      title="Use the auto-detected sensor as an override">
-                      Use Auto-Detected
-                    </button>
-                  ` : ''}
-                </li>`;
+                return x `
+                <li>
+                  <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
+                    <span class="sensor-label">
+                      ${type === 'target' ? 'Zieltemperatur' :
+                    type === 'heating' ? 'Heizung' :
+                        type === 'heating_level' ? 'Heizleistung' :
+                            type}:
+                    </span>
+                    <div class="sensor-select">
+                      <select @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
+                        ${type === 'target' ? x `
+                          <option value="">(Standard: ${this.config.default_target || 21}°C)</option>
+                          <option value="none">Keine automatische Anpassung</option>
+                        ` : x `
+                          <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
+                          <option value="none">Kein Sensor</option>
+                        `}
+                        
+                        ${matchingByClass.length > 0 ? x `
+                          <optgroup label="Passende Sensoren (nach Device Class)">
+                            ${matchingByClass.map((s) => x `
+                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                                ${s.attributes.friendly_name || s.entity_id} 
+                                [${s.state}${type === 'target' || type === 'temperature' ? '°C' :
+                    type === 'heating_level' ? '%' :
+                        s.attributes.unit_of_measurement || ''}]
+                              </option>
+                            `)}
+                          </optgroup>
+                        ` : ''}
+                        
+                        ${matchingByKeyword.length > 0 ? x `
+                          <optgroup label="Passende Sensoren (nach Name)">
+                            ${matchingByKeyword.map((s) => x `
+                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                                ${s.attributes.friendly_name || s.entity_id} 
+                                [${s.state}${s.attributes.unit_of_measurement || ''}]
+                              </option>
+                            `)}
+                          </optgroup>
+                        ` : ''}
+                        
+                        ${otherSensors.length > 0 ? x `
+                          <optgroup label="Andere Sensoren">
+                            ${otherSensors.map((s) => x `
+                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                                ${s.attributes.friendly_name || s.entity_id} 
+                                [${s.state}${s.attributes.unit_of_measurement || ''}]
+                                ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
+                              </option>
+                            `)}
+                          </optgroup>
+                        ` : ''}
+                      </select>
+                      ${type === 'target' ? x `
+                        <div class="help-text">
+                          Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
+                          um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
+                        </div>
+                      ` : ''}
+                    </div>
+                  </div>
+                </li>
+                `;
             })}
             </ul>
           </div>
@@ -717,55 +793,18 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         })}
       </div>
 
-      ${missingHelpers.length > 0 ? x `
-        <div style="margin-top:2em; padding:1em; background:#fffbe6; border:1px solid #ffe58f; border-radius:0.5em;">
-          <b>⚠️ Zusätzliche Sensoren/Helper benötigt:</b>
-          <ul>
-            ${missingHelpers.map((hf) => x `<li>
-              <b>${hf.name}</b>:<br/>
-              <span style="font-size:0.95em; color:#888;">Sensor nicht gefunden. Füge folgenden YAML-Code in deine <b>configuration.yaml</b> oder nutze die Helper-Verwaltung:</span>
-              <pre style="background:#f5f5f5; border-radius:0.3em; padding:0.5em; margin:0.5em 0;">${hf.yaml}</pre>
-            </li>`)}
-          </ul>
-        </div>
-      ` : ''}
-      <!-- Feature 1: Fehlende Sensoren pro Bereich anzeigen -->
+      <!-- Missing Sensors per Area -->
       <div style="margin-top:1em;">
         <b>Fehlende Sensoren pro Bereich:</b>
         <ul>
           ${missingSensorsPerArea.map(a => x `<li><b>${a.area.name}</b>: ${a.missing.length === 0 ? 'Alle gefunden' : a.missing.join(', ')}</li>`)}
         </ul>
       </div>
-      <!-- Feature 2: Link zur Helper-Verwaltung -->
-      <div style="margin-top:1em;">
-        <a href="${helperLink}" target="_blank" rel="noopener" style="color:#00529b; text-decoration:underline;">Home Assistant Helper-Verwaltung öffnen</a>
-      </div>
-      <!-- Feature 3: Testmodus/Simulation -->
-      <div style="margin-top:1em;">
-        <b>Testmodus / Simulation:</b>
-        <ul>
-          ${areas.map(area => x `
-            <li><b>${area.name}</b>:
-              <ul>
-                ${requiredSensorTypes.map((type) => x `
-                  <li>${type}: <input type="text" .value=${this.testValues[area.area_id + '_' + type] || ''} @change=${(e) => this.handleTestValueChange(area.area_id, type, e)}></li>
-                `)}
-              </ul>
-            </li>
-          `)}
-        </ul>
-      </div>
-      <!-- Feature 6: Regel-Editor (JSON) -->
-      <div style="margin-top:1em;">
-        <b>Regeln bearbeiten (JSON):</b><br/>
-        <textarea style="width:100%; min-height:120px; font-family:monospace;" @input=${this.handleRulesChange} .value=${this.rulesJson}></textarea>
-        <span style="font-size:0.95em; color:#888;">(Bearbeite die Regeln als JSON. Änderungen werden übernommen.)</span>
-      </div>
-      <!-- Feature 8: Benachrichtigungsoptionen -->
+
+      <!-- Notifications & High Threshold -->
       <div style="margin-top:1em;">
         <label><input type="checkbox" .checked=${this.notify} @change=${this.handleNotifyChange} /> Regel-Treffer als Home Assistant Notification anzeigen</label>
       </div>
-      <!-- Feature 9: Schwellenwert -->
       <div style="margin-top:1em;">
         <label>High Threshold: <input type="number" .value=${this.highThreshold} @input=${this.handleThresholdChange} /></label>
       </div>
@@ -953,7 +992,26 @@ let HausgeistCard = class HausgeistCard extends i {
         const debugBanner = this.debug ? x `<p class="debug-banner">🛠️ Debug mode active</p>` : '';
         const debugOut = [];
         const { states } = this.hass;
-        const areas = (this.config.areas || []).filter(a => a.enabled !== false);
+        // If no areas are configured, use all areas from Home Assistant
+        let areas = this.config.areas || [];
+        if (areas.length === 0 && this.hass.areas) {
+            areas = Object.entries(this.hass.areas).map(([id, area]) => ({
+                area_id: id,
+                name: area.name || id,
+                enabled: true
+            }));
+        }
+        // Filter enabled areas
+        areas = areas.filter(a => a.enabled !== false);
+        // If no areas are enabled, show a message
+        if (areas.length === 0) {
+            return x `<ha-card>
+        <div class="card-content">
+          <h2>👻 Hausgeist</h2>
+          <p>No areas enabled. Please enable at least one area in the card configuration.</p>
+        </div>
+      </ha-card>`;
+        }
         const areaIds = areas.map(a => a.area_id);
         const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
         const defaultTarget = this.config?.overrides?.default_target || 21;
@@ -1053,27 +1111,37 @@ let HausgeistCard = class HausgeistCard extends i {
         const anyRulesApplied = areaMessages.some((a) => a.evals.length > 0);
         return x `
       ${debugBanner}
-      <h2>👻 Hausgeist sagt:</h2>
-      ${!anySensorsUsed
-            ? x `<p class="warning">⚠️ No sensors detected for any area!<br>Check your sensor configuration, area assignment, or use the visual editor to select sensors.</p>`
+      <ha-card>
+        <div class="card-content">
+          <h2>👻 Hausgeist sagt:</h2>
+          ${!anySensorsUsed
+            ? x `<p class="warning">⚠️ Keine Sensoren in den aktivierten Bereichen gefunden!<br>Bitte überprüfen Sie die Sensor-Konfiguration oder weisen Sie den Sensoren die entsprechenden Bereiche zu.</p>`
             : !anyRulesApplied
-                ? x `<p class="warning">⚠️ No rules applied (no comparisons made for any area).</p>`
-                : topMessages.map(e => x `<p class="${e.priority}"><b>${e.area}:</b> ${this.texts?.[e.message_key] || `Missing translation: ${e.message_key}`}</p>`)}
-      ${this.debug ? x `
-        <div class="debug">${debugOut.join('\n\n')}</div>
-        <div class="sensors-used">
-          <b>Sensors used:</b>
-          <ul>
-            ${areaMessages.map(areaMsg => x `
-              <li><b>${areaMsg.area}:</b>
-                <ul>
-                  ${areaMsg.usedSensors.map(s => x `<li>[${s.type}] ${s.entity_id}: ${s.value}</li>`)}
-                </ul>
-              </li>
-            `)}
-          </ul>
+                ? x `<p class="info">ℹ️ Alle Bereiche in Ordnung - keine Handlungsempfehlungen.</p>`
+                : x `
+                ${topMessages.map(e => x `
+                  <p class="${e.priority}">
+                    <b>${e.area}:</b> ${this.texts?.[e.message_key] || `Fehlende Übersetzung: ${e.message_key}`}
+                  </p>
+                `)}
+              `}
+          ${this.debug ? x `
+            <div class="debug">${debugOut.join('\n\n')}</div>
+            <div class="sensors-used">
+              <b>Verwendete Sensoren:</b>
+              <ul>
+                ${areaMessages.map(areaMsg => x `
+                  <li><b>${areaMsg.area}:</b>
+                    <ul>
+                      ${areaMsg.usedSensors.map(s => x `<li>[${s.type}] ${s.entity_id}: ${s.value}</li>`)}
+                    </ul>
+                  </li>
+                `)}
+              </ul>
+            </div>
+          ` : ''}
         </div>
-      ` : ''}
+      </ha-card>
     `;
     }
     // Build evaluation context for rules with weather data and sensor values
@@ -1093,10 +1161,12 @@ let HausgeistCard = class HausgeistCard extends i {
         const weather = findState((e) => e.entity_id === weatherEntity);
         const weatherAttributes = weather?.attributes || {};
         const forecast = weatherAttributes.forecast?.[0] || {};
+        const target = this._getTargetTemperature(area, states, defaultTarget);
         return {
             debug: this.debug,
-            target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
+            target,
             temp: get('temperature'),
+            heating_level: get('heating_level'),
             humidity: get('humidity'),
             co2: get('co2'),
             window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
@@ -1119,47 +1189,47 @@ let HausgeistCard = class HausgeistCard extends i {
             air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
         };
     }
-    async setConfig(config) {
-        if (!config) {
-            throw new Error('Invalid configuration');
-        }
-        this.config = config;
-        this.debug = !!config?.debug;
-        this.notify = !!config?.notify;
-        this.highThreshold = typeof config?.highThreshold === 'number' ? config.highThreshold : 2000;
-        this.rulesJson = config?.rulesJson || '';
+    _getTargetTemperature(area, states, defaultTarget) {
         try {
-            const rules = this.rulesJson
-                ? JSON.parse(this.rulesJson)
-                : await loadRules();
-            if (rules) {
-                this.engine = new RuleEngine(rules);
-                this.ready = true;
+            // 1. Prüfe auf Override in den Einstellungen
+            const override = this.config?.overrides?.[area]?.target;
+            if (override) {
+                const overrideSensor = states.find(s => s.entity_id === override);
+                if (overrideSensor) {
+                    const value = Number(overrideSensor.state);
+                    if (!isNaN(value)) {
+                        return value;
+                    }
+                }
+            }
+            // 2. Suche nach einem Zieltemperatur-Sensor im Raum
+            const targetSensor = states.find(s => s.attributes?.area_id === area && (
+            // Prüfe auf climate.* Entities
+            (s.entity_id.startsWith('climate.') && s.attributes?.temperature !== undefined) ||
+                // Prüfe auf dedizierte Zieltemperatur-Sensoren
+                s.entity_id.includes('target_temp') ||
+                s.entity_id.includes('temperature_target') ||
+                s.entity_id.includes('setpoint')));
+            if (targetSensor) {
+                // Bei climate Entities nehmen wir temperature aus den Attributen
+                if (targetSensor.entity_id.startsWith('climate.')) {
+                    const value = Number(targetSensor.attributes.temperature);
+                    if (!isNaN(value)) {
+                        return value;
+                    }
+                }
+                // Sonst den State
+                const value = Number(targetSensor.state);
+                if (!isNaN(value)) {
+                    return value;
+                }
             }
         }
         catch (error) {
-            console.error('Error initializing Hausgeist:', error);
-            this.ready = false;
+            console.error('Error getting target temperature:', error);
         }
-        this.requestUpdate();
-    }
-    static async getConfigElement() {
-        return document.createElement('hausgeist-card-editor');
-    }
-    static getStubConfig() {
-        return {
-            type: "custom:hausgeist-card",
-            debug: false,
-            notify: false,
-            highThreshold: 2000,
-            weather_entity: "weather.home"
-        };
-    }
-    static get properties() {
-        return {
-            hass: { type: Object },
-            config: { type: Object },
-        };
+        // 3. Fallback auf den Default-Wert
+        return this.config.default_target || defaultTarget;
     }
 };
 HausgeistCard.styles = styles;

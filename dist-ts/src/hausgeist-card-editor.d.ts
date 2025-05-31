@@ -10,6 +10,7 @@ export declare class HausgeistCardEditor extends LitElement {
         }>;
         auto?: Record<string, Record<string, string>>;
         weather_entity?: string;
+        default_target?: number;
     };
     private _hass;
     testValues: {
@@ -24,8 +25,8 @@ export declare class HausgeistCardEditor extends LitElement {
     get hass(): any;
     set hass(hass: any);
     _onDebugChange: (e: Event) => void;
-    _onAreaSensorChange(areaId: string, type: string, e: Event): void;
-    _onUseAutoDetected(areaId: string, type: string): void;
+    private _onAreaSensorChange;
+    private _onUseAutoDetected;
     _configChanged(): void;
     handleTestValueChange(areaId: string, type: string, e: any): void;
     handleRulesChange(e: any): void;
