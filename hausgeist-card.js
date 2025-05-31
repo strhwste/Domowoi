@@ -630,7 +630,8 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             'blind', // Rolladen-Status
             'heating', // Heizungs-Status (an/aus)
             'heating_level', // Heizungs-Level (0-100%)
-            'target' // Zieltemperatur
+            'target', // Zieltemperatur
+            'occupancy' // Anwesenheit
         ];
         const missingSensorsPerArea = areas.map(area => {
             const missing = requiredSensorTypes.filter(type => {
@@ -808,39 +809,17 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
                             type}:
                 </span>
                 <div class="sensor-select">
-                  ${typeof customElements !== 'undefined' && customElements.get('ha-entity-picker') ? x `
-                    <ha-entity-picker
-                      .hass=${this.hass}
-                      .value=${selected || ''}
-                      @value-changed=${(e) => this._onAreaSensorChange(area.area_id, type, e)}
-                      .entityFilter=${(entity) => {
-                    const devices = this.hass?.devices || {};
-                    if (entity.attributes?.area_id === area.area_id)
-                        return true;
-                    if (entity.attributes?.device_id && devices[entity.attributes.device_id]?.area_id === area.area_id)
-                        return true;
-                    const areaNames = [area.name?.toLowerCase(), area.area_id?.toLowerCase()].filter(Boolean);
-                    const friendly = (entity.attributes?.friendly_name || '').toLowerCase();
-                    const entityId = (entity.entity_id || '').toLowerCase();
-                    return areaNames.some(an => an && (friendly.split(/\W+/).includes(an) || entityId.split(/\W+/).includes(an)));
-                }}
-                    ></ha-entity-picker>
-                  ` : x `
-                    <div style="color: #b00; font-size: 0.95em; margin-bottom: 0.2em;">
-                      ⚠️ ha-entity-picker nicht verfügbar – Fallback auf Standard-Dropdown
-                    </div>
-                    <select
-                      @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)}
-                      .value=${selected || ''}
-                    >
-                      <option value="">(kein Sensor ausgewählt)</option>
-                      ${relevantEntities.map((s) => x `
-                        <option value="${s.entity_id}" title="${s.attributes.friendly_name || s.entity_id} [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}${s.attributes.area_id ? ` (Bereich: ${this.hass.areas?.[s.attributes.area_id]?.name || s.attributes.area_id})` : ''}">
-                          ${s.attributes.friendly_name || s.entity_id} [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}${s.attributes.area_id ? ` (Bereich: ${this.hass.areas?.[s.attributes.area_id]?.name || s.attributes.area_id})` : ''}
-                        </option>
-                      `)}
-                    </select>
-                  `}
+                  <select
+                    @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)}
+                    .value=${selected || ''}
+                  >
+                    <option value="">(kein Sensor ausgewählt)</option>
+                    ${relevantEntities.map((s) => x `
+                      <option value="${s.entity_id}" title="${s.attributes.friendly_name || s.entity_id} [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}${s.attributes.area_id ? ` (Bereich: ${this.hass.areas?.[s.attributes.area_id]?.name || s.attributes.area_id})` : ''}">
+                        ${s.attributes.friendly_name || s.entity_id} [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}${s.attributes.area_id ? ` (Bereich: ${this.hass.areas?.[s.attributes.area_id]?.name || s.attributes.area_id})` : ''}
+                      </option>
+                    `)}
+                  </select>
                   ${type === 'target' ? x `
                   <div class="help-text">
                   Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
