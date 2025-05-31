@@ -346,25 +346,18 @@ export class HausgeistCardEditor extends LitElement {
           const autoId = this._autodetect(area.area_id, type);
           // Zeige ALLE Entities aus der Area, egal welcher Typ
           const allEntities = Object.values(this.hass?.states || {});
-          if (this.config.debug) {
-            console.log('All entities:', allEntities.map((e: any) => ({
-              id: e.entity_id,
-              area_id: e.attributes?.area_id,
-              name: e.attributes?.friendly_name
-            })));
-            console.log('Current area:', area.area_id, area.name);
-          }
-          let areaEntities = allEntities.filter((e: any) => e.attributes?.area_id === area.area_id);
-          let relevantEntities: any[] = [];
-          // For heating types, show all climate/heating/thermostat entities in the area
-          
-          relevantEntities = areaEntities.filter((e: any) =>
-            ['heating', 'heizung', 'thermostat', 'climate'].some(k => e.entity_id.toLowerCase().includes(k))
-          );
-          // Fallback: if nothing found, show all area entities
-          if (relevantEntities.length === 0) {
-            relevantEntities = areaEntities;
-          }
+          const devices = this.hass?.devices || {};
+          const areasById = this.hass?.areas || {};
+          let relevantEntities = allEntities.filter((e: any) => {
+            // 1. Direct area_id match
+            if (e.attributes?.area_id === area.area_id) return true;
+            // 2. device_id -> area_id match
+            if (e.attributes?.device_id && devices[e.attributes.device_id]?.area_id === area.area_id) return true;
+            // 3. Fallback: area name in friendly_name
+            const areaName = (area.name || area.area_id).toLowerCase();
+            if ((e.attributes?.friendly_name || '').toLowerCase().includes(areaName)) return true;
+            return false;
+          });
           relevantEntities.sort((a: any, b: any) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
           const selected = this.config.overrides?.[area.area_id]?.[type] || '';
 
