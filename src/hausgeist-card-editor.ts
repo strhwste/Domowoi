@@ -344,9 +344,14 @@ export class HausgeistCardEditor extends LitElement {
           );
 
           const autoId = this._autodetect(area.area_id, type);
-          // Zeige ALLE Entities aus dem Bereich, ohne jegliche weitere Filter/Logik
+          // Zeige ALLE Entities aus dem Bereich: area_id direkt ODER device_id->area_id
           const allEntities = Object.values(this.hass?.states || {});
-          const relevantEntities = allEntities.filter((e: any) => e.attributes?.area_id === area.area_id);
+          const devices = this.hass?.devices || {};
+          const relevantEntities = allEntities.filter((e: any) => {
+            if (e.attributes?.area_id === area.area_id) return true;
+            if (e.attributes?.device_id && devices[e.attributes.device_id]?.area_id === area.area_id) return true;
+            return false;
+          });
           relevantEntities.sort((a: any, b: any) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
           const selected = this.config.overrides?.[area.area_id]?.[type] || '';
 
