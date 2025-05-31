@@ -30,4 +30,5 @@ export declare class HausgeistCard extends LitElement {
     render(): import("lit-html").TemplateResult<1>;
     private _buildContext;
     setConfig(config: any): Promise<void>;
+    static getConfigElement(): Promise<HTMLElement>;
 }

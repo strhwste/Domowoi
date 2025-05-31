@@ -1,0 +1,7 @@
+{
+  "name": "Hausgeist Card",
+  "description": "A customizable card for home automation rules",
+  "type": "custom:hausgeist-card",
+  "version": "1.0.0",
+  "editor": true
+}

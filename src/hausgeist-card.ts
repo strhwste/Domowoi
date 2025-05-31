@@ -346,4 +346,8 @@ export class HausgeistCard extends LitElement {
 
     this.requestUpdate();
   }
+
+  public static async getConfigElement() {
+    return document.createElement('hausgeist-card-editor');
+  }
 }

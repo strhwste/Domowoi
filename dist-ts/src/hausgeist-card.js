@@ -285,6 +285,9 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         }
         this.requestUpdate();
     }
+    static async getConfigElement() {
+        return document.createElement('hausgeist-card-editor');
+    }
 };
 HausgeistCard.styles = styles;
 __decorate([
