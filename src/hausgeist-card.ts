@@ -86,11 +86,18 @@ export class HausgeistCard extends LitElement {
       console.log(`[_findSensor] config.auto[${area}]:`, this.config?.auto?.[area]);
     }
     
+    // Get all states from hass
+    const allStates = Object.values(this.hass.states) as Array<{
+      entity_id: string;
+      state: any;
+      attributes: { [key: string]: any };
+    }>;
+    
     // 1. Check for manual override in config
     const overrideId = this.config?.overrides?.[area]?.[cls];
     if (overrideId) {
       if (this.debug) console.log(`[_findSensor] Found override for ${cls}: ${overrideId}`);
-      const s = sensors.find((st) => st.entity_id === overrideId);
+      const s = allStates.find((st) => st.entity_id === overrideId);
       if (s) {
         usedSensors.push({
           type: cls + ' (override)',
@@ -99,14 +106,14 @@ export class HausgeistCard extends LitElement {
         });
         return s;
       }
-      if (this.debug) console.log(`[_findSensor] Override sensor ${overrideId} not found in area sensors`);
+      if (this.debug) console.log(`[_findSensor] Override sensor ${overrideId} not found in states`);
     }
     
     // 2. Check for auto-detected sensor from config (as set by the editor)
     const autoId = this.config?.auto?.[area]?.[cls];
     if (autoId) {
       if (this.debug) console.log(`[_findSensor] Found auto-detected for ${cls}: ${autoId}`);
-      const s = sensors.find((st) => st.entity_id === autoId);
+      const s = allStates.find((st) => st.entity_id === autoId);
       if (s) {
         usedSensors.push({
           type: cls + ' (auto)',
@@ -115,7 +122,7 @@ export class HausgeistCard extends LitElement {
         });
         return s;
       }
-      if (this.debug) console.log(`[_findSensor] Auto-detected sensor ${autoId} not found in area sensors`);
+      if (this.debug) console.log(`[_findSensor] Auto-detected sensor ${autoId} not found in states`);
     }
 
     // 3. No sensor found (no fallback matching in the card)

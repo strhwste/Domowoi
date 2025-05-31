@@ -65,7 +65,22 @@ class RuleEngine {
 function filterSensorsByArea(states, areaId) {
     // Vergleiche areaId und st.attributes.area_id getrimmt und in Kleinbuchstaben
     const norm = (v) => (v || '').toLowerCase().trim();
-    return states.filter(st => norm(st.attributes?.area_id) === norm(areaId));
+    // Debug logging to check area_id matching
+    console.log(`[filterSensorsByArea] Looking for area: '${areaId}'`);
+    // First find any matching sensors
+    const filtered = states.filter(st => {
+        const stArea = norm(st.attributes?.area_id);
+        const searchArea = norm(areaId);
+        // Log each potential match attempt
+        if (st.entity_id && st.attributes?.area_id) {
+            console.log(`[filterSensorsByArea] Checking entity ${st.entity_id} with area '${st.attributes.area_id}' (normalized: '${stArea}') against '${searchArea}'`);
+        }
+        return stArea === searchArea;
+    });
+    // Log what we found
+    console.log(`[filterSensorsByArea] Found ${filtered.length} sensors for area '${areaId}':`);
+    filtered.forEach(s => console.log(`- ${s.entity_id}`));
+    return filtered;
 }
 
 var coreRules = [
@@ -696,12 +711,14 @@ let HausgeistCard = class HausgeistCard extends i {
             console.log(`[_findSensor] config.overrides[${area}]:`, this.config?.overrides?.[area]);
             console.log(`[_findSensor] config.auto[${area}]:`, this.config?.auto?.[area]);
         }
+        // Get all states from hass
+        const allStates = Object.values(this.hass.states);
         // 1. Check for manual override in config
         const overrideId = this.config?.overrides?.[area]?.[cls];
         if (overrideId) {
             if (this.debug)
                 console.log(`[_findSensor] Found override for ${cls}: ${overrideId}`);
-            const s = sensors.find((st) => st.entity_id === overrideId);
+            const s = allStates.find((st) => st.entity_id === overrideId);
             if (s) {
                 usedSensors.push({
                     type: cls + ' (override)',
@@ -711,14 +728,14 @@ let HausgeistCard = class HausgeistCard extends i {
                 return s;
             }
             if (this.debug)
-                console.log(`[_findSensor] Override sensor ${overrideId} not found in area sensors`);
+                console.log(`[_findSensor] Override sensor ${overrideId} not found in states`);
         }
         // 2. Check for auto-detected sensor from config (as set by the editor)
         const autoId = this.config?.auto?.[area]?.[cls];
         if (autoId) {
             if (this.debug)
                 console.log(`[_findSensor] Found auto-detected for ${cls}: ${autoId}`);
-            const s = sensors.find((st) => st.entity_id === autoId);
+            const s = allStates.find((st) => st.entity_id === autoId);
             if (s) {
                 usedSensors.push({
                     type: cls + ' (auto)',
@@ -728,7 +745,7 @@ let HausgeistCard = class HausgeistCard extends i {
                 return s;
             }
             if (this.debug)
-                console.log(`[_findSensor] Auto-detected sensor ${autoId} not found in area sensors`);
+                console.log(`[_findSensor] Auto-detected sensor ${autoId} not found in states`);
         }
         // 3. No sensor found (no fallback matching in the card)
         if (this.debug) {
