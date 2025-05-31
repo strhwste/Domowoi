@@ -344,49 +344,44 @@ export class HausgeistCardEditor extends LitElement {
           );
 
           const autoId = this._autodetect(area.area_id, type);
-          // Zeige alle relevanten Entities (nicht nur area)
+          // Zeige nur Entities aus der Area (keine weitere Filterung nach Typ)
           const allEntities = Object.values(this.hass?.states || {});
-          const relevantEntities = allEntities.filter((e: any) =>
-            e.entity_id.startsWith('sensor.') ||
-            e.entity_id.startsWith('climate.') ||
-            e.entity_id.startsWith('binary_sensor.') ||
-            e.entity_id.startsWith('input_number.')
-          );
+          const relevantEntities = allEntities.filter((e: any) => e.attributes?.area_id === area.area_id);
           relevantEntities.sort((a: any, b: any) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
           const selected = this.config.overrides?.[area.area_id]?.[type] || '';
 
-            return html`
-            <li>
-            <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
-            <span class="sensor-label">
-              ${type === 'target' ? 'Zieltemperatur' : 
-              type === 'heating' ? 'Heizung' :
-              type === 'heating_level' ? 'Heizleistung' :
-              type}:
-            </span>
-            <div class="sensor-select">
-              <select @change=${(e: Event) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
-              <option value="">(kein Sensor ausgewählt)</option>
-              <option value="none">Kein Sensor</option>
-              ${relevantEntities.map((s: any) => html`
-                <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                  ${s.attributes.friendly_name || s.entity_id} 
-                  [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]
-                  ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
-                  ${s.attributes.area_id ? ` (Bereich: ${this.hass.areas?.[s.attributes.area_id]?.name || s.attributes.area_id})` : ''}
-                </option>
-              `)}
-              </select>
-              ${type === 'target' ? html`
-              <div class="help-text">
-              Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
-              um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
-              </div>
-              ` : ''}
+          return html`
+          <li>
+          <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
+          <span class="sensor-label">
+            ${type === 'target' ? 'Zieltemperatur' : 
+            type === 'heating' ? 'Heizung' :
+            type === 'heating_level' ? 'Heizleistung' :
+            type}:
+          </span>
+          <div class="sensor-select">
+            <select @change=${(e: Event) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
+            <option value="">(kein Sensor ausgewählt)</option>
+            <option value="none">Kein Sensor</option>
+            ${relevantEntities.map((s: any) => html`
+              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                ${s.attributes.friendly_name || s.entity_id} 
+                [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]
+                ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
+                ${s.attributes.area_id ? ` (Bereich: ${this.hass.areas?.[s.attributes.area_id]?.name || s.attributes.area_id})` : ''}
+              </option>
+            `)}
+            </select>
+            ${type === 'target' ? html`
+            <div class="help-text">
+            Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
+            um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
             </div>
-            </div>
-            </li>
-            `;
+            ` : ''}
+          </div>
+          </div>
+          </li>
+          `;
           })}
         </ul>
         </div>
