@@ -48,10 +48,18 @@ export declare class HausgeistCard extends LitElement {
     private ghostCanvas?;
     private lastTip;
     private ghostLoadError;
+    private ghostSpeechMesh?;
+    private ghostSpeechTexture?;
+    private ghostSpeechCanvas?;
+    private ghostSpeechCtx?;
     connectedCallback(): Promise<void>;
     updated(changedProps: PropertyValues): void;
     disconnectedCallback(): void;
     private _initGhost3D;
+    private _createGhostSpeechBubble;
+    private _updateGhostSpeechTexture;
+    private _wrapText;
+    private _getCurrentTip;
     private _animateGhost;
     private _findSensor;
     render(): import("lit-html").TemplateResult<1>;

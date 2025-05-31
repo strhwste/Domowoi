@@ -149,11 +149,104 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             this.ghostModel.scale.set(1.2, 1.2, 1.2);
             this.ghostScene.add(this.ghostModel);
             this.ghostLoadError = false;
+            // Add 3D speech bubble
+            this._createGhostSpeechBubble(this.lastTip);
             this._animateGhost();
         }, undefined, (err) => {
             this.ghostLoadError = true;
             this.requestUpdate();
         });
+    }
+    _createGhostSpeechBubble(text) {
+        // Create canvas for speech bubble
+        this.ghostSpeechCanvas = document.createElement('canvas');
+        this.ghostSpeechCanvas.width = 256;
+        this.ghostSpeechCanvas.height = 96;
+        this.ghostSpeechCtx = this.ghostSpeechCanvas.getContext('2d');
+        // Initial draw
+        this._updateGhostSpeechTexture(text);
+        this.ghostSpeechTexture = new THREE.Texture(this.ghostSpeechCanvas);
+        this.ghostSpeechTexture.needsUpdate = true;
+        // Plane geometry for speech bubble
+        const geometry = new THREE.PlaneGeometry(1.6, 0.6);
+        const material = new THREE.MeshBasicMaterial({ map: this.ghostSpeechTexture, transparent: true });
+        this.ghostSpeechMesh = new THREE.Mesh(geometry, material);
+        this.ghostSpeechMesh.position.set(0, 1.4, 0);
+        this.ghostSpeechMesh.renderOrder = 2;
+        this.ghostScene.add(this.ghostSpeechMesh);
+    }
+    _updateGhostSpeechTexture(text) {
+        if (!this.ghostSpeechCanvas || !this.ghostSpeechCtx)
+            return;
+        const ctx = this.ghostSpeechCtx;
+        ctx.clearRect(0, 0, this.ghostSpeechCanvas.width, this.ghostSpeechCanvas.height);
+        // Bubble background
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        ctx.strokeStyle = 'rgba(180,180,180,0.7)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(20, 10);
+        ctx.lineTo(236, 10);
+        ctx.quadraticCurveTo(246, 10, 246, 26);
+        ctx.lineTo(246, 70);
+        ctx.quadraticCurveTo(246, 86, 236, 86);
+        ctx.lineTo(20, 86);
+        ctx.quadraticCurveTo(10, 86, 10, 70);
+        ctx.lineTo(10, 26);
+        ctx.quadraticCurveTo(10, 10, 20, 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Bubble tail
+        ctx.beginPath();
+        ctx.moveTo(128, 86);
+        ctx.lineTo(138, 106);
+        ctx.lineTo(118, 86);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Text
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillStyle = '#222';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        this._wrapText(ctx, text, 128, 48, 220, 28);
+        if (this.ghostSpeechTexture) {
+            this.ghostSpeechTexture.needsUpdate = true;
+        }
+    }
+    _wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+        const words = text.split(' ');
+        let line = '';
+        let lines = [];
+        for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            const metrics = ctx.measureText(testLine);
+            if (metrics.width > maxWidth && n > 0) {
+                lines.push(line);
+                line = words[n] + ' ';
+            }
+            else {
+                line = testLine;
+            }
+        }
+        lines.push(line);
+        const totalHeight = lines.length * lineHeight;
+        let offsetY = y - totalHeight / 2 + lineHeight / 2;
+        for (let i = 0; i < lines.length; i++) {
+            ctx.fillText(lines[i].trim(), x, offsetY);
+            offsetY += lineHeight;
+        }
+    }
+    _getCurrentTip() {
+        // Finde den aktuellen Tipp (wie bisher in render())
+        if (this.ghostLoadError) {
+            return 'Geist-Modell nicht gefunden! Bitte ghost_model_url prüfen.';
+        }
+        // Versuche, den aktuellen Tipp aus dem letzten Render zu holen
+        if (this.lastTip)
+            return this.lastTip;
+        return '';
     }
     _animateGhost() {
         if (!this.ghostScene || !this.ghostCamera || !this.ghostRenderer || !this.ghostModel)
@@ -162,6 +255,13 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         // Schwebende Animation
         this.ghostModel.position.y = 0.5 + Math.sin(t * 2) * 0.1;
         this.ghostModel.rotation.y = Math.sin(t * 0.5) * 0.3;
+        // Speech bubble folgt dem Geist
+        if (this.ghostSpeechMesh) {
+            this.ghostSpeechMesh.position.x = this.ghostModel.position.x;
+            this.ghostSpeechMesh.position.z = this.ghostModel.position.z;
+            this.ghostSpeechMesh.position.y = this.ghostModel.position.y + 0.9;
+            this.ghostSpeechMesh.lookAt(this.ghostCamera.position);
+        }
         this.ghostRenderer.render(this.ghostScene, this.ghostCamera);
         this.ghostAnimationId = requestAnimationFrame(() => this._animateGhost());
     }
@@ -373,6 +473,12 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         else if (topMessages.length > 0) {
             currentTip = this.texts?.[topMessages[0].message_key] || topMessages[0].message_key;
         }
+        // Merke den aktuellen Tipp für die Sprechblase
+        this.lastTip = currentTip;
+        // Wenn die Sprechblase existiert, Text aktualisieren
+        if (this.ghostSpeechMesh && this.ghostSpeechCtx) {
+            this._updateGhostSpeechTexture(currentTip);
+        }
         return html `
       <style>
         .ghost-3d-container {
@@ -382,35 +488,8 @@ let HausgeistCard = class HausgeistCard extends LitElement {
           position: relative;
           z-index: 2;
         }
-        .ghost-speech-bubble {
-          position: absolute;
-          left: 50%;
-          top: 10px;
-          transform: translateX(-50%);
-          background: rgba(255,255,255,0.95);
-          color: #222;
-          border-radius: 16px;
-          padding: 10px 18px;
-          font-size: 1.1em;
-          min-width: 120px;
-          max-width: 180px;
-          box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-          pointer-events: none;
-          z-index: 3;
-        }
-        .ghost-speech-bubble:after {
-          content: '';
-          position: absolute;
-          left: 50%;
-          bottom: -16px;
-          transform: translateX(-50%);
-          border-width: 8px;
-          border-style: solid;
-          border-color: rgba(255,255,255,0.95) transparent transparent transparent;
-        }
       </style>
       <div class="ghost-3d-container">
-        <div class="ghost-speech-bubble">${currentTip}</div>
         <!-- Three.js Canvas wird dynamisch eingefügt -->
       </div>
       ${debugBanner}
