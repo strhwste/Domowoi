@@ -1,5 +1,11 @@
 [
   {
+    "id": "debug",
+    "condition": "true",
+    "message_key": "debug_rule_match",
+    "priority": "info"
+  },
+  {
     "condition": "temp > target + 2",
     "message_key": "temp_above_target",
     "priority": "warn"

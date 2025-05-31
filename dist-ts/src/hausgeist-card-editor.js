@@ -221,17 +221,59 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
             <b>${area.name}</b>
             <ul>
               ${sensorTypes.map(type => {
-            // Filter: device_class oder Keyword im Namen/ID
-            const sensors = states.filter((e) => e.attributes?.area_id === area.area_id && ((type === 'heating')
-                ? ['heating', 'heizung', 'thermostat'].some(k => e.entity_id.toLowerCase().includes(k))
-                : (e.attributes?.device_class === type ||
-                    this._autodetect(area.area_id, type) === e.entity_id)));
+            // Get all sensors for this area
+            const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
+            // Group sensors by relevance
+            const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type);
+            const matchingByKeyword = areaSensors.filter((e) => {
+                const keywords = {
+                    temperature: ['temperature', 'temperatur', 'température'],
+                    humidity: ['humidity', 'feuchtigkeit', 'humidité'],
+                    co2: ['co2'],
+                    window: ['window', 'fenster'],
+                    door: ['door', 'tür'],
+                    curtain: ['curtain', 'vorhang'],
+                    blind: ['blind', 'jalousie'],
+                    heating: ['heating', 'heizung', 'thermostat'],
+                    target: ['target', 'soll', 'setpoint']
+                }[type] || [type];
+                return keywords.some(k => e.entity_id.toLowerCase().includes(k) ||
+                    (e.attributes.friendly_name || '').toLowerCase().includes(k));
+            });
+            const otherSensors = areaSensors.filter(s => !matchingByClass.includes(s) && !matchingByKeyword.includes(s));
             const autoId = this._autodetect(area.area_id, type);
             const selected = this.config.overrides?.[area.area_id]?.[type] || '';
             return html `<li>${type}:
                   <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
                     <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
-                    ${sensors.map((s) => html `<option value="${s.entity_id}" ?selected=${selected === s.entity_id}>${s.entity_id} (${s.attributes.friendly_name || ''})</option>`)}
+                    <option value="none">None (no sensor)</option>
+                    ${matchingByClass.length > 0 ? html `
+                      <optgroup label="Matching device_class">
+                        ${matchingByClass.map((s) => html `
+                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                            ${s.entity_id} (${s.attributes.friendly_name || ''}) [${s.attributes.device_class}]
+                          </option>
+                        `)}
+                      </optgroup>
+                    ` : ''}
+                    ${matchingByKeyword.length > 0 ? html `
+                      <optgroup label="Matching by name">
+                        ${matchingByKeyword.map((s) => html `
+                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                            ${s.entity_id} (${s.attributes.friendly_name || ''})
+                          </option>
+                        `)}
+                      </optgroup>
+                    ` : ''}
+                    ${otherSensors.length > 0 ? html `
+                      <optgroup label="Other sensors">
+                        ${otherSensors.map((s) => html `
+                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                            ${s.entity_id} (${s.attributes.friendly_name || ''})
+                          </option>
+                        `)}
+                      </optgroup>
+                    ` : ''}
                   </select>
                   ${autoId && !selected ? html `
                     <button 

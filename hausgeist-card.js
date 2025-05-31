@@ -41,23 +41,28 @@ class RuleEngine {
     constructor(rules) {
         this.rules = [];
         this.rules = rules;
+        console.log('[RuleEngine] Initialized with', rules.length, 'rules');
     }
     evaluate(context) {
+        // Debug: log available context
+        console.log('[RuleEngine] Evaluating rules with context:', context);
         const results = [];
         for (const rule of this.rules) {
             let hit = false;
             try {
                 // eslint-disable-next-line no-new-func
                 hit = Function(...Object.keys(context), `return (${rule.condition});`)(...Object.values(context));
+                console.log(`[RuleEngine] Rule '${rule.id || rule.message_key}' (${rule.condition}) => ${hit}`);
             }
             catch (e) {
-                // Fehlerhafte Regel ignorieren
+                console.warn(`[RuleEngine] Error evaluating rule '${rule.id || rule.message_key}':`, e);
                 continue;
             }
             if (hit) {
                 results.push({ message_key: rule.message_key, priority: rule.priority });
             }
         }
+        console.log('[RuleEngine] Evaluation complete,', results.length, 'rules matched');
         return results;
     }
 }
@@ -84,6 +89,12 @@ function filterSensorsByArea(states, areaId) {
 }
 
 var coreRules = [
+	{
+		id: "debug",
+		condition: "true",
+		message_key: "debug_rule_match",
+		priority: "info"
+	},
 	{
 		condition: "temp > target + 2",
 		message_key: "temp_above_target",
@@ -263,6 +274,7 @@ var open_blinds_for_sun_warmth$1 = "Sunny soon – open blinds to warm up the ro
 var window_open_night_cold$1 = "🌙 Window is open at night and it's cold outside – please close to avoid cooling down.";
 var room_too_cold_window_open$1 = "❄️ Room is below 17°C and window is open – please close to avoid undercooling.";
 var mold_risk_dew_point$1 = "⚠️ Mold risk: High humidity and dew point reached – please ventilate!";
+var debug_rule_match$1 = "Debug rule matched - rule engine is working";
 var en = {
 	low_humidity: low_humidity$1,
 	high_co2: high_co2$1,
@@ -295,7 +307,8 @@ var en = {
 	open_blinds_for_sun_warmth: open_blinds_for_sun_warmth$1,
 	window_open_night_cold: window_open_night_cold$1,
 	room_too_cold_window_open: room_too_cold_window_open$1,
-	mold_risk_dew_point: mold_risk_dew_point$1
+	mold_risk_dew_point: mold_risk_dew_point$1,
+	debug_rule_match: debug_rule_match$1
 };
 
 var low_humidity = "Luftfeuchtigkeit unter 35 % – lüften oder befeuchten empfohlen";
@@ -330,6 +343,7 @@ var open_blinds_for_sun_warmth = "Bald sonnig – Jalousien öffnen, um Raum zu 
 var window_open_night_cold = "🌙 Fenster ist nachts offen und es ist draußen kalt – bitte schließen, um Auskühlung zu vermeiden.";
 var room_too_cold_window_open = "❄️ Raum ist unter 17 °C und das Fenster ist offen – bitte schließen, um Unterkühlung zu vermeiden.";
 var mold_risk_dew_point = "⚠️ Schimmelgefahr: Hohe Luftfeuchtigkeit und Taupunkt erreicht – bitte lüften!";
+var debug_rule_match = "Debug-Regel aktiv - Regelwerk funktioniert";
 var de = {
 	low_humidity: low_humidity,
 	high_co2: high_co2,
@@ -362,7 +376,8 @@ var de = {
 	open_blinds_for_sun_warmth: open_blinds_for_sun_warmth,
 	window_open_night_cold: window_open_night_cold,
 	room_too_cold_window_open: room_too_cold_window_open,
-	mold_risk_dew_point: mold_risk_dew_point
+	mold_risk_dew_point: mold_risk_dew_point,
+	debug_rule_match: debug_rule_match
 };
 
 var __decorate$1 = (undefined && undefined.__decorate) || function (decorators, target, key, desc) {
@@ -586,17 +601,59 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             <b>${area.name}</b>
             <ul>
               ${sensorTypes.map(type => {
-            // Filter: device_class oder Keyword im Namen/ID
-            const sensors = states.filter((e) => e.attributes?.area_id === area.area_id && ((type === 'heating')
-                ? ['heating', 'heizung', 'thermostat'].some(k => e.entity_id.toLowerCase().includes(k))
-                : (e.attributes?.device_class === type ||
-                    this._autodetect(area.area_id, type) === e.entity_id)));
+            // Get all sensors for this area
+            const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
+            // Group sensors by relevance
+            const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type);
+            const matchingByKeyword = areaSensors.filter((e) => {
+                const keywords = {
+                    temperature: ['temperature', 'temperatur', 'température'],
+                    humidity: ['humidity', 'feuchtigkeit', 'humidité'],
+                    co2: ['co2'],
+                    window: ['window', 'fenster'],
+                    door: ['door', 'tür'],
+                    curtain: ['curtain', 'vorhang'],
+                    blind: ['blind', 'jalousie'],
+                    heating: ['heating', 'heizung', 'thermostat'],
+                    target: ['target', 'soll', 'setpoint']
+                }[type] || [type];
+                return keywords.some(k => e.entity_id.toLowerCase().includes(k) ||
+                    (e.attributes.friendly_name || '').toLowerCase().includes(k));
+            });
+            const otherSensors = areaSensors.filter(s => !matchingByClass.includes(s) && !matchingByKeyword.includes(s));
             const autoId = this._autodetect(area.area_id, type);
             const selected = this.config.overrides?.[area.area_id]?.[type] || '';
             return x `<li>${type}:
                   <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
                     <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
-                    ${sensors.map((s) => x `<option value="${s.entity_id}" ?selected=${selected === s.entity_id}>${s.entity_id} (${s.attributes.friendly_name || ''})</option>`)}
+                    <option value="none">None (no sensor)</option>
+                    ${matchingByClass.length > 0 ? x `
+                      <optgroup label="Matching device_class">
+                        ${matchingByClass.map((s) => x `
+                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                            ${s.entity_id} (${s.attributes.friendly_name || ''}) [${s.attributes.device_class}]
+                          </option>
+                        `)}
+                      </optgroup>
+                    ` : ''}
+                    ${matchingByKeyword.length > 0 ? x `
+                      <optgroup label="Matching by name">
+                        ${matchingByKeyword.map((s) => x `
+                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                            ${s.entity_id} (${s.attributes.friendly_name || ''})
+                          </option>
+                        `)}
+                      </optgroup>
+                    ` : ''}
+                    ${otherSensors.length > 0 ? x `
+                      <optgroup label="Other sensors">
+                        ${otherSensors.map((s) => x `
+                          <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                            ${s.entity_id} (${s.attributes.friendly_name || ''})
+                          </option>
+                        `)}
+                      </optgroup>
+                    ` : ''}
                   </select>
                   ${autoId && !selected ? x `
                     <button 
