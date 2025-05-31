@@ -5,7 +5,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
 import { LitElement, html } from 'lit';
-import { property, customElement } from 'lit/decorators.js';
+import { property, customElement, state } from 'lit/decorators.js';
 import { SENSOR_KEYWORDS } from './sensor-keywords';
 let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     constructor() {
@@ -314,6 +314,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
                 // Zeige nur Entities, die zum Bereich gehören (area_id oder device_id->area_id oder Bereichsname im Namen)
                 const allEntities = Object.values(this.hass?.states || {});
                 const devices = this.hass?.devices || {};
+                // Zeige alle Entities, die area_id === area.area_id ODER device_id->area_id ODER Bereichsname im friendly_name oder entity_id
                 const areaNames = [area.name?.toLowerCase(), area.area_id?.toLowerCase()].filter(Boolean);
                 const relevantEntities = allEntities.filter((e) => {
                     // 1. area_id direkt
@@ -325,45 +326,47 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
                     // 3. Bereichsname im friendly_name oder entity_id (z.B. "arbeitszimmer" oder "work")
                     const friendly = (e.attributes?.friendly_name || '').toLowerCase();
                     const entityId = (e.entity_id || '').toLowerCase();
-                    return areaNames.some(an => an && (friendly.includes(an) || entityId.includes(an)));
+                    // Bereichsname muss als ganzes Wort vorkommen (z.B. "arbeitszimmer" nicht in "arbeitszimmerlampe")
+                    return areaNames.some(an => an && (friendly.split(/\W+/).includes(an) || entityId.split(/\W+/).includes(an)));
                 });
                 relevantEntities.sort((a, b) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
                 const selected = this.config.overrides?.[area.area_id]?.[type] || '';
                 return html `
             <li>
-            <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
-            <span class="sensor-label">
-            ${type === 'target' ? 'Zieltemperatur' :
+              <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
+                <span class="sensor-label">
+                  ${type === 'target' ? 'Zieltemperatur' :
                     type === 'heating' ? 'Heizung' :
                         type === 'heating_level' ? 'Heizleistung' :
                             type}:
-            </span>
-            <div class="sensor-select">
-            <select @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
-            <option value="none">(kein Sensor ausgewählt)</option>
-            ${relevantEntities.map((s) => html `
-              <option 
-                value="${s.entity_id}" 
-                ?selected=${selected === s.entity_id}
-                title="${s.attributes.friendly_name || s.entity_id} [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}${s.attributes.area_id ? ` (Bereich: ${this.hass.areas?.[s.attributes.area_id]?.name || s.attributes.area_id})` : ''}"
-              >
-                ${s.attributes.friendly_name || s.entity_id} 
-                [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]
-                ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
-                ${s.attributes.area_id ? ` (Bereich: ${this.hass.areas?.[s.attributes.area_id]?.name || s.attributes.area_id})` : ''}
-              </option>
-            `)}
-            </select>
-            ${type === 'target' ? html `
-            <div class="help-text">
-            Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
-            um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
-            </div>
-            ` : ''}
-          </div>
-          </div>
-          </li>
-          `;
+                </span>
+                <div class="sensor-select">
+                  <ha-entity-picker
+                    .hass=${this.hass}
+                    .value=${selected || ''}
+                    @value-changed=${(e) => this._onAreaSensorChange(area.area_id, type, e)}
+                    .entityFilter=${(entity) => {
+                    const devices = this.hass?.devices || {};
+                    if (entity.attributes?.area_id === area.area_id)
+                        return true;
+                    if (entity.attributes?.device_id && devices[entity.attributes.device_id]?.area_id === area.area_id)
+                        return true;
+                    const areaNames = [area.name?.toLowerCase(), area.area_id?.toLowerCase()].filter(Boolean);
+                    const friendly = (entity.attributes?.friendly_name || '').toLowerCase();
+                    const entityId = (entity.entity_id || '').toLowerCase();
+                    return areaNames.some(an => an && (friendly.split(/\W+/).includes(an) || entityId.split(/\W+/).includes(an)));
+                }}
+                  ></ha-entity-picker>
+                  ${type === 'target' ? html `
+                  <div class="help-text">
+                  Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
+                  um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
+                  </div>
+                  ` : ''}
+                </div>
+              </div>
+            </li>
+            `;
             })}
         </ul>
         </div>
@@ -393,16 +396,16 @@ __decorate([
     property({ type: Object })
 ], HausgeistCardEditor.prototype, "config", void 0);
 __decorate([
-    property({ type: Object })
+    state()
 ], HausgeistCardEditor.prototype, "testValues", void 0);
 __decorate([
-    property({ type: String })
+    state()
 ], HausgeistCardEditor.prototype, "rulesJson", void 0);
 __decorate([
-    property({ type: Boolean })
+    state()
 ], HausgeistCardEditor.prototype, "notify", void 0);
 __decorate([
-    property({ type: Number })
+    state()
 ], HausgeistCardEditor.prototype, "highThreshold", void 0);
 HausgeistCardEditor = __decorate([
     customElement('hausgeist-card-editor')
