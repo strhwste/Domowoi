@@ -17,13 +17,15 @@
   "author": "strhwste",
   "license": "MIT",
   "dependencies": {
-    "lit": "^3.0.0"
+    "lit": "^3.0.0",
+    "three": "^0.177.0"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^28.0.3",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.2",
+    "@types/three": "^0.176.0",
     "esbuild": "^0.25.5",
     "rollup": "^4.41.1",
     "rollup-plugin-postcss": "^4.0.2",

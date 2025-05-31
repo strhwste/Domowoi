@@ -1,5 +1,6 @@
 import { LitElement } from 'lit';
 import './hausgeist-card-editor';
+declare module 'three/examples/jsm/loaders/GLTFLoader.js';
 export declare class HausgeistCard extends LitElement {
     hass: any;
     config: {
@@ -38,7 +39,18 @@ export declare class HausgeistCard extends LitElement {
     private engine?;
     private texts;
     private ready;
+    private ghostScene?;
+    private ghostRenderer?;
+    private ghostCamera?;
+    private ghostModel?;
+    private ghostAnimationId?;
+    private ghostCanvas?;
+    private lastTip;
     connectedCallback(): Promise<void>;
+    firstUpdated(): void;
+    disconnectedCallback(): void;
+    private _initGhost3D;
+    private _animateGhost;
     private _findSensor;
     render(): import("lit-html").TemplateResult<1>;
     private _buildContext;

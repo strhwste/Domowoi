@@ -8,6 +8,10 @@ import en from '../translations/en.json';
 import de from '../translations/de.json';
 import './hausgeist-card-editor';
 import { styles } from './styles';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+
+declare module 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const TRANSLATIONS = { de, en };
 
@@ -79,6 +83,15 @@ export class HausgeistCard extends LitElement {
   private texts: Record<string, string> = TRANSLATIONS['de'];
   private ready = false;
 
+  // Three.js variables
+  private ghostScene?: THREE.Scene;
+  private ghostRenderer?: THREE.WebGLRenderer;
+  private ghostCamera?: THREE.PerspectiveCamera;
+  private ghostModel?: THREE.Object3D;
+  private ghostAnimationId?: number;
+  private ghostCanvas?: HTMLCanvasElement;
+  private lastTip: string = '';
+
   async connectedCallback() {
     super.connectedCallback();
     
@@ -122,6 +135,67 @@ export class HausgeistCard extends LitElement {
       console.error('[Hausgeist] Error initializing card:', error);
       this.ready = false;
     }
+  }
+
+  firstUpdated() {
+    this._initGhost3D();
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    if (this.ghostAnimationId) {
+      cancelAnimationFrame(this.ghostAnimationId);
+    }
+    if (this.ghostRenderer) {
+      this.ghostRenderer.dispose();
+    }
+  }
+
+  private async _initGhost3D() {
+    // Avoid double init
+    if (this.ghostRenderer) return;
+    const container = this.renderRoot?.querySelector('.ghost-3d-container') as HTMLElement;
+    if (!container) return;
+    // Canvas
+    this.ghostRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    this.ghostRenderer.setClearColor(0x000000, 0);
+    this.ghostRenderer.setSize(200, 200);
+    this.ghostCanvas = this.ghostRenderer.domElement;
+    if (this.ghostCanvas) {
+      this.ghostCanvas.style.display = 'block';
+      this.ghostCanvas.style.margin = '0 auto';
+      this.ghostCanvas.style.pointerEvents = 'none';
+      container.appendChild(this.ghostCanvas);
+    }
+    // Scene
+    this.ghostScene = new THREE.Scene();
+    // Camera
+    this.ghostCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+    this.ghostCamera.position.set(0, 1, 3);
+    // Light
+    const light = new THREE.DirectionalLight(0xffffff, 1);
+    light.position.set(0, 2, 2);
+    this.ghostScene.add(light);
+    this.ghostScene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    // Load GLB
+    const loader = new GLTFLoader();
+    loader.load('/assets/98ecd537dd35b3b246c2e6a6e255bc2a.glb', (gltf: { scene: THREE.Object3D }) => {
+      this.ghostModel = gltf.scene;
+      this.ghostModel.position.set(0, 0.5, 0);
+      this.ghostModel.scale.set(1.2, 1.2, 1.2);
+      this.ghostScene!.add(this.ghostModel);
+      this._animateGhost();
+    });
+  }
+
+  private _animateGhost() {
+    if (!this.ghostScene || !this.ghostCamera || !this.ghostRenderer || !this.ghostModel) return;
+    const t = performance.now() * 0.001;
+    // Schwebende Animation
+    this.ghostModel.position.y = 0.5 + Math.sin(t * 2) * 0.1;
+    this.ghostModel.rotation.y = Math.sin(t * 0.5) * 0.3;
+    this.ghostRenderer.render(this.ghostScene, this.ghostCamera);
+    this.ghostAnimationId = requestAnimationFrame(() => this._animateGhost());
   }
 
   // Find sensor by type in area, with overrides and auto-detection
@@ -363,7 +437,52 @@ export class HausgeistCard extends LitElement {
     );
     const anyRulesApplied = areaMessages.some((a) => a.evals.length > 0);
 
+    // Finde den aktuellen Tipp (höchste Priorität)
+    let currentTip = '';
+    if (topMessages.length > 0) {
+      currentTip = this.texts?.[topMessages[0].message_key] || topMessages[0].message_key;
+    }
+
     return html`
+      <style>
+        .ghost-3d-container {
+          width: 200px;
+          height: 200px;
+          margin: 0 auto;
+          position: relative;
+          z-index: 2;
+        }
+        .ghost-speech-bubble {
+          position: absolute;
+          left: 50%;
+          top: 10px;
+          transform: translateX(-50%);
+          background: rgba(255,255,255,0.95);
+          color: #222;
+          border-radius: 16px;
+          padding: 10px 18px;
+          font-size: 1.1em;
+          min-width: 120px;
+          max-width: 180px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+          pointer-events: none;
+          z-index: 3;
+        }
+        .ghost-speech-bubble:after {
+          content: '';
+          position: absolute;
+          left: 50%;
+          bottom: -16px;
+          transform: translateX(-50%);
+          border-width: 8px;
+          border-style: solid;
+          border-color: rgba(255,255,255,0.95) transparent transparent transparent;
+        }
+      </style>
+      <div class="ghost-3d-container">
+        <div class="ghost-speech-bubble">${currentTip}</div>
+        <!-- Three.js Canvas wird dynamisch eingefügt -->
+      </div>
       ${debugBanner}
       <ha-card>
         <div class="card-content">
