@@ -25,6 +25,35 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         this.texts = TRANSLATIONS['de'];
         this.ready = false;
     }
+    // Support the editor UI
+    static async getConfigElement() {
+        return document.createElement('hausgeist-card-editor');
+    }
+    // Provide default configuration
+    static getStubConfig() {
+        return {
+            debug: false,
+            notify: false,
+            highThreshold: 2000,
+            weather_entity: 'weather.home',
+            default_target: 21
+        };
+    }
+    // Add required setConfig method for custom cards
+    setConfig(config) {
+        // Store the configuration
+        this.config = config;
+        // Set debug flag from config
+        this.debug = config.debug ?? false;
+        // Set notification preference from config
+        this.notify = config.notify ?? false;
+        // Set high threshold from config
+        this.highThreshold = config.highThreshold ?? 2000;
+        // Set rules JSON if provided
+        if (config.rulesJson) {
+            this.rulesJson = config.rulesJson;
+        }
+    }
     async connectedCallback() {
         super.connectedCallback();
         try {

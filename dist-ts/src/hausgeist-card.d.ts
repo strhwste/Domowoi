@@ -23,6 +23,15 @@ export declare class HausgeistCard extends LitElement {
     highThreshold: number;
     rulesJson: string;
     static styles: import("lit").CSSResult;
+    static getConfigElement(): Promise<HTMLElement>;
+    static getStubConfig(): {
+        debug: boolean;
+        notify: boolean;
+        highThreshold: number;
+        weather_entity: string;
+        default_target: number;
+    };
+    setConfig(config: any): void;
     private engine?;
     private texts;
     private ready;
