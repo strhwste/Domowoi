@@ -4,5 +4,10 @@
   "filename": "hausgeist-card.js",
   "type": "lovelace",
   "render_readme": true,
-  "description": "A smart, multilingual Home Assistant Lovelace card for climate and energy hints."
+  "description": "A smart, multilingual Home Assistant Lovelace card for climate and energy hints.",
+  "homeassistant": "2023.12.0",
+  "country": "DE",
+  "default_branch": "main",
+  "branches": ["main", "dev", "beta"],
+  "hide_default_branch": false
 }
