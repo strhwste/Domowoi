@@ -165,6 +165,8 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         const debugBanner = this.debug ? html `<p class="debug-banner">🛠️ Debug mode active</p>` : '';
         const debugOut = [];
         const { states } = this.hass;
+        // Ensure states is always an array for downstream logic
+        const statesArray = Array.isArray(states) ? states : Object.values(states || {});
         // If no areas are configured, use all areas from Home Assistant
         let areas = this.config.areas || [];
         if (areas.length === 0 && this.hass.areas) {
@@ -203,7 +205,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         const areaIdToName = {};
         areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
         const areaMessages = areaIds.map((area) => {
-            const sensors = filterSensorsByArea(states, area);
+            const sensors = filterSensorsByArea(statesArray, area);
             const usedSensors = [];
             if (this.debug) {
                 debugOut.push(`Processing area: ${area}`);
@@ -227,7 +229,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             };
             // Helper to always cast to 'any' for state lookups
             const findState = (fn) => {
-                const found = states.find(fn);
+                const found = statesArray.find(fn);
                 return found ? found : undefined;
             };
             // Get target temperature, default to config override or 21°C
