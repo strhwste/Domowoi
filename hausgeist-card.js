@@ -770,45 +770,72 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         </div>
         <ul>
           ${requiredSensorTypes.map(type => {
-                const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
-                // 1. Direkte Übereinstimmung durch device_class
-                const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type ||
-                    (type === 'occupancy' && e.attributes?.device_class === 'motion') ||
-                    (type === 'heating' && e.attributes?.device_class === 'climate'));
-                // 2. Übereinstimmung durch Keywords aus sensor-keywords.ts
-                const keywords = SENSOR_KEYWORDS[type] || [type];
-                const matchingByKeyword = states.filter((e) => {
-                    // Entity ID oder friendly_name enthält eines der Keywords
-                    const nameMatch = keywords.some(k => e.entity_id.toLowerCase().includes(k.toLowerCase()) ||
-                        (e.attributes?.friendly_name || '').toLowerCase().includes(k.toLowerCase()));
-                    // Spezielle Behandlung für bestimmte Typen
+                // Hole ALLE Entities aus Home Assistant
+                const allEntities = Object.values(this.hass?.states || {});
+                const devices = this.hass?.devices || {};
+                // Finde alle Entities, die möglicherweise zum Bereich gehören
+                const areaEntities = allEntities.filter((e) => {
+                    // 1. Direkter area_id Match
+                    const directAreaMatch = e.attributes?.area_id === area.area_id;
+                    // 2. Über device_id -> area_id
+                    const deviceAreaMatch = e.attributes?.device_id &&
+                        devices[e.attributes.device_id]?.area_id === area.area_id;
+                    // 3. Über den Bereichsnamen (mehr Varianten erlauben)
+                    const areaNames = [
+                        area.name?.toLowerCase(),
+                        area.area_id?.toLowerCase(),
+                        // Häufige Varianten für Raumnamen
+                        area.name?.toLowerCase().replace('zimmer', ''),
+                        area.name?.toLowerCase().replace('raum', ''),
+                        area.name?.toLowerCase().replace('room', '')
+                    ].filter(Boolean);
+                    const nameMatch = areaNames.some(an => an && (e.entity_id.toLowerCase().includes(an) ||
+                        (e.attributes?.friendly_name || '').toLowerCase().includes(an)));
+                    return directAreaMatch || deviceAreaMatch || nameMatch;
+                });
+                // Aus diesen Bereichs-Entities die passenden für den Sensor-Typ finden
+                const relevantEntities = areaEntities.filter((e) => {
+                    // 1. Basis-Match über device_class
+                    if (e.attributes?.device_class === type)
+                        return true;
+                    // 2. Spezielle Sensor-Typ Behandlung
                     const specialMatch = 
-                    // Heizung kann auch climate.* oder thermostat.* sein
-                    (type === 'heating' && (e.entity_id.startsWith('climate.') || e.entity_id.includes('thermostat'))) ||
-                        // CO2 kann auch als air_quality mit co2 Messung erscheinen
-                        (type === 'co2' && e.attributes?.device_class === 'carbon_dioxide') ||
-                        // Anwesenheit kann auch durch motion oder occupancy Sensoren erkannt werden
+                    // Heizung: climate.*, thermostat.*, heizung.*, heat.*
+                    (type === 'heating' && (e.entity_id.startsWith('climate.') ||
+                        e.entity_id.toLowerCase().includes('thermostat') ||
+                        e.entity_id.toLowerCase().includes('heizung') ||
+                        e.entity_id.toLowerCase().includes('heat'))) ||
+                        // CO2: Auch air_quality Sensoren mit CO2
+                        (type === 'co2' && (e.attributes?.device_class === 'carbon_dioxide' ||
+                            e.entity_id.toLowerCase().includes('co2'))) ||
+                        // Anwesenheit: motion, presence, occupancy
                         (type === 'occupancy' && (e.attributes?.device_class === 'motion' ||
                             e.attributes?.device_class === 'occupancy' ||
-                            e.entity_id.includes('motion') ||
-                            e.entity_id.includes('presence')));
-                    // Bereichszuordnung prüfen
-                    const areaMatch = e.attributes?.area_id === area.area_id || // Direkte Area ID
-                        (e.attributes?.device_id && this.hass?.devices?.[e.attributes.device_id]?.area_id === area.area_id) || // Device ID -> Area ID
-                        // Bereichsname im Namen
-                        (() => {
-                            const areaNames = [area.name?.toLowerCase(), area.area_id?.toLowerCase()].filter(Boolean);
-                            const entityName = e.entity_id.toLowerCase();
-                            const friendlyName = (e.attributes?.friendly_name || '').toLowerCase();
-                            return areaNames.some(an => an && (entityName.includes(an) || friendlyName.includes(an)));
-                        })();
-                    return (nameMatch || specialMatch) && areaMatch;
+                            e.attributes?.device_class === 'presence' ||
+                            e.entity_id.toLowerCase().includes('motion') ||
+                            e.entity_id.toLowerCase().includes('presence') ||
+                            e.entity_id.toLowerCase().includes('occupancy'))) ||
+                        // Target temperature: Meist in climate.* oder similar
+                        (type === 'target' && (e.entity_id.toLowerCase().includes('target') ||
+                            e.entity_id.toLowerCase().includes('sollwert') ||
+                            e.entity_id.toLowerCase().includes('setpoint') ||
+                            e.entity_id.startsWith('climate.'))) ||
+                        // Fenster/Tür Status
+                        ((type === 'window' || type === 'door') && (e.attributes?.device_class === 'opening' ||
+                            e.attributes?.device_class === 'window' ||
+                            e.attributes?.device_class === 'door'));
+                    // 3. Match über Keywords aus sensor-keywords.ts
+                    const keywords = SENSOR_KEYWORDS[type] || [type];
+                    const keywordMatch = keywords.some(k => e.entity_id.toLowerCase().includes(k.toLowerCase()) ||
+                        (e.attributes?.friendly_name || '').toLowerCase().includes(k.toLowerCase()));
+                    return specialMatch || keywordMatch;
                 });
-                // Kombiniere und dedupliziere die Ergebnisse
-                const relevantEntities = Array.from(new Set([...matchingByClass, ...matchingByKeyword]));
-                // Sortiere nach friendly_name oder entity_id
-                relevantEntities.sort((a, b) => (a.attributes?.friendly_name || a.entity_id)
-                    .localeCompare(b.attributes?.friendly_name || b.entity_id));
+                // Sortiere die Entities
+                relevantEntities.sort((a, b) => {
+                    const aName = a.attributes?.friendly_name || a.entity_id;
+                    const bName = b.attributes?.friendly_name || b.entity_id;
+                    return aName.localeCompare(bName);
+                });
                 const selected = this.config.overrides?.[area.area_id]?.[type] || '';
                 return x `
             <li>
