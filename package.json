@@ -8,7 +8,7 @@
   "scripts": {
     "prebuild": "tsc --outDir dist-ts",
     "build": "rollup -c && npm run postbuild",
-    "postbuild": "cp dist/hausgeist-card.js hausgeist-card.js && cp dist/hausgeist-card-editor.js ."
+    "postbuild": "cp dist/hausgeist-card.js hausgeist-card.js"
   },
   "repository": {
     "type": "git",

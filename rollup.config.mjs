@@ -4,14 +4,12 @@ import json from '@rollup/plugin-json';
 import postcss from 'rollup-plugin-postcss';
 
 export default {
-  input: {
-    'hausgeist-card': 'dist-ts/src/hausgeist-card.js',
-    'hausgeist-card-editor': 'dist-ts/src/hausgeist-card-editor.js'
-  },
+  input: 'dist-ts/src/hausgeist-card.js',
   output: {
-    dir: 'dist',
+    file: 'dist/hausgeist-card.js',
     format: 'es',
-    sourcemap: true
+    sourcemap: true,
+    inlineDynamicImports: true
   },
   plugins: [
     resolve(),

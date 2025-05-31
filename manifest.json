@@ -1,7 +1,8 @@
 {
   "name": "Hausgeist Card",
   "description": "A customizable card for home automation rules",
-  "type": "custom:hausgeist-card",
+  "type": "module",
   "version": "1.0.0",
+  "frontend_path": "hausgeist-card.js",
   "editor": true
 }
