@@ -65,6 +65,17 @@ export class HausgeistCardEditor extends LitElement {
     this.config = { ...this.config, overrides };
     this._configChanged();
   }
+  // Handle "Use Auto-Detected" button click
+  _onUseAutoDetected(areaId: string, type: string) {
+    const autoId = this._autodetect(areaId, type);
+    if (!autoId) return;  // Should never happen as button is only shown when autoId exists
+
+    // Update overrides to use the auto-detected sensor
+    const overrides = { ...(this.config.overrides || {}) };
+    overrides[areaId] = { ...(overrides[areaId] || {}), [type]: autoId };
+    this.config = { ...this.config, overrides };
+    this._configChanged();
+  }
 
   // Dispatch a custom event to notify that the config has changed
   _configChanged() {
@@ -147,36 +158,30 @@ export class HausgeistCardEditor extends LitElement {
     this._lastAreas = areas;
     const states = Object.values(hass?.states || {});
     const sensorTypes = [
-      'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target' // heating/target neu
+      'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
     ];
 
     // Felder, für die oft ein Helper/Template-Sensor benötigt wird
-    const helperFields = [
+    const helperFields: Array<{key: string, name: string, yaml: string}> = [
       {
         key: 'rain_soon',
         name: 'Rain soon',
-        yaml: `template:\n  - sensor:\n      - name: "Rain Soon"\n        state: >\n          {{ state_attr('weather.home', 'forecast')[0].condition == 'rain' }}\n        unique_id: rain_soon` },
-      {
-        key: 'adjacent_room_temp',
-        name: 'Adjacent room temperature',
-        yaml: `template:\n  - sensor:\n      - name: "Adjacent Room Temperature"\n        state: >\n          {{ states('sensor.adjacent_room_temperature') }}\n        unique_id: adjacent_room_temp` },
-      {
-        key: 'air_quality',
-        name: 'Air quality',
-        yaml: `template:\n  - sensor:\n      - name: "Air Quality"\n        state: >\n          {{ states('sensor.air_quality') }}\n        unique_id: air_quality` },
+        yaml: `template:\n  - sensor:\n      - name: "Rain Soon"\n        state: >\n          {{ state_attr('weather.home', 'forecast')[0].precipitation > 0 }}\n        unique_id: rain_soon`
+      },
       {
         key: 'forecast_sun',
         name: 'Forecast sun',
-        yaml: `template:\n  - sensor:\n      - name: "Forecast Sun"\n        state: >\n          {{ state_attr('weather.home', 'forecast')[0].condition == 'sunny' }}\n        unique_id: forecast_sun` },
+        yaml: `template:\n  - sensor:\n      - name: "Forecast Sun"\n        state: >\n          {{ state_attr('weather.home', 'forecast')[0].condition == 'sunny' }}\n        unique_id: forecast_sun`
+      },
     ];
 
     // Prüfen, ob Helper fehlen
     const missingHelpers = helperFields.filter(hf => !states.some((s: any) => s.entity_id.includes(hf.key)));
 
-    // Feature 1: Automatische Erkennung und Anzeige von fehlenden Standard-Sensoren pro Bereich
     const requiredSensorTypes = [
       'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
     ];
+
     const missingSensorsPerArea = areas.map(area => {
       const missing = requiredSensorTypes.filter(type => {
         const found = states.some((e: any) => e.attributes?.area_id === area.area_id && (
@@ -189,30 +194,35 @@ export class HausgeistCardEditor extends LitElement {
       return { area, missing };
     });
 
-    // Feature 2: Link zur Helper-Verwaltung
+    // Link zur Helper-Verwaltung
     const helperLink = '/config/helpers';
 
-    // Feature 4: Mehrsprachigkeit im Editor (Sprache aus hass übernehmen)
-    const editorLang = hass?.selectedLanguage || 'de';
-
-    // Debug info
-    const debugInfo = html`
-      <div style="background:#eee; color:#333; font-size:0.95em; padding:0.5em; margin-bottom:1em; border-radius:0.3em;">
-        <b>Debug Info:</b><br>
-        Areas: ${areas.length} | States: ${states.length}<br>
-        Areas: ${areas.map(a => a.name).join(', ')}<br>
-        Example state: ${states[0] && (states[0] as any).entity_id ? (states[0] as any).entity_id : 'none'}
-      </div>
-    `;
-
+    // Styles einbinden
     return html`
-      ${debugInfo}
       <style>
-        select { max-width: 260px; font-size: 1em; }
-        .card-config { font-family: inherit; }
-        ul { margin: 0 0 0 1em; padding: 0; }
+        .card-config {
+          padding: 1em;
+        }
+        hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
+        select { min-width: 200px; }
         li { margin: 0.2em 0; }
         .auto-sensor-info { color: #888; font-size: 0.95em; margin-left: 0.5em; }
+        button.use-auto {
+          margin-left: 0.5em;
+          font-size: 0.9em;
+          padding: 0.2em 0.5em;
+          border-radius: 0.3em;
+          border: 1px solid #ccc;
+          background: #f5f5f5;
+          cursor: pointer;
+        }
+        button.use-auto:hover {
+          background: #e5e5e5;
+        }
+        button.use-auto:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
       </style>
       <div class="card-config">
         <label>
@@ -242,18 +252,26 @@ export class HausgeistCardEditor extends LitElement {
                     <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
                     ${sensors.map((s: any) => html`<option value="${s.entity_id}" ?selected=${selected === s.entity_id}>${s.entity_id} (${s.attributes.friendly_name || ''})</option>`)}
                   </select>
-                  <span style="color: #888; font-size: 0.95em; margin-left: 0.5em;">${autoId ? `Auto: ${autoId}` : 'Auto: none gefunden'}</span>
+                  ${autoId && !selected ? html`
+                    <button 
+                      class="use-auto" 
+                      @click=${() => this._onUseAutoDetected(area.area_id, type)}
+                      title="Use the auto-detected sensor as an override">
+                      Use Auto-Detected
+                    </button>
+                  ` : ''}
                 </li>`;
               })}
             </ul>
           </div>
         `)}
       </div>
+
       ${missingHelpers.length > 0 ? html`
         <div style="margin-top:2em; padding:1em; background:#fffbe6; border:1px solid #ffe58f; border-radius:0.5em;">
           <b>⚠️ Zusätzliche Sensoren/Helper benötigt:</b>
           <ul>
-            ${missingHelpers.map(hf => html`<li>
+            ${missingHelpers.map((hf: {key: string, name: string, yaml: string}) => html`<li>
               <b>${hf.name}</b>:<br/>
               <span style="font-size:0.95em; color:#888;">Sensor nicht gefunden. Füge folgenden YAML-Code in deine <b>configuration.yaml</b> oder nutze die Helper-Verwaltung:</span>
               <pre style="background:#f5f5f5; border-radius:0.3em; padding:0.5em; margin:0.5em 0;">${hf.yaml}</pre>
@@ -279,14 +297,13 @@ export class HausgeistCardEditor extends LitElement {
           ${areas.map(area => html`
             <li><b>${area.name}</b>:
               <ul>
-                ${requiredSensorTypes.map(type => html`
-                  <li>${type}: <input type="text" .value=${this.testValues[area.area_id + '_' + type] || ''} @input=${(e: any) => this.handleTestValueChange(area.area_id, type, e)} /></li>
+                ${requiredSensorTypes.map((type: string) => html`
+                  <li>${type}: <input type="text" .value=${this.testValues[area.area_id + '_' + type] || ''} @change=${(e: Event) => this.handleTestValueChange(area.area_id, type, e)}></li>
                 `)}
               </ul>
             </li>
           `)}
         </ul>
-        <span style="font-size:0.95em; color:#888;">(Gib Testwerte ein, um die Regeln zu simulieren. Diese Werte überschreiben die echten Sensordaten temporär.)</span>
       </div>
       <!-- Feature 6: Regel-Editor (JSON) -->
       <div style="margin-top:1em;">

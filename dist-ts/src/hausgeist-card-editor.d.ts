@@ -23,6 +23,7 @@ export declare class HausgeistCardEditor extends LitElement {
     set hass(hass: any);
     _onDebugChange: (e: Event) => void;
     _onAreaSensorChange(areaId: string, type: string, e: Event): void;
+    _onUseAutoDetected(areaId: string, type: string): void;
     _configChanged(): void;
     handleTestValueChange(areaId: string, type: string, e: any): void;
     handleRulesChange(e: any): void;

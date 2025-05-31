@@ -419,6 +419,17 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         this.config = { ...this.config, overrides };
         this._configChanged();
     }
+    // Handle "Use Auto-Detected" button click
+    _onUseAutoDetected(areaId, type) {
+        const autoId = this._autodetect(areaId, type);
+        if (!autoId)
+            return; // Should never happen as button is only shown when autoId exists
+        // Update overrides to use the auto-detected sensor
+        const overrides = { ...(this.config.overrides || {}) };
+        overrides[areaId] = { ...(overrides[areaId] || {}), [type]: autoId };
+        this.config = { ...this.config, overrides };
+        this._configChanged();
+    }
     // Dispatch a custom event to notify that the config has changed
     _configChanged() {
         // Always include the current areas in the config
@@ -490,24 +501,14 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         this._lastAreas = areas;
         const states = Object.values(hass?.states || {});
         const sensorTypes = [
-            'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target' // heating/target neu
+            'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
         ];
         // Felder, für die oft ein Helper/Template-Sensor benötigt wird
         const helperFields = [
             {
                 key: 'rain_soon',
                 name: 'Rain soon',
-                yaml: `template:\n  - sensor:\n      - name: "Rain Soon"\n        state: >\n          {{ state_attr('weather.home', 'forecast')[0].condition == 'rain' }}\n        unique_id: rain_soon`
-            },
-            {
-                key: 'adjacent_room_temp',
-                name: 'Adjacent room temperature',
-                yaml: `template:\n  - sensor:\n      - name: "Adjacent Room Temperature"\n        state: >\n          {{ states('sensor.adjacent_room_temperature') }}\n        unique_id: adjacent_room_temp`
-            },
-            {
-                key: 'air_quality',
-                name: 'Air quality',
-                yaml: `template:\n  - sensor:\n      - name: "Air Quality"\n        state: >\n          {{ states('sensor.air_quality') }}\n        unique_id: air_quality`
+                yaml: `template:\n  - sensor:\n      - name: "Rain Soon"\n        state: >\n          {{ state_attr('weather.home', 'forecast')[0].precipitation > 0 }}\n        unique_id: rain_soon`
             },
             {
                 key: 'forecast_sun',
@@ -517,7 +518,6 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         ];
         // Prüfen, ob Helper fehlen
         const missingHelpers = helperFields.filter(hf => !states.some((s) => s.entity_id.includes(hf.key)));
-        // Feature 1: Automatische Erkennung und Anzeige von fehlenden Standard-Sensoren pro Bereich
         const requiredSensorTypes = [
             'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
         ];
@@ -530,27 +530,34 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             });
             return { area, missing };
         });
-        // Feature 2: Link zur Helper-Verwaltung
+        // Link zur Helper-Verwaltung
         const helperLink = '/config/helpers';
-        // Feature 4: Mehrsprachigkeit im Editor (Sprache aus hass übernehmen)
-        hass?.selectedLanguage || 'de';
-        // Debug info
-        const debugInfo = x `
-      <div style="background:#eee; color:#333; font-size:0.95em; padding:0.5em; margin-bottom:1em; border-radius:0.3em;">
-        <b>Debug Info:</b><br>
-        Areas: ${areas.length} | States: ${states.length}<br>
-        Areas: ${areas.map(a => a.name).join(', ')}<br>
-        Example state: ${states[0] && states[0].entity_id ? states[0].entity_id : 'none'}
-      </div>
-    `;
+        // Styles einbinden
         return x `
-      ${debugInfo}
       <style>
-        select { max-width: 260px; font-size: 1em; }
-        .card-config { font-family: inherit; }
-        ul { margin: 0 0 0 1em; padding: 0; }
+        .card-config {
+          padding: 1em;
+        }
+        hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
+        select { min-width: 200px; }
         li { margin: 0.2em 0; }
         .auto-sensor-info { color: #888; font-size: 0.95em; margin-left: 0.5em; }
+        button.use-auto {
+          margin-left: 0.5em;
+          font-size: 0.9em;
+          padding: 0.2em 0.5em;
+          border-radius: 0.3em;
+          border: 1px solid #ccc;
+          background: #f5f5f5;
+          cursor: pointer;
+        }
+        button.use-auto:hover {
+          background: #e5e5e5;
+        }
+        button.use-auto:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
       </style>
       <div class="card-config">
         <label>
@@ -576,18 +583,26 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
                     <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
                     ${sensors.map((s) => x `<option value="${s.entity_id}" ?selected=${selected === s.entity_id}>${s.entity_id} (${s.attributes.friendly_name || ''})</option>`)}
                   </select>
-                  <span style="color: #888; font-size: 0.95em; margin-left: 0.5em;">${autoId ? `Auto: ${autoId}` : 'Auto: none gefunden'}</span>
+                  ${autoId && !selected ? x `
+                    <button 
+                      class="use-auto" 
+                      @click=${() => this._onUseAutoDetected(area.area_id, type)}
+                      title="Use the auto-detected sensor as an override">
+                      Use Auto-Detected
+                    </button>
+                  ` : ''}
                 </li>`;
         })}
             </ul>
           </div>
         `)}
       </div>
+
       ${missingHelpers.length > 0 ? x `
         <div style="margin-top:2em; padding:1em; background:#fffbe6; border:1px solid #ffe58f; border-radius:0.5em;">
           <b>⚠️ Zusätzliche Sensoren/Helper benötigt:</b>
           <ul>
-            ${missingHelpers.map(hf => x `<li>
+            ${missingHelpers.map((hf) => x `<li>
               <b>${hf.name}</b>:<br/>
               <span style="font-size:0.95em; color:#888;">Sensor nicht gefunden. Füge folgenden YAML-Code in deine <b>configuration.yaml</b> oder nutze die Helper-Verwaltung:</span>
               <pre style="background:#f5f5f5; border-radius:0.3em; padding:0.5em; margin:0.5em 0;">${hf.yaml}</pre>
@@ -613,14 +628,13 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
           ${areas.map(area => x `
             <li><b>${area.name}</b>:
               <ul>
-                ${requiredSensorTypes.map(type => x `
-                  <li>${type}: <input type="text" .value=${this.testValues[area.area_id + '_' + type] || ''} @input=${(e) => this.handleTestValueChange(area.area_id, type, e)} /></li>
+                ${requiredSensorTypes.map((type) => x `
+                  <li>${type}: <input type="text" .value=${this.testValues[area.area_id + '_' + type] || ''} @change=${(e) => this.handleTestValueChange(area.area_id, type, e)}></li>
                 `)}
               </ul>
             </li>
           `)}
         </ul>
-        <span style="font-size:0.95em; color:#888;">(Gib Testwerte ein, um die Regeln zu simulieren. Diese Werte überschreiben die echten Sensordaten temporär.)</span>
       </div>
       <!-- Feature 6: Regel-Editor (JSON) -->
       <div style="margin-top:1em;">
@@ -675,6 +689,56 @@ let HausgeistCard = class HausgeistCard extends i {
         this.rulesJson = '';
         this.texts = TRANSLATIONS['de'];
         this.ready = false;
+    }
+    _findSensor(sensors, area, usedSensors, cls) {
+        if (this.debug) {
+            console.log(`[_findSensor] Looking for ${cls} in area ${area}`);
+            console.log(`[_findSensor] config.overrides[${area}]:`, this.config?.overrides?.[area]);
+            console.log(`[_findSensor] config.auto[${area}]:`, this.config?.auto?.[area]);
+        }
+        // 1. Check for manual override in config
+        const overrideId = this.config?.overrides?.[area]?.[cls];
+        if (overrideId) {
+            if (this.debug)
+                console.log(`[_findSensor] Found override for ${cls}: ${overrideId}`);
+            const s = sensors.find((st) => st.entity_id === overrideId);
+            if (s) {
+                usedSensors.push({
+                    type: cls + ' (override)',
+                    entity_id: s.entity_id,
+                    value: s.state,
+                });
+                return s;
+            }
+            if (this.debug)
+                console.log(`[_findSensor] Override sensor ${overrideId} not found in area sensors`);
+        }
+        // 2. Check for auto-detected sensor from config (as set by the editor)
+        const autoId = this.config?.auto?.[area]?.[cls];
+        if (autoId) {
+            if (this.debug)
+                console.log(`[_findSensor] Found auto-detected for ${cls}: ${autoId}`);
+            const s = sensors.find((st) => st.entity_id === autoId);
+            if (s) {
+                usedSensors.push({
+                    type: cls + ' (auto)',
+                    entity_id: s.entity_id,
+                    value: s.state,
+                });
+                return s;
+            }
+            if (this.debug)
+                console.log(`[_findSensor] Auto-detected sensor ${autoId} not found in area sensors`);
+        }
+        // 3. No sensor found (no fallback matching in the card)
+        if (this.debug) {
+            usedSensors.push({
+                type: cls,
+                entity_id: '[NOT FOUND]',
+                value: 'No matching sensor found',
+            });
+        }
+        return undefined;
     }
     async firstUpdated() {
         try {
@@ -774,31 +838,8 @@ let HausgeistCard = class HausgeistCard extends i {
                     debugOut.push(`  ${type}: override=${overrideId || 'none'}, auto=${autoId || 'none'}`);
                 });
             }
-            // Inline findSensor logic (since _findSensor is not a method)
             const findSensor = (cls) => {
-                // 1. Check for manual override in config
-                const overrideId = this.config?.overrides?.[area]?.[cls];
-                if (overrideId) {
-                    const s = sensors.find((st) => st.entity_id === overrideId);
-                    if (s) {
-                        usedSensors.push({ type: cls + ' (override)', entity_id: s.entity_id, value: s.state });
-                        return s;
-                    }
-                }
-                // 2. Check for auto-detected sensor from config (as set by the editor)
-                const autoId = this.config?.auto?.[area]?.[cls];
-                if (autoId) {
-                    const s = sensors.find((st) => st.entity_id === autoId);
-                    if (s) {
-                        usedSensors.push({ type: cls + ' (auto)', entity_id: s.entity_id, value: s.state });
-                        return s;
-                    }
-                }
-                // 3. No sensor found (no fallback matching in the card)
-                if (this.debug) {
-                    usedSensors.push({ type: cls, entity_id: '[NOT FOUND]', value: 'No matching sensor found' });
-                }
-                return undefined;
+                return this._findSensor(sensors, area, usedSensors, cls);
             };
             // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
             const requiredSensorTypes = [
@@ -904,48 +945,6 @@ HausgeistCard.styles = i$3 `
       color: var(--primary-text-color, #222);
     }
   
-    private _findSensor(
-      sensors: any[],
-      area: string,
-      usedSensors: Array<{ type: string; entity_id: string; value: any }>,
-      cls: keyof typeof SENSOR_KEYWORDS
-    ) {
-      // 1. Check for manual override in config
-      const overrideId = this.config?.overrides?.[area]?.[cls];
-      if (overrideId) {
-        const s = sensors.find((st) => (st as any).entity_id === overrideId);
-        if (s) {
-          usedSensors.push({
-            type: cls + ' (override)',
-            entity_id: (s as any).entity_id,
-            value: (s as any).state,
-          });
-          return s;
-        }
-      }
-      // 2. Check for auto-detected sensor from config (as set by the editor)
-      const autoId = this.config?.auto?.[area]?.[cls];
-      if (autoId) {
-        const s = sensors.find((st) => (st as any).entity_id === autoId);
-        if (s) {
-          usedSensors.push({
-            type: cls + ' (auto)',
-            entity_id: (s as any).entity_id,
-            value: (s as any).state,
-          });
-          return s;
-        }
-      }
-      // 3. No sensor found (no fallback matching in the card)
-      if (this.debug) {
-        usedSensors.push({
-          type: cls,
-          entity_id: '[NOT FOUND]',
-          value: 'No matching sensor found',
-        });
-      }
-      return undefined;
-    }
     h2 {
       margin-top: 0;
       font-size: 1.3em;
@@ -960,12 +959,9 @@ HausgeistCard.styles = i$3 `
       margin: 0.5em 0;
     }
     p.info {
-    let debugOut: string[] = [];
-    const areaMessages = areaIds.map(area => {
-      const sensors = filterSensorsByArea(states, area);
-      if (this.debug) {
-        debugOut = []; // Initialize debug output only if debug is true
-      }
+      color: var(--info-color, #0288d1);
+      background: var(--info-bg, #e6f4ff);
+      border-left: 4px solid var(--info-border, #2196f3);
       padding: 0.5em 1em;
       border-radius: 0.5em;
       margin: 0.5em 0;

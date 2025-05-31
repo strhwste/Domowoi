@@ -23,6 +23,7 @@ export declare class HausgeistCard extends LitElement {
     private engine?;
     private texts;
     private ready;
+    private _findSensor;
     firstUpdated(): Promise<void>;
     setConfig(config: any): void;
     static getConfigElement(): HTMLElement;
