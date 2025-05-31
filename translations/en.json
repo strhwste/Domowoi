@@ -31,5 +31,7 @@
   "window_open_night_cold": "🌙 Window is open at night and it's cold outside – please close to avoid cooling down.",
   "room_too_cold_window_open": "❄️ Room is below 17°C and window is open – please close to avoid undercooling.",
   "mold_risk_dew_point": "⚠️ Mold risk: High humidity and dew point reached – please ventilate!",
-  "debug_rule_match": "Debug rule matched - rule engine is working"
+  "debug_rule_match": "Debug rule matched - rule engine is working",
+  "temp_above_target_ventilate_possible": "Temperature well above target, outside is cooler and window is closed – ventilate now!",
+  "temp_above_target_outside_hot": "Temperature well above target, but outside is even hotter – better keep windows closed."
 }

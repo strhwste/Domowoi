@@ -314,13 +314,16 @@ export class HausgeistCard extends LitElement {
         now: Date.now(),
         curtain: findState((e: any) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
         blind: findState((e: any) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
-        adjacent_room_temp: Number(findState((e: any) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? this.config.default_adjacent_room_temp || 0),
+        adjacent_room_temp: Number((findState((e: any) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? this.config.default_adjacent_room_temp) || 0),
         rain_soon: typeof forecast.precipitation === 'number' && forecast.precipitation > 0,
         air_quality: (() => {
           const airQualityState = findState((e: any) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state;
           return airQualityState !== undefined ? airQualityState : 'unknown';
         })(),
         forecast_sun: forecast.condition === 'sunny',
+        debug: this.debug,
+        motion: findState((e: any) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+        door: findState((e: any) => e.entity_id.includes('door') && e.attributes.area_id === area)?.state,
       };
 
       const evals = this.engine ? this.engine.evaluate(context) : [];

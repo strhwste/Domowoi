@@ -280,6 +280,8 @@ var window_open_night_cold$1 = "🌙 Window is open at night and it's cold outsi
 var room_too_cold_window_open$1 = "❄️ Room is below 17°C and window is open – please close to avoid undercooling.";
 var mold_risk_dew_point$1 = "⚠️ Mold risk: High humidity and dew point reached – please ventilate!";
 var debug_rule_match$1 = "Debug rule matched - rule engine is working";
+var temp_above_target_ventilate_possible$1 = "Temperature well above target, outside is cooler and window is closed – ventilate now!";
+var temp_above_target_outside_hot$1 = "Temperature well above target, but outside is even hotter – better keep windows closed.";
 var en = {
 	low_humidity: low_humidity$1,
 	high_co2: high_co2$1,
@@ -313,7 +315,9 @@ var en = {
 	window_open_night_cold: window_open_night_cold$1,
 	room_too_cold_window_open: room_too_cold_window_open$1,
 	mold_risk_dew_point: mold_risk_dew_point$1,
-	debug_rule_match: debug_rule_match$1
+	debug_rule_match: debug_rule_match$1,
+	temp_above_target_ventilate_possible: temp_above_target_ventilate_possible$1,
+	temp_above_target_outside_hot: temp_above_target_outside_hot$1
 };
 
 var low_humidity = "Luftfeuchtigkeit unter 35 % – lüften oder befeuchten empfohlen";
@@ -349,6 +353,8 @@ var window_open_night_cold = "🌙 Fenster ist nachts offen und es ist draußen 
 var room_too_cold_window_open = "❄️ Raum ist unter 17 °C und das Fenster ist offen – bitte schließen, um Unterkühlung zu vermeiden.";
 var mold_risk_dew_point = "⚠️ Schimmelgefahr: Hohe Luftfeuchtigkeit und Taupunkt erreicht – bitte lüften!";
 var debug_rule_match = "Debug-Regel aktiv - Regelwerk funktioniert";
+var temp_above_target_ventilate_possible = "Temperatur deutlich über Soll, draußen kühler als drinnen und Fenster zu – jetzt lüften!";
+var temp_above_target_outside_hot = "Temperatur deutlich über Soll, aber draußen noch wärmer – Fenster besser geschlossen halten.";
 var de = {
 	low_humidity: low_humidity,
 	high_co2: high_co2,
@@ -382,7 +388,9 @@ var de = {
 	window_open_night_cold: window_open_night_cold,
 	room_too_cold_window_open: room_too_cold_window_open,
 	mold_risk_dew_point: mold_risk_dew_point,
-	debug_rule_match: debug_rule_match
+	debug_rule_match: debug_rule_match,
+	temp_above_target_ventilate_possible: temp_above_target_ventilate_possible,
+	temp_above_target_outside_hot: temp_above_target_outside_hot
 };
 
 const SENSOR_KEYWORDS = {
@@ -630,92 +638,131 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         // Styles einbinden
         return x `
       <style>
-        .card-config {
-          padding: 1em;
-        }
-        hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
-        select { min-width: 200px; }
-        li { margin: 0.2em 0; }
-        .sensor-row {
-          display: flex;
-          align-items: center;
-          gap: 0.5em;
-          margin-bottom: 0.5em;
-        }
-        .target-row {
-          margin-bottom: 1em;
-        }
-        .sensor-label {
-          min-width: 120px;
-          font-weight: bold;
-        }
-        .sensor-select {
-          flex-grow: 1;
-        }
-        .help-text {
-          color: #666;
-          font-size: 0.9em;
-          margin-top: 0.3em;
-        }
+      .card-config {
+        padding: 1em;
+      }
+      hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
+      select { min-width: 200px; }
+      li { margin: 0.2em 0; }
+      .sensor-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5em;
+        margin-bottom: 0.5em;
+      }
+      .target-row {
+        margin-bottom: 1em;
+      }
+      .sensor-label {
+        min-width: 120px;
+        font-weight: bold;
+      }
+      .sensor-select {
+        flex-grow: 1;
+      }
+      .help-text {
+        color: #666;
+        font-size: 0.9em;
+        margin-top: 0.3em;
+      }
+      .weather-info {
+        margin-top: 0.5em;
+        font-size: 0.95em;
+        color: #333;
+      }
       </style>
       <div class="card-config">
-        <!-- Debug Mode -->
-        <label>
-          <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
-          Debug mode
-        </label>
+      <!-- Debug Mode -->
+      <label>
+        <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
+        Debug mode
+      </label>
 
-        <!-- Weather Entity Selection -->
-        <div style="margin-top:1em;">
-          <b>Weather Entity:</b>
-          <select @change=${(e) => {
+      <!-- Weather Entity Selection -->
+      <div style="margin-top:1em;">
+        <b>Weather Entity:</b>
+        <select 
+        @change=${(e) => {
             this.config = {
                 ...this.config,
                 weather_entity: e.target.value
             };
             this._configChanged();
-        }} .value=${this.config.weather_entity || 'weather.home'}>
-            ${weatherEntities.map(entity => x `
-              <option value="${entity.entity_id}">${entity.name} (${entity.entity_id})</option>
-            `)}
-          </select>
-        </div>
+        }}
+        >
+        ${weatherEntities.map(entity => x `
+          <option 
+          value="${entity.entity_id}" 
+          ?selected=${(this.config.weather_entity || 'weather.home') === entity.entity_id}
+          >
+          ${entity.name} (${entity.entity_id})
+          </option>
+        `)}
+        </select>
+        ${(() => {
+            const selectedWeather = hass?.states?.[this.config.weather_entity || 'weather.home'];
+            if (!selectedWeather)
+                return '';
+            const temp = selectedWeather.attributes?.temperature;
+            const tempUnit = selectedWeather.attributes?.temperature_unit || selectedWeather.attributes?.unit_of_measurement || '°C';
+            // Rain: try precipitation, precipitation_probability, or forecast
+            let rain = selectedWeather.attributes?.precipitation;
+            let rainUnit = selectedWeather.attributes?.precipitation_unit || 'mm';
+            if (rain === undefined && selectedWeather.attributes?.forecast && Array.isArray(selectedWeather.attributes.forecast) && selectedWeather.attributes.forecast.length > 0) {
+                rain = selectedWeather.attributes.forecast[0].precipitation ?? selectedWeather.attributes.forecast[0].rain;
+                rainUnit = selectedWeather.attributes.forecast[0].precipitation_unit || rainUnit;
+            }
+            // Precipitation probability
+            let rainProb = selectedWeather.attributes?.precipitation_probability;
+            if (rainProb === undefined && selectedWeather.attributes?.forecast && Array.isArray(selectedWeather.attributes.forecast) && selectedWeather.attributes.forecast.length > 0) {
+                rainProb = selectedWeather.attributes.forecast[0].precipitation_probability;
+            }
+            return x `
+          <div class="weather-info">
+            Temperatur: ${temp !== undefined ? `${temp} ${tempUnit}` : 'n/a'}
+            <br />
+            Regen: ${rain !== undefined ? `${rain} ${rainUnit}` : 'n/a'}
+            ${rainProb !== undefined ? x `<br />Regenwahrscheinlichkeit: ${rainProb}%` : ''}
+          </div>
+          `;
+        })()}
+      </div>
 
-        <!-- Default Target Temperature -->
-        <div style="margin-top:1em;">
-          <b>Default Target Temperature:</b>
-          <input 
-            type="number" 
-            min="15" 
-            max="30" 
-            step="0.5"
-            .value=${this.config.default_target || "21"} 
-            @change=${(e) => {
+      <!-- Default Target Temperature -->
+      <div style="margin-top:1em;">
+        <b>Default Target Temperature:</b>
+        <input 
+        type="number" 
+        min="15" 
+        max="30" 
+        step="0.5"
+        .value=${this.config.default_target || "21"} 
+        @change=${(e) => {
             this.config = {
                 ...this.config,
                 default_target: Number(e.target.value)
             };
             this._configChanged();
         }}
-          />°C
-        </div>
+        />°C
+      </div>
 
-        <hr />
-        <b>Areas and Sensors:</b>
-        ${areas.map(area => {
+      <hr />
+      <b>Areas and Sensors:</b>
+      ${areas.map(area => {
             const isEnabled = this.config.areas?.find(a => a.area_id === area.area_id)?.enabled !== false;
             return x `
-          <div class="${isEnabled ? '' : 'disabled-area'}">
-            <div class="area-header">
-              <input 
-                type="checkbox" 
-                .checked=${isEnabled} 
-                @change=${(e) => this._onAreaEnabledChange(area.area_id, e)}
-              />
-              <b>${area.name || area.area_id}</b>
-            </div>
-            <ul>
-              ${requiredSensorTypes.map(type => {
+        <div class="${isEnabled ? '' : 'disabled-area'}">
+        <div class="area-header">
+          <input 
+          type="checkbox" 
+          .checked=${isEnabled} 
+          @change=${(e) => this._onAreaEnabledChange(area.area_id, e)}
+          />
+          <b>${area.name || area.area_id}</b>
+        </div>
+        <ul>
+          ${requiredSensorTypes.map(type => {
                 const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
                 const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type);
                 const matchingByKeyword = areaSensors.filter((e) => {
@@ -723,95 +770,64 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
                     return keywords.some(k => e.entity_id.toLowerCase().includes(k) ||
                         (e.attributes.friendly_name || '').toLowerCase().includes(k)) && !matchingByClass.includes(e);
                 });
-                const otherSensors = areaSensors.filter(s => !matchingByClass.includes(s) && !matchingByKeyword.includes(s));
-                const autoId = this._autodetect(area.area_id, type);
+                areaSensors.filter(s => !matchingByClass.includes(s) && !matchingByKeyword.includes(s));
+                this._autodetect(area.area_id, type);
                 const selected = this.config.overrides?.[area.area_id]?.[type] || '';
                 return x `
-                <li>
-                  <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
-                    <span class="sensor-label">
-                      ${type === 'target' ? 'Zieltemperatur' :
+          <li>
+            <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
+            <span class="sensor-label">
+              ${type === 'target' ? 'Zieltemperatur' :
                     type === 'heating' ? 'Heizung' :
                         type === 'heating_level' ? 'Heizleistung' :
                             type}:
-                    </span>
-                    <div class="sensor-select">
-                      <select @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
-                        ${type === 'target' ? x `
-                          <option value="">(Standard: ${this.config.default_target || 21}°C)</option>
-                          <option value="none">Keine automatische Anpassung</option>
-                        ` : x `
-                          <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
-                          <option value="none">Kein Sensor</option>
-                        `}
-                        
-                        ${matchingByClass.length > 0 ? x `
-                          <optgroup label="Passende Sensoren (nach Device Class)">
-                            ${matchingByClass.map((s) => x `
-                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                                ${s.attributes.friendly_name || s.entity_id} 
-                                [${s.state}${type === 'target' || type === 'temperature' ? '°C' :
-                    type === 'heating_level' ? '%' :
-                        s.attributes.unit_of_measurement || ''}]
-                              </option>
-                            `)}
-                          </optgroup>
-                        ` : ''}
-                        
-                        ${matchingByKeyword.length > 0 ? x `
-                          <optgroup label="Passende Sensoren (nach Name)">
-                            ${matchingByKeyword.map((s) => x `
-                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                                ${s.attributes.friendly_name || s.entity_id} 
-                                [${s.state}${s.attributes.unit_of_measurement || ''}]
-                              </option>
-                            `)}
-                          </optgroup>
-                        ` : ''}
-                        
-                        ${otherSensors.length > 0 ? x `
-                          <optgroup label="Andere Sensoren">
-                            ${otherSensors.map((s) => x `
-                              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
-                                ${s.attributes.friendly_name || s.entity_id} 
-                                [${s.state}${s.attributes.unit_of_measurement || ''}]
-                                ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
-                              </option>
-                            `)}
-                          </optgroup>
-                        ` : ''}
-                      </select>
-                      ${type === 'target' ? x `
-                        <div class="help-text">
-                          Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
-                          um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
-                        </div>
-                      ` : ''}
-                    </div>
-                  </div>
-                </li>
-                `;
+            </span>
+            <div class="sensor-select">
+              <select @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
+                <option value="">(kein Sensor ausgewählt)</option>
+                <option value="none">Kein Sensor</option>
+                ${areaSensors
+                    .sort((a, b) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id))
+                    .map((s) => x `
+                    <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+                      ${s.attributes.friendly_name || s.entity_id} 
+                      [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]
+                      ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
+                    </option>
+                  `)}
+              </select>
+              <button type="button" @click=${() => this._onUseAutoDetected(area.area_id, type)} style="margin-left:0.5em;">Auto-Detect</button>
+              ${type === 'target' ? x `
+              <div class="help-text">
+                Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
+                um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
+              </div>
+              ` : ''}
+            </div>
+            </div>
+          </li>
+          `;
             })}
-            </ul>
-          </div>
-        `;
+        </ul>
+        </div>
+      `;
         })}
       </div>
 
       <!-- Missing Sensors per Area -->
       <div style="margin-top:1em;">
-        <b>Fehlende Sensoren pro Bereich:</b>
-        <ul>
-          ${missingSensorsPerArea.map(a => x `<li><b>${a.area.name}</b>: ${a.missing.length === 0 ? 'Alle gefunden' : a.missing.join(', ')}</li>`)}
-        </ul>
+      <b>Fehlende Sensoren pro Bereich:</b>
+      <ul>
+        ${missingSensorsPerArea.map(a => x `<li><b>${a.area.name}</b>: ${a.missing.length === 0 ? 'Alle gefunden' : a.missing.join(', ')}</li>`)}
+      </ul>
       </div>
 
       <!-- Notifications & High Threshold -->
       <div style="margin-top:1em;">
-        <label><input type="checkbox" .checked=${this.notify} @change=${this.handleNotifyChange} /> Regel-Treffer als Home Assistant Notification anzeigen</label>
+      <label><input type="checkbox" .checked=${this.notify} @change=${this.handleNotifyChange} /> Regel-Treffer als Home Assistant Notification anzeigen</label>
       </div>
       <div style="margin-top:1em;">
-        <label>High Threshold: <input type="number" .value=${this.highThreshold} @input=${this.handleThresholdChange} /></label>
+      <label>High Threshold: <input type="number" .value=${this.highThreshold} @input=${this.handleThresholdChange} /></label>
       </div>
     `;
     }
@@ -917,8 +933,9 @@ let HausgeistCard = class HausgeistCard extends i {
             debug: false,
             notify: false,
             highThreshold: 2000,
-            weather_entity: 'weather.home',
-            default_target: 21
+            default_target: 21,
+            default_adjacent_room_temp: 0,
+            default_outside_temp: 15
         };
     }
     // Add required setConfig method for custom cards
@@ -1115,6 +1132,12 @@ let HausgeistCard = class HausgeistCard extends i {
                 return found ? found : undefined;
             };
             // Get target temperature, default to config override or 21°C
+            // Wetterdaten holen
+            // Nutze die weather_entity aus der aktuellen config (Editor-Auswahl), fallback auf Standard
+            const weatherEntityId = this.config.weather_entity || weatherEntity;
+            const weather = findState((e) => e.entity_id === weatherEntityId);
+            const weatherAttributes = weather?.attributes || {};
+            const forecast = weatherAttributes.forecast?.[0] || {};
             const context = {
                 target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
                 temp: get('temperature'),
@@ -1122,20 +1145,22 @@ let HausgeistCard = class HausgeistCard extends i {
                 co2: get('co2'),
                 window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
                 heating: findState((e) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
-                motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+                outside_temp: Number(weatherAttributes.temperature ?? this.config.default_outside_temp ?? 15),
                 occupied: findState((e) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
-                outside_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
-                forecast_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
+                forecast_temp: Number(forecast.temperature ?? 15),
                 energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
                 high_threshold: this.highThreshold,
                 temp_change_rate: this._calculateTempChangeRate(area, states),
                 now: Date.now(),
                 curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
                 blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
-                rain_soon: findState((e) => e.entity_id.includes('rain') && e.attributes.area_id === area)?.state === 'on' || false,
-                adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
-                air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
-                forecast_sun: findState((e) => e.entity_id.includes('forecast') && e.entity_id.includes('sun') && e.attributes.area_id === area)?.state === 'on' || false,
+                adjacent_room_temp: Number((findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? this.config.default_adjacent_room_temp) || 0),
+                rain_soon: typeof forecast.precipitation === 'number' && forecast.precipitation > 0,
+                air_quality: (() => {
+                    const airQualityState = findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state;
+                    return airQualityState !== undefined ? airQualityState : 'unknown';
+                })(),
+                forecast_sun: forecast.condition === 'sunny',
             };
             const evals = this.engine ? this.engine.evaluate(context) : [];
             if (this.debug) {
@@ -1250,7 +1275,7 @@ let HausgeistCard = class HausgeistCard extends i {
         try {
             const tempSensor = states.find(s => s.attributes?.area_id === area && s.entity_id.includes('temperature'));
             if (tempSensor) {
-                const history = tempSensor.attributes?.history || [];
+                const history = Array.isArray(tempSensor.attributes?.history) ? tempSensor.attributes.history : [];
                 if (history.length >= 2) {
                     const [latest, previous] = history.slice(-2);
                     const timeDiff = (latest.timestamp - previous.timestamp) / 3600000; // Convert ms to hours

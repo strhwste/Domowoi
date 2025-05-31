@@ -17,6 +17,8 @@ export declare class HausgeistCard extends LitElement {
         }>;
         weather_entity?: string;
         default_target?: number;
+        default_adjacent_room_temp?: number;
+        default_outside_temp?: number;
     };
     debug: boolean;
     notify: boolean;
@@ -28,8 +30,9 @@ export declare class HausgeistCard extends LitElement {
         debug: boolean;
         notify: boolean;
         highThreshold: number;
-        weather_entity: string;
         default_target: number;
+        default_adjacent_room_temp: number;
+        default_outside_temp: number;
     };
     setConfig(config: any): void;
     private engine?;

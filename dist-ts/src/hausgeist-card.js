@@ -35,8 +35,9 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             debug: false,
             notify: false,
             highThreshold: 2000,
-            weather_entity: 'weather.home',
-            default_target: 21
+            default_target: 21,
+            default_adjacent_room_temp: 0,
+            default_outside_temp: 15
         };
     }
     // Add required setConfig method for custom cards
@@ -233,6 +234,12 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                 return found ? found : undefined;
             };
             // Get target temperature, default to config override or 21°C
+            // Wetterdaten holen
+            // Nutze die weather_entity aus der aktuellen config (Editor-Auswahl), fallback auf Standard
+            const weatherEntityId = this.config.weather_entity || weatherEntity || 'weather.home';
+            const weather = findState((e) => e.entity_id === weatherEntityId);
+            const weatherAttributes = weather?.attributes || {};
+            const forecast = weatherAttributes.forecast?.[0] || {};
             const context = {
                 target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
                 temp: get('temperature'),
@@ -240,20 +247,22 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                 co2: get('co2'),
                 window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
                 heating: findState((e) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
-                motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+                outside_temp: Number(weatherAttributes.temperature ?? this.config.default_outside_temp ?? 15),
                 occupied: findState((e) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
-                outside_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
-                forecast_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
+                forecast_temp: Number(forecast.temperature ?? 15),
                 energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
                 high_threshold: this.highThreshold,
                 temp_change_rate: this._calculateTempChangeRate(area, states),
                 now: Date.now(),
                 curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
                 blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
-                rain_soon: findState((e) => e.entity_id.includes('rain') && e.attributes.area_id === area)?.state === 'on' || false,
-                adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
-                air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
-                forecast_sun: findState((e) => e.entity_id.includes('forecast') && e.entity_id.includes('sun') && e.attributes.area_id === area)?.state === 'on' || false,
+                adjacent_room_temp: Number((findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? this.config.default_adjacent_room_temp) || 0),
+                rain_soon: typeof forecast.precipitation === 'number' && forecast.precipitation > 0,
+                air_quality: (() => {
+                    const airQualityState = findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state;
+                    return airQualityState !== undefined ? airQualityState : 'unknown';
+                })(),
+                forecast_sun: forecast.condition === 'sunny',
             };
             const evals = this.engine ? this.engine.evaluate(context) : [];
             if (this.debug) {
@@ -368,7 +377,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         try {
             const tempSensor = states.find(s => s.attributes?.area_id === area && s.entity_id.includes('temperature'));
             if (tempSensor) {
-                const history = tempSensor.attributes?.history || [];
+                const history = Array.isArray(tempSensor.attributes?.history) ? tempSensor.attributes.history : [];
                 if (history.length >= 2) {
                     const [latest, previous] = history.slice(-2);
                     const timeDiff = (latest.timestamp - previous.timestamp) / 3600000; // Convert ms to hours
