@@ -26835,6 +26835,93 @@ class PlaneGeometry extends BufferGeometry {
 }
 
 /**
+ * This material can receive shadows, but otherwise is completely transparent.
+ *
+ * ```js
+ * const geometry = new THREE.PlaneGeometry( 2000, 2000 );
+ * geometry.rotateX( - Math.PI / 2 );
+ *
+ * const material = new THREE.ShadowMaterial();
+ * material.opacity = 0.2;
+ *
+ * const plane = new THREE.Mesh( geometry, material );
+ * plane.position.y = -200;
+ * plane.receiveShadow = true;
+ * scene.add( plane );
+ * ```
+ *
+ * @augments Material
+ */
+class ShadowMaterial extends Material {
+
+	/**
+	 * Constructs a new shadow material.
+	 *
+	 * @param {Object} [parameters] - An object with one or more properties
+	 * defining the material's appearance. Any property of the material
+	 * (including any property from inherited materials) can be passed
+	 * in here. Color values can be passed any type of value accepted
+	 * by {@link Color#set}.
+	 */
+	constructor( parameters ) {
+
+		super();
+
+		/**
+		 * This flag can be used for type testing.
+		 *
+		 * @type {boolean}
+		 * @readonly
+		 * @default true
+		 */
+		this.isShadowMaterial = true;
+
+		this.type = 'ShadowMaterial';
+
+		/**
+		 * Color of the material.
+		 *
+		 * @type {Color}
+		 * @default (0,0,0)
+		 */
+		this.color = new Color( 0x000000 );
+
+		/**
+		 * Overwritten since shadow materials are transparent
+		 * by default.
+		 *
+		 * @type {boolean}
+		 * @default true
+		 */
+		this.transparent = true;
+
+		/**
+		 * Whether the material is affected by fog or not.
+		 *
+		 * @type {boolean}
+		 * @default true
+		 */
+		this.fog = true;
+
+		this.setValues( parameters );
+
+	}
+
+	copy( source ) {
+
+		super.copy( source );
+
+		this.color.copy( source.color );
+
+		this.fog = source.fog;
+
+		return this;
+
+	}
+
+}
+
+/**
  * A standard physically based material, using Metallic-Roughness workflow.
  *
  * Physically based rendering (PBR) has recently become the standard in many
@@ -31403,6 +31490,67 @@ class Light extends Object3D {
 		if ( this.target !== undefined ) data.object.target = this.target.uuid;
 
 		return data;
+
+	}
+
+}
+
+/**
+ * A light source positioned directly above the scene, with color fading from
+ * the sky color to the ground color.
+ *
+ * This light cannot be used to cast shadows.
+ *
+ * ```js
+ * const light = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1 );
+ * scene.add( light );
+ * ```
+ *
+ * @augments Light
+ */
+class HemisphereLight extends Light {
+
+	/**
+	 * Constructs a new hemisphere light.
+	 *
+	 * @param {(number|Color|string)} [skyColor=0xffffff] - The light's sky color.
+	 * @param {(number|Color|string)} [groundColor=0xffffff] - The light's ground color.
+	 * @param {number} [intensity=1] - The light's strength/intensity.
+	 */
+	constructor( skyColor, groundColor, intensity ) {
+
+		super( skyColor, intensity );
+
+		/**
+		 * This flag can be used for type testing.
+		 *
+		 * @type {boolean}
+		 * @readonly
+		 * @default true
+		 */
+		this.isHemisphereLight = true;
+
+		this.type = 'HemisphereLight';
+
+		this.position.copy( Object3D.DEFAULT_UP );
+		this.updateMatrix();
+
+		/**
+		 * The light's ground color.
+		 *
+		 * @type {Color}
+		 */
+		this.groundColor = new Color( groundColor );
+
+	}
+
+	copy( source, recursive ) {
+
+		super.copy( source, recursive );
+
+		this.groundColor.copy( source.groundColor );
+
+		return this;
 
 	}
 
@@ -56995,7 +57143,9 @@ let HausgeistCard = class HausgeistCard extends i {
         // Canvas
         this.ghostRenderer = new WebGLRenderer({ alpha: true, antialias: true });
         this.ghostRenderer.setClearColor(0x000000, 0);
-        this.ghostRenderer.setSize(200, 200);
+        this.ghostRenderer.setSize(320, 320);
+        this.ghostRenderer.shadowMap.enabled = true;
+        this.ghostRenderer.shadowMap.type = PCFSoftShadowMap;
         this.ghostCanvas = this.ghostRenderer.domElement;
         if (this.ghostCanvas) {
             this.ghostCanvas.style.display = 'block';
@@ -57008,11 +57158,26 @@ let HausgeistCard = class HausgeistCard extends i {
         // Camera
         this.ghostCamera = new PerspectiveCamera(45, 1, 0.1, 100);
         this.ghostCamera.position.set(0, 1, 3);
-        // Light
-        const light = new DirectionalLight(0xffffff, 1);
-        light.position.set(0, 2, 2);
-        this.ghostScene.add(light);
-        this.ghostScene.add(new AmbientLight(0xffffff, 0.7));
+        // Weiche, helle Beleuchtung
+        this.ghostScene.add(new AmbientLight(0xffffff, 0.8));
+        this.ghostScene.add(new HemisphereLight(0xffffff, 0x8888ff, 0.7));
+        // SpotLight für Bodenschatten
+        const groundLight = new SpotLight(0xffffff, 0.3, 10, Math.PI / 3, 0.5, 1);
+        groundLight.position.set(0, 3, 0);
+        groundLight.target.position.set(0, 0, 0);
+        groundLight.castShadow = true;
+        groundLight.shadow.mapSize.width = 512;
+        groundLight.shadow.mapSize.height = 512;
+        this.ghostScene.add(groundLight);
+        this.ghostScene.add(groundLight.target);
+        // Boden für Schatten
+        const groundGeo = new PlaneGeometry(4, 4);
+        const groundMat = new ShadowMaterial({ opacity: 0.25 });
+        const groundMesh = new Mesh(groundGeo, groundMat);
+        groundMesh.position.y = 0;
+        groundMesh.rotation.x = -Math.PI / 2;
+        groundMesh.receiveShadow = true;
+        this.ghostScene.add(groundMesh);
         // Load GLB
         const loader = new GLTFLoader();
         const modelUrl = this.config.ghost_model_url || '/local/ghost.glb';
@@ -57020,6 +57185,16 @@ let HausgeistCard = class HausgeistCard extends i {
             this.ghostModel = gltf.scene;
             this.ghostModel.position.set(0, 0.5, 0);
             this.ghostModel.scale.set(1.2, 1.2, 1.2);
+            // Schatten aktivieren und Material aufhellen
+            this.ghostModel.traverse((obj) => {
+                if (obj.isMesh) {
+                    obj.castShadow = true;
+                    obj.receiveShadow = false;
+                    if (obj.material && obj.material.color) {
+                        obj.material.color.multiplyScalar(1.3);
+                    }
+                }
+            });
             this.ghostScene.add(this.ghostModel);
             this.ghostLoadError = false;
             // Add 3D speech bubble
@@ -57033,18 +57208,18 @@ let HausgeistCard = class HausgeistCard extends i {
     _createGhostSpeechBubble(text) {
         // Create canvas for speech bubble
         this.ghostSpeechCanvas = document.createElement('canvas');
-        this.ghostSpeechCanvas.width = 256;
-        this.ghostSpeechCanvas.height = 96;
+        this.ghostSpeechCanvas.width = 400;
+        this.ghostSpeechCanvas.height = 120;
         this.ghostSpeechCtx = this.ghostSpeechCanvas.getContext('2d');
         // Initial draw
         this._updateGhostSpeechTexture(text);
         this.ghostSpeechTexture = new Texture(this.ghostSpeechCanvas);
         this.ghostSpeechTexture.needsUpdate = true;
         // Plane geometry for speech bubble
-        const geometry = new PlaneGeometry(1.6, 0.6);
+        const geometry = new PlaneGeometry(2.6, 0.8);
         const material = new MeshBasicMaterial({ map: this.ghostSpeechTexture, transparent: true });
         this.ghostSpeechMesh = new Mesh(geometry, material);
-        this.ghostSpeechMesh.position.set(0, 1.4, 0);
+        this.ghostSpeechMesh.position.set(0, 1.7, 0);
         this.ghostSpeechMesh.renderOrder = 2;
         this.ghostScene.add(this.ghostSpeechMesh);
     }
@@ -57054,36 +57229,36 @@ let HausgeistCard = class HausgeistCard extends i {
         const ctx = this.ghostSpeechCtx;
         ctx.clearRect(0, 0, this.ghostSpeechCanvas.width, this.ghostSpeechCanvas.height);
         // Bubble background
-        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        ctx.fillStyle = 'rgba(255,255,255,0.97)';
         ctx.strokeStyle = 'rgba(180,180,180,0.7)';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(20, 10);
-        ctx.lineTo(236, 10);
-        ctx.quadraticCurveTo(246, 10, 246, 26);
-        ctx.lineTo(246, 70);
-        ctx.quadraticCurveTo(246, 86, 236, 86);
-        ctx.lineTo(20, 86);
-        ctx.quadraticCurveTo(10, 86, 10, 70);
-        ctx.lineTo(10, 26);
-        ctx.quadraticCurveTo(10, 10, 20, 10);
+        ctx.moveTo(30, 15);
+        ctx.lineTo(370, 15);
+        ctx.quadraticCurveTo(390, 15, 390, 40);
+        ctx.lineTo(390, 90);
+        ctx.quadraticCurveTo(390, 110, 370, 110);
+        ctx.lineTo(30, 110);
+        ctx.quadraticCurveTo(10, 110, 10, 90);
+        ctx.lineTo(10, 40);
+        ctx.quadraticCurveTo(10, 15, 30, 15);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
         // Bubble tail
         ctx.beginPath();
-        ctx.moveTo(128, 86);
-        ctx.lineTo(138, 106);
-        ctx.lineTo(118, 86);
+        ctx.moveTo(200, 110);
+        ctx.lineTo(220, 135);
+        ctx.lineTo(180, 110);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
         // Text
-        ctx.font = 'bold 22px sans-serif';
+        ctx.font = 'bold 28px sans-serif';
         ctx.fillStyle = '#222';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        this._wrapText(ctx, text, 128, 48, 220, 28);
+        this._wrapText(ctx, text, 200, 60, 340, 34);
         if (this.ghostSpeechTexture) {
             this.ghostSpeechTexture.needsUpdate = true;
         }
@@ -57355,8 +57530,8 @@ let HausgeistCard = class HausgeistCard extends i {
         return x `
       <style>
         .ghost-3d-container {
-          width: 200px;
-          height: 200px;
+          width: 320px;
+          height: 320px;
           margin: 0 auto;
           position: relative;
           z-index: 2;
