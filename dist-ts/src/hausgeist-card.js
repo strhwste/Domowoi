@@ -215,7 +215,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             }
             // Use imported SENSOR_KEYWORDS from sensor-keywords.ts
             const findSensor = (cls) => {
-                return this._findSensor(Object.values(this.hass.states), area, usedSensors, cls);
+                return this._findSensor(statesArray, area, usedSensors, cls);
             };
             // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
             const requiredSensorTypes = [
