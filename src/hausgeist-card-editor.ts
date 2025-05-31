@@ -344,15 +344,9 @@ export class HausgeistCardEditor extends LitElement {
           );
 
           const autoId = this._autodetect(area.area_id, type);
-          // Zeige ALLE Entities aus dem Bereich: area_id direkt ODER device_id->area_id
+          // Zeige wirklich ALLE Entities im Dropdown, ohne Bereichs-Filter
           const allEntities = Object.values(this.hass?.states || {});
-          const devices = this.hass?.devices || {};
-          const relevantEntities = allEntities.filter((e: any) => {
-            if (e.attributes?.area_id === area.area_id) return true;
-            if (e.attributes?.device_id && devices[e.attributes.device_id]?.area_id === area.area_id) return true;
-            return false;
-          });
-          relevantEntities.sort((a: any, b: any) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
+          allEntities.sort((a: any, b: any) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
           const selected = this.config.overrides?.[area.area_id]?.[type] || '';
 
             return html`
@@ -367,8 +361,7 @@ export class HausgeistCardEditor extends LitElement {
             <div class="sensor-select">
             <select @change=${(e: Event) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
             <option value="none">(kein Sensor ausgewählt)</option>
-            
-            ${relevantEntities.map((s: any) => html`
+            ${allEntities.map((s: any) => html`
               <option 
                 value="${s.entity_id}" 
                 ?selected=${selected === s.entity_id}
