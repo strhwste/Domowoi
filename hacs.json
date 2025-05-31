@@ -1,9 +1,21 @@
 {
   "name": "Hausgeist Card",
-  "content_in_root": true,
-  "filename": "hausgeist-card.js",
-  "type": "lovelace",
+  "content_in_root": false,
+  "filename": "dist/hausgeist-card.js",
   "render_readme": true,
+  "resources": [
+    {
+      "type": "module",
+      "url": "dist/hausgeist-card.js"
+    }
+  ],
+  "assets": [
+    {
+      "file": "www/ghost.glb",
+      "description": "3D-Modell für den schwebenden Geist. Nach der Installation nach /config/www/ kopieren, damit es unter /local/ghost.glb erreichbar ist."
+    }
+  ],
+  "type": "lovelace",
   "description": "A smart, multilingual Home Assistant Lovelace card for climate and energy hints.",
   "homeassistant": "2023.12.0",
   "country": "DE",

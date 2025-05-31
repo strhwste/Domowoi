@@ -52,5 +52,18 @@ Eine intelligente, mehrsprachige Home Assistant Lovelace Karte für Raumklima, E
 - Build: `npm run build`
 - Automatisches Kopieren der gebauten Datei für HACS/Manuelle Installation
 
+## HACS & 3D-Geist-Integration
+
+- Nach der Installation über HACS findest du die Card-JS unter `dist/hausgeist-card.js`.
+- Das 3D-Modell `ghost.glb` liegt im Ordner `www/` und muss **manuell** nach `/config/www/` deiner Home Assistant-Installation kopiert werden.
+- In der Card-Konfiguration:
+  ```yaml
+  type: 'custom:hausgeist-card'
+  ghost_model_url: /local/ghost.glb
+  ...
+  ```
+- Prüfe nach dem Kopieren, ob das Modell unter `http://<dein-ha>/local/ghost.glb` erreichbar ist.
+- HACS kann das Modell nicht automatisch nach `/config/www/` kopieren – das ist ein manueller Schritt!
+
 ## Lizenz
 Siehe LICENSE.

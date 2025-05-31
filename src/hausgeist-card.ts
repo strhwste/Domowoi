@@ -32,6 +32,7 @@ export class HausgeistCard extends LitElement {
     default_target?: number;
     default_adjacent_room_temp?: number;
     default_outside_temp?: number;
+    ghost_model_url?: string;
   } = {};
   @property({ type: Boolean }) public debug = false;
   @property({ type: Boolean }) public notify = false;
@@ -91,6 +92,7 @@ export class HausgeistCard extends LitElement {
   private ghostAnimationId?: number;
   private ghostCanvas?: HTMLCanvasElement;
   private lastTip: string = '';
+  private ghostLoadError: boolean = false;
 
   async connectedCallback() {
     super.connectedCallback();
@@ -179,13 +181,23 @@ export class HausgeistCard extends LitElement {
     this.ghostScene.add(new THREE.AmbientLight(0xffffff, 0.7));
     // Load GLB
     const loader = new GLTFLoader();
-    loader.load('/assets/98ecd537dd35b3b246c2e6a6e255bc2a.glb', (gltf: { scene: THREE.Object3D }) => {
-      this.ghostModel = gltf.scene;
-      this.ghostModel.position.set(0, 0.5, 0);
-      this.ghostModel.scale.set(1.2, 1.2, 1.2);
-      this.ghostScene!.add(this.ghostModel);
-      this._animateGhost();
-    });
+    const modelUrl = this.config.ghost_model_url || '/local/ghost.glb';
+    loader.load(
+      modelUrl,
+      (gltf: { scene: THREE.Object3D }) => {
+        this.ghostModel = gltf.scene;
+        this.ghostModel.position.set(0, 0.5, 0);
+        this.ghostModel.scale.set(1.2, 1.2, 1.2);
+        this.ghostScene!.add(this.ghostModel);
+        this.ghostLoadError = false;
+        this._animateGhost();
+      },
+      undefined,
+      (err) => {
+        this.ghostLoadError = true;
+        this.requestUpdate();
+      }
+    );
   }
 
   private _animateGhost() {
@@ -439,7 +451,9 @@ export class HausgeistCard extends LitElement {
 
     // Finde den aktuellen Tipp (höchste Priorität)
     let currentTip = '';
-    if (topMessages.length > 0) {
+    if (this.ghostLoadError) {
+      currentTip = 'Geist-Modell nicht gefunden! Bitte ghost_model_url prüfen.';
+    } else if (topMessages.length > 0) {
       currentTip = this.texts?.[topMessages[0].message_key] || topMessages[0].message_key;
     }
 
