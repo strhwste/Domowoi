@@ -80,18 +80,43 @@ export class HausgeistCard extends LitElement {
     super.connectedCallback();
     
     try {
-      // Load rules from rulesJson if provided, otherwise from plugin-loader
-      const rules = this.rulesJson 
-        ? JSON.parse(this.rulesJson)
-        : await loadRules();
-      
-      if (rules) {
-        this.engine = new RuleEngine(rules);
-        this.ready = true;
-        this.requestUpdate();
+      if (this.debug) {
+        console.log('[Hausgeist] Connected callback starting...');
       }
+
+      let rules;
+      if (this.rulesJson) {
+        if (this.debug) {
+          console.log('[Hausgeist] Using provided rulesJson');
+        }
+        rules = JSON.parse(this.rulesJson);
+      } else {
+        if (this.debug) {
+          console.log('[Hausgeist] Loading rules from plugin-loader');
+        }
+        rules = await loadRules();
+      }
+      
+      if (!rules || !Array.isArray(rules)) {
+        console.error('[Hausgeist] Invalid rules format:', rules);
+        this.ready = false;
+        return;
+      }
+
+      if (this.debug) {
+        console.log('[Hausgeist] Loaded rules:', rules);
+      }
+
+      this.engine = new RuleEngine(rules);
+      this.ready = true;
+      
+      if (this.debug) {
+        console.log('[Hausgeist] Initialization complete, requesting update');
+      }
+      
+      this.requestUpdate();
     } catch (error) {
-      console.error('Error initializing Hausgeist:', error);
+      console.error('[Hausgeist] Error initializing card:', error);
       this.ready = false;
     }
   }
