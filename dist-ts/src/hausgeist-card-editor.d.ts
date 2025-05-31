@@ -17,6 +17,7 @@ export declare class HausgeistCardEditor extends LitElement {
     notify: boolean;
     highThreshold: number;
     private _lastAreas;
+    private _autodetect;
     setConfig(config: any): void;
     get hass(): any;
     set hass(hass: any);

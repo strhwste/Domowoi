@@ -373,6 +373,33 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             this._configChanged();
         };
     }
+    _autodetect(areaId, type) {
+        const states = Object.values(this.hass?.states || {});
+        // 1. device_class
+        let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
+        if (s && s.entity_id)
+            return s.entity_id;
+        // 2. keywords
+        const keywords = {
+            temperature: ['temperature', 'temperatur', 'température'],
+            humidity: ['humidity', 'feuchtigkeit', 'humidité'],
+            co2: ['co2'],
+            window: ['window', 'fenster'],
+            door: ['door', 'tür'],
+            curtain: ['curtain', 'vorhang'],
+            blind: ['blind', 'jalousie'],
+            heating: ['heating', 'heizung', 'thermostat'],
+            target: ['target', 'soll', 'setpoint']
+        };
+        const kw = keywords[type] || [type];
+        s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name || '').toLowerCase().includes(k)));
+        if (s && s.entity_id)
+            return s.entity_id;
+        // 3. fallback: area name
+        const areaName = (this.hass?.areas && this.hass.areas[areaId]?.name?.toLowerCase()) || areaId.toLowerCase();
+        s = states.find((st) => (st.entity_id.toLowerCase().includes(areaName) || (st.attributes.friendly_name || '').toLowerCase().includes(areaName)) && kw.some(k => st.entity_id.toLowerCase().includes(k)));
+        return s && s.entity_id ? s.entity_id : undefined;
+    }
     setConfig(config) {
         this.config = config;
     }
@@ -398,42 +425,31 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         if (this._lastAreas && Array.isArray(this._lastAreas)) {
             // Build auto-mapping: auto[area_id][type] = entity_id (wie im Editor angezeigt)
             const auto = {};
-            const hass = this.hass;
             const areas = this._lastAreas;
-            const states = Object.values(hass?.states || {});
             const sensorTypes = [
                 'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
             ];
-            function autodetect(areaId, type) {
-                let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
-                if (s && s.entity_id)
-                    return s.entity_id;
-                const keywords = {
-                    temperature: ['temperature', 'temperatur', 'température'],
-                    humidity: ['humidity', 'feuchtigkeit', 'humidité'],
-                    co2: ['co2'],
-                    window: ['window', 'fenster'],
-                    door: ['door', 'tür'],
-                    curtain: ['curtain', 'vorhang'],
-                    blind: ['blind', 'jalousie'],
-                    heating: ['heating', 'heizung', 'thermostat'],
-                    target: ['target', 'soll', 'setpoint']
-                };
-                const kw = keywords[type] || [type];
-                s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name || '').toLowerCase().includes(k)));
-                if (s && s.entity_id)
-                    return s.entity_id;
-                const areaName = (hass.areas && hass.areas[areaId]?.name?.toLowerCase()) || areaId.toLowerCase();
-                s = states.find((st) => (st.entity_id.toLowerCase().includes(areaName) || (st.attributes.friendly_name || '').toLowerCase().includes(areaName)) && kw.some(k => st.entity_id.toLowerCase().includes(k)));
-                return s && s.entity_id ? s.entity_id : undefined;
+            // Debug: Show all states with their area_ids
+            if (this.config.debug) {
+                const states = Object.values(this.hass?.states || {});
+                console.log('All states with area_ids:', states.filter((s) => s.attributes?.area_id)
+                    .map((s) => `${s.entity_id} (${s.attributes.area_id})`));
             }
             for (const area of areas) {
                 auto[area.area_id] = {};
                 for (const type of sensorTypes) {
-                    const autoId = autodetect(area.area_id, type);
+                    const autoId = this._autodetect(area.area_id, type);
                     if (autoId)
                         auto[area.area_id][type] = autoId;
+                    // Debug: Log each detected sensor
+                    if (this.config.debug) {
+                        console.log(`Auto-detected for ${area.area_id} - ${type}: ${autoId || 'none'}`);
+                    }
                 }
+            }
+            // Debug: Log the final auto config
+            if (this.config.debug) {
+                console.log('Final auto config:', JSON.stringify(auto, null, 2));
             }
             this.config = { ...this.config, areas: this._lastAreas, auto };
         }
@@ -476,33 +492,6 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         const sensorTypes = [
             'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target' // heating/target neu
         ];
-        // Helper: Autodetect sensor for area/type
-        function autodetect(areaId, type) {
-            // 1. device_class
-            let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
-            if (s && s.entity_id)
-                return s.entity_id;
-            // 2. keywords
-            const keywords = {
-                temperature: ['temperature', 'temperatur', 'température'],
-                humidity: ['humidity', 'feuchtigkeit', 'humidité'],
-                co2: ['co2'],
-                window: ['window', 'fenster'],
-                door: ['door', 'tür'],
-                curtain: ['curtain', 'vorhang'],
-                blind: ['blind', 'jalousie'],
-                heating: ['heating', 'heizung', 'thermostat'],
-                target: ['target', 'soll', 'setpoint']
-            };
-            const kw = keywords[type] || [type];
-            s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name || '').toLowerCase().includes(k)));
-            if (s && s.entity_id)
-                return s.entity_id;
-            // 3. fallback: area name
-            const areaName = (hass.areas && hass.areas[areaId]?.name?.toLowerCase()) || areaId.toLowerCase();
-            s = states.find((st) => (st.entity_id.toLowerCase().includes(areaName) || (st.attributes.friendly_name || '').toLowerCase().includes(areaName)) && kw.some(k => st.entity_id.toLowerCase().includes(k)));
-            return s && s.entity_id ? s.entity_id : undefined;
-        }
         // Felder, für die oft ein Helper/Template-Sensor benötigt wird
         const helperFields = [
             {
@@ -545,14 +534,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         const helperLink = '/config/helpers';
         // Feature 4: Mehrsprachigkeit im Editor (Sprache aus hass übernehmen)
         hass?.selectedLanguage || 'de';
-        // Feature 5: Erweiterte Debug-Ansicht
-        // (Debug-Ausgabe ist bereits vorhanden, kann aber um Kontextdaten erweitert werden)
-        // Feature 6: Regel-Editor (JSON-Textfeld, editierbar)
-        if (!this.rulesJson && hass?.rules)
-            this.rulesJson = JSON.stringify(hass.rules, null, 2);
-        // Feature 8: Benachrichtigungsoptionen (Checkbox für Notification)
-        // Feature 9: Konfigurierbare Schwellenwerte im Editor
-        // DEBUG: Show info about areas and states
+        // Debug info
         const debugInfo = x `
       <div style="background:#eee; color:#333; font-size:0.95em; padding:0.5em; margin-bottom:1em; border-radius:0.3em;">
         <b>Debug Info:</b><br>
@@ -582,25 +564,12 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             <b>${area.name}</b>
             <ul>
               ${sensorTypes.map(type => {
-            // Keywords wie in autodetect
-            const keywords = {
-                temperature: ['temperature', 'temperatur', 'température'],
-                humidity: ['humidity', 'feuchtigkeit', 'humidité'],
-                co2: ['co2'],
-                window: ['window', 'fenster'],
-                door: ['door', 'tür'],
-                curtain: ['curtain', 'vorhang'],
-                blind: ['blind', 'jalousie'],
-                heating: ['heating', 'heizung', 'thermostat'],
-                target: ['target', 'soll', 'setpoint']
-            };
-            const kw = keywords[type] || [type];
             // Filter: device_class oder Keyword im Namen/ID
             const sensors = states.filter((e) => e.attributes?.area_id === area.area_id && ((type === 'heating')
                 ? ['heating', 'heizung', 'thermostat'].some(k => e.entity_id.toLowerCase().includes(k))
                 : (e.attributes?.device_class === type ||
-                    kw.some(k => e.entity_id.toLowerCase().includes(k) || (e.attributes.friendly_name || '').toLowerCase().includes(k)))));
-            const autoId = autodetect(area.area_id, type);
+                    this._autodetect(area.area_id, type) === e.entity_id)));
+            const autoId = this._autodetect(area.area_id, type);
             const selected = this.config.overrides?.[area.area_id]?.[type] || '';
             return x `<li>${type}:
                   <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
@@ -771,6 +740,9 @@ let HausgeistCard = class HausgeistCard extends i {
         if (!this.texts || Object.keys(this.texts).length === 0) {
             this.texts = TRANSLATIONS['de'];
         }
+        // Mapping areaId -> Klartextname (aus config.areas)
+        const areaIdToName = {};
+        areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
         // Fix: add type annotations and correct scoping
         const areaMessages = areaIds.map((area) => {
             const sensors = filterSensorsByArea(states, area);
@@ -792,6 +764,15 @@ let HausgeistCard = class HausgeistCard extends i {
                 // Zeige die Anzahl der gefundenen Sensoren pro Area
                 debugOut.push(`Area: ${area} | sensors.length: ${sensors.length}`);
                 debugOut.push(`Sensors found by filterSensorsByArea: ${sensors.map((s) => s.entity_id + ' (' + (s.attributes.device_class || '-') + ')').join(', ')}`);
+                // Neue Debug-Ausgaben für auto-Erkennung
+                debugOut.push(`config.auto for area ${area}: ${JSON.stringify(this.config?.auto?.[area])}`);
+                debugOut.push(`Selected sensors for area ${area}:`);
+                const sensorTypes = ['temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'];
+                sensorTypes.forEach((type) => {
+                    const overrideId = this.config?.overrides?.[area]?.[type];
+                    const autoId = this.config?.auto?.[area]?.[type];
+                    debugOut.push(`  ${type}: override=${overrideId || 'none'}, auto=${autoId || 'none'}`);
+                });
             }
             // Inline findSensor logic (since _findSensor is not a method)
             const findSensor = (cls) => {
@@ -866,7 +847,7 @@ let HausgeistCard = class HausgeistCard extends i {
                     evals.map((ev) => `${ev.priority}: ${ev.message_key}`).join("\n"));
             }
             // Attach usedSensors to area for later display
-            return { area, evals, usedSensors };
+            return { area: areaIdToName[area] || area, evals, usedSensors };
         });
         // Top messages: only areas with at least one rule hit
         const topMessages = areaMessages.filter((a) => a.evals.length > 0)

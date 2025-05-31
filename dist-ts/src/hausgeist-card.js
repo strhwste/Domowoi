@@ -88,6 +88,9 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         if (!this.texts || Object.keys(this.texts).length === 0) {
             this.texts = TRANSLATIONS['de'];
         }
+        // Mapping areaId -> Klartextname (aus config.areas)
+        const areaIdToName = {};
+        areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
         // Fix: add type annotations and correct scoping
         const areaMessages = areaIds.map((area) => {
             const sensors = filterSensorsByArea(states, area);
@@ -109,6 +112,15 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                 // Zeige die Anzahl der gefundenen Sensoren pro Area
                 debugOut.push(`Area: ${area} | sensors.length: ${sensors.length}`);
                 debugOut.push(`Sensors found by filterSensorsByArea: ${sensors.map((s) => s.entity_id + ' (' + (s.attributes.device_class || '-') + ')').join(', ')}`);
+                // Neue Debug-Ausgaben für auto-Erkennung
+                debugOut.push(`config.auto for area ${area}: ${JSON.stringify(this.config?.auto?.[area])}`);
+                debugOut.push(`Selected sensors for area ${area}:`);
+                const sensorTypes = ['temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'];
+                sensorTypes.forEach((type) => {
+                    const overrideId = this.config?.overrides?.[area]?.[type];
+                    const autoId = this.config?.auto?.[area]?.[type];
+                    debugOut.push(`  ${type}: override=${overrideId || 'none'}, auto=${autoId || 'none'}`);
+                });
             }
             // Multilingual sensor keywords for fallback
             const SENSOR_KEYWORDS = {
@@ -231,7 +243,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                     evals.map((ev) => `${ev.priority}: ${ev.message_key}`).join("\n"));
             }
             // Attach usedSensors to area for later display
-            return { area, evals, usedSensors };
+            return { area: areaIdToName[area] || area, evals, usedSensors };
         });
         // Top messages: only areas with at least one rule hit
         const topMessages = areaMessages.filter((a) => a.evals.length > 0)
