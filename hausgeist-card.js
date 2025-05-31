@@ -68,6 +68,11 @@ class RuleEngine {
 }
 
 function filterSensorsByArea(states, areaId) {
+    // Early return if states is not an array
+    if (!Array.isArray(states)) {
+        console.warn('[filterSensorsByArea] States is not an array:', states);
+        return [];
+    }
     // Vergleiche areaId und st.attributes.area_id getrimmt und in Kleinbuchstaben
     const norm = (v) => (v || '').toLowerCase().trim();
     // Debug logging to check area_id matching
@@ -1080,10 +1085,9 @@ let HausgeistCard = class HausgeistCard extends i {
         const areaIdToName = {};
         areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
         const areaMessages = areaIds.map((area) => {
-            filterSensorsByArea(states, area);
+            const sensors = filterSensorsByArea(states, area);
             const usedSensors = [];
             if (this.debug) {
-                const sensors = filterSensorsByArea(states, area);
                 debugOut.push(`Processing area: ${area}`);
                 debugOut.push(`Available sensors: ${sensors.map((s) => s.entity_id).join(', ')}`);
                 debugOut.push(`Configured overrides: ${JSON.stringify(this.config?.overrides?.[area])}`);

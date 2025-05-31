@@ -251,15 +251,17 @@ export class HausgeistCard extends LitElement {
     const areaIdToName: Record<string, string> = {};
     areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
 
-    const areaMessages: { area: string; evals: any[]; usedSensors: { type: string; entity_id: string; value: any }[] }[] = areaIds.map((area: string) => {
+    const areaMessages: {
+      area: string;
+      evals: any[];
+      usedSensors: { type: string; entity_id: string; value: any }[];
+    }[] = areaIds.map((area) => {
       const sensors = filterSensorsByArea(states, area);
-
-      const usedSensors: Array<{ type: string, entity_id: string, value: any }> = [];
-
+      const usedSensors: { type: string; entity_id: string; value: any }[] = [];
+      
       if (this.debug) {
-        const sensors = filterSensorsByArea(states, area);
         debugOut.push(`Processing area: ${area}`);
-        debugOut.push(`Available sensors: ${sensors.map((s: any) => s.entity_id).join(', ')}`);
+        debugOut.push(`Available sensors: ${sensors.map((s) => s.entity_id).join(', ')}`);
         debugOut.push(`Configured overrides: ${JSON.stringify(this.config?.overrides?.[area])}`);
         debugOut.push(`Auto-detected sensors: ${JSON.stringify(this.config?.auto?.[area])}`);
       }

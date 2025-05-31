@@ -206,7 +206,6 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             const sensors = filterSensorsByArea(states, area);
             const usedSensors = [];
             if (this.debug) {
-                const sensors = filterSensorsByArea(states, area);
                 debugOut.push(`Processing area: ${area}`);
                 debugOut.push(`Available sensors: ${sensors.map((s) => s.entity_id).join(', ')}`);
                 debugOut.push(`Configured overrides: ${JSON.stringify(this.config?.overrides?.[area])}`);

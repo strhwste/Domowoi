@@ -1,4 +1,9 @@
 export function filterSensorsByArea(states, areaId) {
+    // Early return if states is not an array
+    if (!Array.isArray(states)) {
+        console.warn('[filterSensorsByArea] States is not an array:', states);
+        return [];
+    }
     // Vergleiche areaId und st.attributes.area_id getrimmt und in Kleinbuchstaben
     const norm = (v) => (v || '').toLowerCase().trim();
     // Debug logging to check area_id matching

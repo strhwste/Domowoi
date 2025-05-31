@@ -1,4 +1,10 @@
-export function filterSensorsByArea(states: any[], areaId: string) {
+export function filterSensorsByArea(states: any[] | undefined | null, areaId: string) {
+  // Early return if states is not an array
+  if (!Array.isArray(states)) {
+    console.warn('[filterSensorsByArea] States is not an array:', states);
+    return [];
+  }
+
   // Vergleiche areaId und st.attributes.area_id getrimmt und in Kleinbuchstaben
   const norm = (v: string) => (v || '').toLowerCase().trim();
   
