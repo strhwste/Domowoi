@@ -30,10 +30,6 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
         if (s && s.entity_id)
             return s.entity_id;
-        // 2. keywords from centralized list
-        const kw = SENSOR_KEYWORDS[type] || [type];
-        s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) ||
-            (st.attributes.friendly_name || '').toLowerCase().includes(k)));
         if (s && s.entity_id)
             return s.entity_id;
         // 3. fallback: area name
@@ -163,9 +159,8 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
             : Array.from(new Set(Object.values(hass?.states || {}).map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
         this._lastAreas = areas;
         const states = Object.values(hass?.states || {});
-        const sensorTypes = [
-            'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
-        ];
+        // Use Object.keys of SENSOR_KEYWORDS for consistent typing
+        const sensorTypes = Object.keys(SENSOR_KEYWORDS);
         // Felder, für die oft ein Helper/Template-Sensor benötigt wird
         const helperFields = [
             {
@@ -252,11 +247,6 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
             </div>
             <ul>
               ${sensorTypes.map(type => {
-                // Get all sensors for this area
-                const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
-                const autoId = this._autodetect(area.area_id, type);
-                const selected = this.config.overrides?.[area.area_id]?.[type] || '';
-                return html `<li>${type}:
                   <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
                     <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
                     <option value="none">None (no sensor)</option>

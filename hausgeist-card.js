@@ -204,10 +204,11 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
         if (s && s.entity_id)
             return s.entity_id;
-        // 2. keywords from centralized list
+
+        // 2. keywords - use imported SENSOR_KEYWORDS
         const kw = SENSOR_KEYWORDS[type] || [type];
-        s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) ||
-            (st.attributes.friendly_name || '').toLowerCase().includes(k)));
+        s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name || '').toLowerCase().includes(k)));
+
         if (s && s.entity_id)
             return s.entity_id;
         // 3. fallback: area name
@@ -337,9 +338,8 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             : Array.from(new Set(Object.values(hass?.states || {}).map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
         this._lastAreas = areas;
         const states = Object.values(hass?.states || {});
-        const sensorTypes = [
-            'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
-        ];
+        // Use Object.keys of SENSOR_KEYWORDS for consistent typing
+        const sensorTypes = Object.keys(SENSOR_KEYWORDS);
         // Felder, für die oft ein Helper/Template-Sensor benötigt wird
         const helperFields = [
             {
@@ -426,11 +426,148 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             </div>
             <ul>
               ${sensorTypes.map(type => {
-                // Get all sensors for this area
-                const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
-                const autoId = this._autodetect(area.area_id, type);
-                const selected = this.config.overrides?.[area.area_id]?.[type] || '';
-                return x `<li>${type}:
+
+101
+ 
+            // Use imported SENSOR_KEYWORDS from sensor-keywords.ts
+102
+ 
+            const findSensor = (cls) => {
+103
+ 
+                return this._findSensor(Object.values(this.hass.states), area, usedSensors, cls);
+104
+ 
+            };
+105
+ 
+            // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
+106
+ 
+            const requiredSensorTypes = [
+107
+ 
+                'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'energy', 'motion', 'occupancy', 'air_quality', 'rain', 'sun', 'adjacent', 'forecast'
+108
+ 
+            ];
+109
+ 
+            // Call findSensor for all required types to populate usedSensors, even if not used in context
+110
+ 
+            requiredSensorTypes.forEach(type => { findSensor(type); });
+111
+ 
+            const get = (cls) => {
+112
+ 
+                const s = findSensor(cls);
+113
+ 
+                return s ? Number(s.state) : undefined;
+114
+ 
+            };
+115
+ 
+            // Helper to always cast to 'any' for state lookups
+116
+ 
+            const findState = (fn) => {
+117
+ 
+                const found = states.find(fn);
+118
+ 
+                return found ? found : undefined;
+119
+ 
+            };
+120
+ 
+            // Get target temperature, default to config override or 21°C
+121
+ 
+            const context = {
+122
+ 
+                target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
+123
+ 
+                humidity: get('humidity'),
+124
+ 
+                co2: get('co2'),
+125
+ 
+                window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
+126
+ 
+                heating: findState((e) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
+127
+ 
+                motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+128
+ 
+                occupied: findState((e) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
+129
+ 
+                outside_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
+130
+ 
+                forecast_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
+131
+ 
+                energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
+132
+ 
+                high_threshold: this.highThreshold,
+133
+ 
+                temp_change_rate: 0,
+134
+ 
+                now: Date.now(),
+135
+ 
+                curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
+136
+ 
+                blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
+137
+ 
+                // Ergänzungen für Regeln
+138
+ 
+                rain_soon: findState((e) => e.entity_id.includes('rain') && e.attributes.area_id === area)?.state === 'on' || false,
+139
+ 
+                adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
+140
+ 
+                air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
+141
+ 
+                forecast_sun: findState((e) => e.entity_id.includes('forecast') && e.entity_id.includes('sun') && e.attributes.area_id === area)?.state === 'on' || false,
+142
+ 
+            };
+143
+ 
+
+144
+ 
+            // Build evaluation context
+145
+ 
+            const context = this._buildContext(area, usedSensors, states, weatherEntity, defaultTarget);
+146
+ 
+            // Evaluate rules
+147
+ 
+
                   <select style="max-width: 260px;" @change=${(e) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
                     <option value="">(auto${autoId ? ': ' + autoId : ': none'})</option>
                     <option value="none">None (no sensor)</option>
@@ -614,7 +751,7 @@ let HausgeistCard = class HausgeistCard extends i {
         // Create area name lookup
         const areaIdToName = {};
         areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
-        // Process each enabled area
+
         const areaMessages = areaIds.map((area) => {
             const usedSensors = [];
             if (this.debug) {
@@ -624,9 +761,50 @@ let HausgeistCard = class HausgeistCard extends i {
                 debugOut.push(`Configured overrides: ${JSON.stringify(this.config?.overrides?.[area])}`);
                 debugOut.push(`Auto-detected sensors: ${JSON.stringify(this.config?.auto?.[area])}`);
             }
-            // Build evaluation context
-            const context = this._buildContext(area, usedSensors, states, weatherEntity, defaultTarget);
-            // Evaluate rules
+
+            // Use imported SENSOR_KEYWORDS from sensor-keywords.ts
+            const findSensor = (cls) => {
+                return this._findSensor(Object.values(this.hass.states), area, usedSensors, cls);
+            };
+            // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
+            const requiredSensorTypes = [
+                'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'energy', 'motion', 'occupancy', 'air_quality', 'rain', 'sun', 'adjacent', 'forecast'
+            ];
+            // Call findSensor for all required types to populate usedSensors, even if not used in context
+            requiredSensorTypes.forEach(type => { findSensor(type); });
+            const get = (cls) => {
+                const s = findSensor(cls);
+                return s ? Number(s.state) : undefined;
+            };
+            // Helper to always cast to 'any' for state lookups
+            const findState = (fn) => {
+                const found = states.find(fn);
+                return found ? found : undefined;
+            };
+            // Get target temperature, default to config override or 21°C
+            const context = {
+                target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
+                humidity: get('humidity'),
+                co2: get('co2'),
+                window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
+                heating: findState((e) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
+                motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+                occupied: findState((e) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
+                outside_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.temperature ?? 15),
+                forecast_temp: Number(findState((e) => e.entity_id === 'weather.home')?.attributes?.forecast?.[0]?.temperature ?? 15),
+                energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
+                high_threshold: this.highThreshold,
+                temp_change_rate: 0,
+                now: Date.now(),
+                curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
+                blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
+                // Ergänzungen für Regeln
+                rain_soon: findState((e) => e.entity_id.includes('rain') && e.attributes.area_id === area)?.state === 'on' || false,
+                adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
+                air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown',
+                forecast_sun: findState((e) => e.entity_id.includes('forecast') && e.entity_id.includes('sun') && e.attributes.area_id === area)?.state === 'on' || false,
+            };
+
             const evals = this.engine ? this.engine.evaluate(context) : [];
             if (this.debug) {
                 debugOut.push(`--- ${area} ---\n` +

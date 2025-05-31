@@ -88,7 +88,6 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         // Create area name lookup
         const areaIdToName = {};
         areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
-        // Process each enabled area
         const areaMessages = areaIds.map((area) => {
             const usedSensors = [];
             if (this.debug) {
@@ -98,9 +97,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                 debugOut.push(`Configured overrides: ${JSON.stringify(this.config?.overrides?.[area])}`);
                 debugOut.push(`Auto-detected sensors: ${JSON.stringify(this.config?.auto?.[area])}`);
             }
-            // Build evaluation context
-            const context = this._buildContext(area, usedSensors, states, weatherEntity, defaultTarget);
-            // Evaluate rules
+
             const evals = this.engine ? this.engine.evaluate(context) : [];
             if (this.debug) {
                 debugOut.push(`--- ${area} ---\n` +

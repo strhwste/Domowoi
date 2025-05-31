@@ -1,0 +1,37 @@
+name: Update HACS Branches
+
+on:
+  workflow_dispatch:  # Manuell ausführbar
+  schedule:
+    - cron: '0 0 * * 0'  # Läuft jeden Sonntag um Mitternacht
+  push:
+    branches:
+      - '**'  # Läuft bei jedem Branch-Push
+
+jobs:
+  update-hacs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Holt alle Branches
+
+      - name: Update HACS branches
+        run: |
+          # Hole alle remote Branches (ohne system branches wie HEAD)
+          BRANCHES=$(git branch -r | grep -v 'HEAD\|master' | sed 's/origin\///' | jq -R -s -c 'split("\n")[:-1]')
+          
+          # Aktualisiere hacs.json
+          jq --arg branches "$BRANCHES" '.branches = ($branches | fromjson)' hacs.json > temp.json && mv temp.json hacs.json
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          title: 'chore: Update HACS branches'
+          commit-message: 'chore: Update available branches in HACS configuration'
+          branch: update-hacs-branches
+          delete-branch: true
+          body: |
+            This PR updates the available branches in the HACS configuration.
+            
+            It was automatically generated based on the current branches in the repository.
