@@ -344,7 +344,7 @@ export class HausgeistCardEditor extends LitElement {
           );
 
           const autoId = this._autodetect(area.area_id, type);
-          // Zeige nur Entities aus der Area (keine weitere Filterung nach Typ)
+          // Zeige ALLE Entities aus der Area, egal welcher Typ
           const allEntities = Object.values(this.hass?.states || {});
           if (this.config.debug) {
             console.log('All entities:', allEntities.map((e: any) => ({
@@ -354,16 +354,16 @@ export class HausgeistCardEditor extends LitElement {
             })));
             console.log('Current area:', area.area_id, area.name);
           }
-          let relevantEntities = allEntities.filter((e: any) => e.attributes?.area_id === area.area_id);
-          if (relevantEntities.length === 0 && this.config.debug) {
-            console.warn('No entities found for area_id', area.area_id, 'Trying fallback by area name');
-          }
-          // Fallback: try to match by area name if area_id is missing
+          let areaEntities = allEntities.filter((e: any) => e.attributes?.area_id === area.area_id);
+          let relevantEntities: any[] = [];
+          // For heating types, show all climate/heating/thermostat entities in the area
+          
+          relevantEntities = areaEntities.filter((e: any) =>
+            ['heating', 'heizung', 'thermostat', 'climate'].some(k => e.entity_id.toLowerCase().includes(k))
+          );
+          // Fallback: if nothing found, show all area entities
           if (relevantEntities.length === 0) {
-            relevantEntities = allEntities.filter((e: any) => {
-              const areaName = area.name?.toLowerCase() || area.area_id?.toLowerCase();
-              return (e.attributes?.friendly_name || '').toLowerCase().includes(areaName);
-            });
+            relevantEntities = areaEntities;
           }
           relevantEntities.sort((a: any, b: any) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
           const selected = this.config.overrides?.[area.area_id]?.[type] || '';
