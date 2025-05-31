@@ -771,33 +771,44 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         <ul>
           ${requiredSensorTypes.map(type => {
                 const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
-                const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type);
-                const matchingByKeyword = areaSensors.filter((e) => {
-                    const keywords = SENSOR_KEYWORDS[type] || [type];
-                    return keywords.some(k => e.entity_id.toLowerCase().includes(k) ||
-                        (e.attributes.friendly_name || '').toLowerCase().includes(k)) && !matchingByClass.includes(e);
+                // 1. Direkte Übereinstimmung durch device_class
+                const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type ||
+                    (type === 'occupancy' && e.attributes?.device_class === 'motion') ||
+                    (type === 'heating' && e.attributes?.device_class === 'climate'));
+                // 2. Übereinstimmung durch Keywords aus sensor-keywords.ts
+                const keywords = SENSOR_KEYWORDS[type] || [type];
+                const matchingByKeyword = states.filter((e) => {
+                    // Entity ID oder friendly_name enthält eines der Keywords
+                    const nameMatch = keywords.some(k => e.entity_id.toLowerCase().includes(k.toLowerCase()) ||
+                        (e.attributes?.friendly_name || '').toLowerCase().includes(k.toLowerCase()));
+                    // Spezielle Behandlung für bestimmte Typen
+                    const specialMatch = 
+                    // Heizung kann auch climate.* oder thermostat.* sein
+                    (type === 'heating' && (e.entity_id.startsWith('climate.') || e.entity_id.includes('thermostat'))) ||
+                        // CO2 kann auch als air_quality mit co2 Messung erscheinen
+                        (type === 'co2' && e.attributes?.device_class === 'carbon_dioxide') ||
+                        // Anwesenheit kann auch durch motion oder occupancy Sensoren erkannt werden
+                        (type === 'occupancy' && (e.attributes?.device_class === 'motion' ||
+                            e.attributes?.device_class === 'occupancy' ||
+                            e.entity_id.includes('motion') ||
+                            e.entity_id.includes('presence')));
+                    // Bereichszuordnung prüfen
+                    const areaMatch = e.attributes?.area_id === area.area_id || // Direkte Area ID
+                        (e.attributes?.device_id && this.hass?.devices?.[e.attributes.device_id]?.area_id === area.area_id) || // Device ID -> Area ID
+                        // Bereichsname im Namen
+                        (() => {
+                            const areaNames = [area.name?.toLowerCase(), area.area_id?.toLowerCase()].filter(Boolean);
+                            const entityName = e.entity_id.toLowerCase();
+                            const friendlyName = (e.attributes?.friendly_name || '').toLowerCase();
+                            return areaNames.some(an => an && (entityName.includes(an) || friendlyName.includes(an)));
+                        })();
+                    return (nameMatch || specialMatch) && areaMatch;
                 });
-                areaSensors.filter(s => !matchingByClass.includes(s) && !matchingByKeyword.includes(s));
-                this._autodetect(area.area_id, type);
-                // Zeige nur Entities, die zum Bereich gehören (area_id oder device_id->area_id oder Bereichsname im Namen)
-                const allEntities = Object.values(this.hass?.states || {});
-                const devices = this.hass?.devices || {};
-                // Zeige alle Entities, die area_id === area.area_id ODER device_id->area_id ODER Bereichsname im friendly_name oder entity_id
-                const areaNames = [area.name?.toLowerCase(), area.area_id?.toLowerCase()].filter(Boolean);
-                const relevantEntities = allEntities.filter((e) => {
-                    // 1. area_id direkt
-                    if (e.attributes?.area_id === area.area_id)
-                        return true;
-                    // 2. device_id -> area_id
-                    if (e.attributes?.device_id && devices[e.attributes.device_id]?.area_id === area.area_id)
-                        return true;
-                    // 3. Bereichsname im friendly_name oder entity_id (z.B. "arbeitszimmer" oder "work")
-                    const friendly = (e.attributes?.friendly_name || '').toLowerCase();
-                    const entityId = (e.entity_id || '').toLowerCase();
-                    // Bereichsname muss als ganzes Wort vorkommen (z.B. "arbeitszimmer" nicht in "arbeitszimmerlampe")
-                    return areaNames.some(an => an && (friendly.split(/\W+/).includes(an) || entityId.split(/\W+/).includes(an)));
-                });
-                relevantEntities.sort((a, b) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
+                // Kombiniere und dedupliziere die Ergebnisse
+                const relevantEntities = Array.from(new Set([...matchingByClass, ...matchingByKeyword]));
+                // Sortiere nach friendly_name oder entity_id
+                relevantEntities.sort((a, b) => (a.attributes?.friendly_name || a.entity_id)
+                    .localeCompare(b.attributes?.friendly_name || b.entity_id));
                 const selected = this.config.overrides?.[area.area_id]?.[type] || '';
                 return x `
             <li>
