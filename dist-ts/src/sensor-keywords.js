@@ -56,3 +56,4 @@ export const SENSOR_KEYWORDS = {
         'target_temperature', 'solltemperatur', 'heating_target'
     ]
 };
+//# sourceMappingURL=sensor-keywords.js.map

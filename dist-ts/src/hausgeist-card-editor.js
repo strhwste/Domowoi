@@ -392,3 +392,4 @@ HausgeistCardEditor = __decorate([
     customElement('hausgeist-card-editor')
 ], HausgeistCardEditor);
 export { HausgeistCardEditor };
+//# sourceMappingURL=hausgeist-card-editor.js.map

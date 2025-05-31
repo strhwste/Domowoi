@@ -3,3 +3,4 @@ export async function loadRules() {
     // Core-Regeln
     return coreRules;
 }
+//# sourceMappingURL=plugin-loader.js.map

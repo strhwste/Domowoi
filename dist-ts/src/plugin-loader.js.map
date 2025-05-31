@@ -1,0 +1,1 @@
+{"version":3,"file":"plugin-loader.js","sourceRoot":"","sources":["../../src/plugin-loader.ts"],"names":[],"mappings":"AAAA,OAAO,SAAS,MAAM,cAAc,CAAC;AAErC,MAAM,CAAC,KAAK,UAAU,SAAS;IAC7B,cAAc;IACd,OAAO,SAAS,CAAC;AACnB,CAAC","sourcesContent":["import coreRules from './rules.json';\n\nexport async function loadRules(): Promise<any[]> {\n  // Core-Regeln\n  return coreRules;\n}"]}

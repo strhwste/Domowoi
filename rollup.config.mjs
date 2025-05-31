@@ -9,11 +9,19 @@ export default {
     file: 'dist/hausgeist-card.js',
     format: 'es',
     sourcemap: true,
-    inlineDynamicImports: true
+    inlineDynamicImports: true,
+    preserveModules: false
   },
+  context: 'window',
   plugins: [
-    resolve(),
-    commonjs(),
+    resolve({
+      browser: true,
+      preferBuiltins: false
+    }),
+    commonjs({
+      include: 'node_modules/**',
+      transformMixedEsModules: true
+    }),
     json(),
     postcss({
       inject: false,
