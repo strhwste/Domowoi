@@ -30,8 +30,12 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             console.log(`[_findSensor] config.overrides[${area}]:`, this.config?.overrides?.[area]);
             console.log(`[_findSensor] config.auto[${area}]:`, this.config?.auto?.[area]);
         }
-        // Get all states from hass
-        const allStates = Object.values(this.hass.states);
+        // Use the passed sensors list directly
+        const allStates = sensors;
+        // Log all available entities if in debug mode
+        if (this.debug) {
+            console.log(`[_findSensor] Available entities:`, allStates.map(s => s.entity_id).join(', '));
+        }
         // 1. Check for manual override in config
         const overrideId = this.config?.overrides?.[area]?.[cls];
         if (overrideId) {
@@ -223,7 +227,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                 ]
             };
             const findSensor = (cls) => {
-                return this._findSensor(sensors, area, usedSensors, cls);
+                return this._findSensor(Object.values(this.hass.states), area, usedSensors, cls);
             };
             // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
             const requiredSensorTypes = [
