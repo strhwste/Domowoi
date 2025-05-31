@@ -350,21 +350,25 @@ export class HausgeistCardEditor extends LitElement {
           relevantEntities.sort((a: any, b: any) => (a.attributes.friendly_name || a.entity_id).localeCompare(b.attributes.friendly_name || b.entity_id));
           const selected = this.config.overrides?.[area.area_id]?.[type] || '';
 
-          return html`
-          <li>
-          <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
-          <span class="sensor-label">
+            return html`
+            <li>
+            <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
+            <span class="sensor-label">
             ${type === 'target' ? 'Zieltemperatur' : 
             type === 'heating' ? 'Heizung' :
             type === 'heating_level' ? 'Heizleistung' :
             type}:
-          </span>
-          <div class="sensor-select">
+            </span>
+            <div class="sensor-select">
             <select @change=${(e: Event) => this._onAreaSensorChange(area.area_id, type, e)} .value=${selected || ''}>
-            <option value="">(kein Sensor ausgewählt)</option>
-            <option value="none">Kein Sensor</option>
+            <option value="none">(kein Sensor ausgewählt)</option>
+            
             ${relevantEntities.map((s: any) => html`
-              <option value="${s.entity_id}" ?selected=${selected === s.entity_id}>
+              <option 
+                value="${s.entity_id}" 
+                ?selected=${selected === s.entity_id}
+                title="${s.attributes.friendly_name || s.entity_id} [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}${s.attributes.area_id ? ` (Bereich: ${this.hass.areas?.[s.attributes.area_id]?.name || s.attributes.area_id})` : ''}"
+              >
                 ${s.attributes.friendly_name || s.entity_id} 
                 [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]
                 ${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}
