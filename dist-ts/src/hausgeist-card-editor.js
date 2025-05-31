@@ -6,6 +6,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 };
 import { LitElement, html } from 'lit';
 import { property, customElement } from 'lit/decorators.js';
+import { SENSOR_KEYWORDS } from './sensor-keywords';
 let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     constructor() {
         super(...arguments);
@@ -29,19 +30,8 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
         if (s && s.entity_id)
             return s.entity_id;
-        // 2. keywords
-        const keywords = {
-            temperature: ['temperature', 'temperatur', 'température'],
-            humidity: ['humidity', 'feuchtigkeit', 'humidité'],
-            co2: ['co2'],
-            window: ['window', 'fenster'],
-            door: ['door', 'tür'],
-            curtain: ['curtain', 'vorhang'],
-            blind: ['blind', 'jalousie'],
-            heating: ['heating', 'heizung', 'thermostat'],
-            target: ['target', 'soll', 'setpoint']
-        };
-        const kw = keywords[type] || [type];
+        // 2. keywords - use imported SENSOR_KEYWORDS
+        const kw = SENSOR_KEYWORDS[type] || [type];
         s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name || '').toLowerCase().includes(k)));
         if (s && s.entity_id)
             return s.entity_id;
@@ -150,9 +140,8 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
             : Array.from(new Set(Object.values(hass?.states || {}).map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
         this._lastAreas = areas;
         const states = Object.values(hass?.states || {});
-        const sensorTypes = [
-            'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
-        ];
+        // Use Object.keys of SENSOR_KEYWORDS for consistent typing
+        const sensorTypes = Object.keys(SENSOR_KEYWORDS);
         // Felder, für die oft ein Helper/Template-Sensor benötigt wird
         const helperFields = [
             {
@@ -226,17 +215,8 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
             // Group sensors by relevance
             const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type);
             const matchingByKeyword = areaSensors.filter((e) => {
-                const keywords = {
-                    temperature: ['temperature', 'temperatur', 'température'],
-                    humidity: ['humidity', 'feuchtigkeit', 'humidité'],
-                    co2: ['co2'],
-                    window: ['window', 'fenster'],
-                    door: ['door', 'tür'],
-                    curtain: ['curtain', 'vorhang'],
-                    blind: ['blind', 'jalousie'],
-                    heating: ['heating', 'heizung', 'thermostat'],
-                    target: ['target', 'soll', 'setpoint']
-                }[type] || [type];
+                // Use the imported SENSOR_KEYWORDS
+                const keywords = SENSOR_KEYWORDS[type] || [type];
                 return keywords.some(k => e.entity_id.toLowerCase().includes(k) ||
                     (e.attributes.friendly_name || '').toLowerCase().includes(k));
             });

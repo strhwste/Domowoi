@@ -380,6 +380,54 @@ var de = {
 	debug_rule_match: debug_rule_match
 };
 
+const SENSOR_KEYWORDS = {
+    temperature: [
+        'temperature', 'temperatur', 'température', 'temperatura', 'temperatuur', 'температура', '温度', '온도'
+    ],
+    humidity: [
+        'humidity', 'feuchtigkeit', 'humidité', 'umidità', 'vochtigheid', 'humedad', 'влажность', '湿度', '습도'
+    ],
+    co2: [
+        'co2', 'kohlendioxid', 'dioxyde de carbone', 'anidride carbonica', 'kooldioxide', 'dióxido de carbono', 'углекислый газ', '二氧化碳', '이산화탄소'
+    ],
+    window: [
+        'window', 'fenster', 'fenêtre', 'finestra', 'raam', 'ventana', 'окно', '窗', '창문'
+    ],
+    door: [
+        'door', 'tür', 'porte', 'porta', 'deur', 'puerta', 'дверь', '문'
+    ],
+    curtain: [
+        'curtain', 'vorhang', 'rideau', 'tenda', 'gordijn', 'cortina', 'занавеска', '커튼'
+    ],
+    blind: [
+        'blind', 'jalousie', 'store', 'persiana', 'jaloezie', 'persiana', 'жалюзи', '블라인드'
+    ],
+    energy: [
+        'energy', 'energie', 'énergie', 'energia', 'energía', 'энергия', '에너지'
+    ],
+    motion: [
+        'motion', 'bewegung', 'mouvement', 'movimento', 'beweging', 'movimiento', 'движение', '움직임'
+    ],
+    occupancy: [
+        'occupancy', 'belegung', 'occupation', 'occupazione', 'bezetting', 'ocupación', 'занятость', '점유'
+    ],
+    air_quality: [
+        'air_quality', 'luftqualität', "qualité de l'air", "qualità dell'aria", 'luchtkwaliteit', 'calidad del aire', 'качество воздуха', '공기질'
+    ],
+    rain: [
+        'rain', 'regen', 'pluie', 'pioggia', 'lluvia', 'дождь', '비'
+    ],
+    sun: [
+        'sun', 'sonne', 'soleil', 'sole', 'zon', 'sol', 'солнце', '태양'
+    ],
+    adjacent: [
+        'adjacent', 'benachbart', 'adjacent', 'adiacente', 'aangrenzend', 'adyacente', 'смежный', '인접'
+    ],
+    forecast: [
+        'forecast', 'vorhersage', 'prévision', 'previsione', 'voorspelling', 'pronóstico', 'прогноз', '예보'
+    ]
+};
+
 var __decorate$1 = (undefined && undefined.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -409,19 +457,8 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
         let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
         if (s && s.entity_id)
             return s.entity_id;
-        // 2. keywords
-        const keywords = {
-            temperature: ['temperature', 'temperatur', 'température'],
-            humidity: ['humidity', 'feuchtigkeit', 'humidité'],
-            co2: ['co2'],
-            window: ['window', 'fenster'],
-            door: ['door', 'tür'],
-            curtain: ['curtain', 'vorhang'],
-            blind: ['blind', 'jalousie'],
-            heating: ['heating', 'heizung', 'thermostat'],
-            target: ['target', 'soll', 'setpoint']
-        };
-        const kw = keywords[type] || [type];
+        // 2. keywords - use imported SENSOR_KEYWORDS
+        const kw = SENSOR_KEYWORDS[type] || [type];
         s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name || '').toLowerCase().includes(k)));
         if (s && s.entity_id)
             return s.entity_id;
@@ -530,9 +567,8 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             : Array.from(new Set(Object.values(hass?.states || {}).map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
         this._lastAreas = areas;
         const states = Object.values(hass?.states || {});
-        const sensorTypes = [
-            'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
-        ];
+        // Use Object.keys of SENSOR_KEYWORDS for consistent typing
+        const sensorTypes = Object.keys(SENSOR_KEYWORDS);
         // Felder, für die oft ein Helper/Template-Sensor benötigt wird
         const helperFields = [
             {
@@ -606,17 +642,8 @@ let HausgeistCardEditor = class HausgeistCardEditor extends i {
             // Group sensors by relevance
             const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type);
             const matchingByKeyword = areaSensors.filter((e) => {
-                const keywords = {
-                    temperature: ['temperature', 'temperatur', 'température'],
-                    humidity: ['humidity', 'feuchtigkeit', 'humidité'],
-                    co2: ['co2'],
-                    window: ['window', 'fenster'],
-                    door: ['door', 'tür'],
-                    curtain: ['curtain', 'vorhang'],
-                    blind: ['blind', 'jalousie'],
-                    heating: ['heating', 'heizung', 'thermostat'],
-                    target: ['target', 'soll', 'setpoint']
-                }[type] || [type];
+                // Use the imported SENSOR_KEYWORDS
+                const keywords = SENSOR_KEYWORDS[type] || [type];
                 return keywords.some(k => e.entity_id.toLowerCase().includes(k) ||
                     (e.attributes.friendly_name || '').toLowerCase().includes(k));
             });
@@ -885,7 +912,6 @@ let HausgeistCard = class HausgeistCard extends i {
         // Mapping areaId -> Klartextname (aus config.areas)
         const areaIdToName = {};
         areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
-        // Fix: add type annotations and correct scoping
         const areaMessages = areaIds.map((area) => {
             const sensors = filterSensorsByArea(states, area);
             const usedSensors = [];
@@ -916,6 +942,7 @@ let HausgeistCard = class HausgeistCard extends i {
                     debugOut.push(`  ${type}: override=${overrideId || 'none'}, auto=${autoId || 'none'}`);
                 });
             }
+            // Use imported SENSOR_KEYWORDS from sensor-keywords.ts
             const findSensor = (cls) => {
                 return this._findSensor(Object.values(this.hass.states), area, usedSensors, cls);
             };
@@ -934,6 +961,7 @@ let HausgeistCard = class HausgeistCard extends i {
                 const found = states.find(fn);
                 return found ? found : undefined;
             };
+            // Get target temperature, default to config override or 21°C
             const context = {
                 target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
                 humidity: get('humidity'),

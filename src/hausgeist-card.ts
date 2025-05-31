@@ -3,6 +3,7 @@ import { customElement, property } from 'lit/decorators.js';
 import { RuleEngine } from './rule-engine';
 import { filterSensorsByArea } from './utils';
 import { loadRules } from './plugin-loader';
+import { SENSOR_KEYWORDS } from './sensor-keywords';
 import en from '../translations/en.json';
 import de from '../translations/de.json';
 import './hausgeist-card-editor';
@@ -69,7 +70,7 @@ export class HausgeistCard extends LitElement {
       white-space: pre-wrap;
     }
   `;
-// Define the keywords for sensor detection
+
   private engine?: RuleEngine;
   private texts: Record<string, string> = TRANSLATIONS['de'];
   private ready = false;
@@ -190,6 +191,7 @@ export class HausgeistCard extends LitElement {
     const areaIds: string[] = areas.map(a => a.area_id);
     const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
     const defaultTarget = this.config?.overrides?.default_target || 21;
+
     if (this.debug) {
       debugOut.push(`DEBUG: areaIds: ${JSON.stringify(areaIds)}`);
       debugOut.push(`DEBUG: states.length: ${states.length}`);
@@ -207,13 +209,15 @@ export class HausgeistCard extends LitElement {
     if (!this.texts || Object.keys(this.texts).length === 0) {
       this.texts = TRANSLATIONS['de'];
     }
+
     // Mapping areaId -> Klartextname (aus config.areas)
     const areaIdToName: Record<string, string> = {};
     areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
-    // Fix: add type annotations and correct scoping
+
     const areaMessages: { area: string; evals: any[]; usedSensors: { type: string; entity_id: string; value: any }[] }[] = areaIds.map((area: string) => {
       const sensors = filterSensorsByArea(states, area);
       const usedSensors: Array<{ type: string, entity_id: string, value: any }> = [];
+
       if (this.debug) {
         // Zeige alle area_id Werte aus states
         const allAreaIds = states
@@ -242,54 +246,7 @@ export class HausgeistCard extends LitElement {
           debugOut.push(`  ${type}: override=${overrideId || 'none'}, auto=${autoId || 'none'}`);
         });
       }
-      // Multilingual sensor keywords for fallback
-      const SENSOR_KEYWORDS: Record<string, string[]> = {
-        temperature: [
-          'temperature', 'temperatur', 'température', 'temperatura', 'temperatuur', 'температура', '温度', '온도'
-        ],
-        humidity: [
-          'humidity', 'feuchtigkeit', 'humidité', 'umidità', 'vochtigheid', 'humedad', 'влажность', '湿度', '습도'
-        ],
-        co2: [
-          'co2', 'kohlendioxid', 'dioxyde de carbone', 'anidride carbonica', 'kooldioxide', 'dióxido de carbono', 'углекислый газ', '二氧化碳', '이산화탄소'
-        ],
-        window: [
-          'window', 'fenster', 'fenêtre', 'finestra', 'raam', 'ventana', 'окно', '窗', '창문'
-        ],
-        door: [
-          'door', 'tür', 'porte', 'porta', 'deur', 'puerta', 'дверь', '문'
-        ],
-        curtain: [
-          'curtain', 'vorhang', 'rideau', 'tenda', 'gordijn', 'cortina', 'занавеска', '커튼'
-        ],
-        blind: [
-          'blind', 'jalousie', 'store', 'persiana', 'jaloezie', 'persiana', 'жалюзи', '블라인드'
-        ],
-        energy: [
-          'energy', 'energie', 'énergie', 'energia', 'energía', 'энергия', '에너지'
-        ],
-        motion: [
-          'motion', 'bewegung', 'mouvement', 'movimento', 'beweging', 'movimiento', 'движение', '움직임'
-        ],
-        occupancy: [
-          'occupancy', 'belegung', 'occupation', 'occupazione', 'bezetting', 'ocupación', 'занятость', '점유'
-        ],
-        air_quality: [
-          'air_quality', 'luftqualität', "qualité de l'air", "qualità dell'aria", 'luchtkwaliteit', 'calidad del aire', 'качество воздуха', '공기질'
-        ],
-        rain: [
-          'rain', 'regen', 'pluie', 'pioggia', 'lluvia', 'дождь', '비'
-        ],
-        sun: [
-          'sun', 'sonne', 'soleil', 'sole', 'zon', 'sol', 'солнце', '태양'
-        ],
-        adjacent: [
-          'adjacent', 'benachbart', 'adjacent', 'adiacente', 'aangrenzend', 'adyacente', 'смежный', '인접'
-        ],
-        forecast: [
-          'forecast', 'vorhersage', 'prévision', 'previsione', 'voorspelling', 'pronóstico', 'прогноз', '예보'
-        ]
-      };
+      // Use imported SENSOR_KEYWORDS from sensor-keywords.ts
       const findSensor = (cls: keyof typeof SENSOR_KEYWORDS) => {
         return this._findSensor(Object.values(this.hass.states), area, usedSensors, cls);
       };
@@ -308,7 +265,7 @@ export class HausgeistCard extends LitElement {
         const found = states.find(fn);
         return found ? (found as any) : undefined;
       };
-
+      // Get target temperature, default to config override or 21°C
       const context: Record<string, any> = {
         target: Number(findState((e: any) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
         humidity: get('humidity'),

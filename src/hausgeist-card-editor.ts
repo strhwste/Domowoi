@@ -1,5 +1,6 @@
 import { LitElement, html } from 'lit';
 import { property, customElement } from 'lit/decorators.js';
+import { SENSOR_KEYWORDS } from './sensor-keywords';
 
 @customElement('hausgeist-card-editor')
 export class HausgeistCardEditor extends LitElement {
@@ -17,19 +18,8 @@ export class HausgeistCardEditor extends LitElement {
     let s = states.find((st: any) => st.attributes?.area_id === areaId && st.attributes?.device_class === type) as any;
     if (s && s.entity_id) return s.entity_id;
     
-    // 2. keywords
-    const keywords: Record<string, string[]> = {
-      temperature: ['temperature','temperatur','température'],
-      humidity: ['humidity','feuchtigkeit','humidité'],
-      co2: ['co2'],
-      window: ['window','fenster'],
-      door: ['door','tür'],
-      curtain: ['curtain','vorhang'],
-      blind: ['blind','jalousie'],
-      heating: ['heating','heizung','thermostat'],
-      target: ['target','soll','setpoint']
-    };
-    const kw = keywords[type] || [type];
+    // 2. keywords - use imported SENSOR_KEYWORDS
+    const kw = SENSOR_KEYWORDS[type] || [type];
     s = states.find((st: any) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) || (st.attributes.friendly_name||'').toLowerCase().includes(k))) as any;
     if (s && s.entity_id) return s.entity_id;
     
@@ -157,9 +147,8 @@ export class HausgeistCardEditor extends LitElement {
       : Array.from(new Set(Object.values(hass?.states || {}).map((e: any) => e.attributes?.area_id).filter(Boolean))).map((area_id: string) => ({ area_id, name: area_id }));
     this._lastAreas = areas;
     const states = Object.values(hass?.states || {});
-    const sensorTypes = [
-      'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
-    ];
+    // Use Object.keys of SENSOR_KEYWORDS for consistent typing
+    const sensorTypes = Object.keys(SENSOR_KEYWORDS) as Array<keyof typeof SENSOR_KEYWORDS>;
 
     // Felder, für die oft ein Helper/Template-Sensor benötigt wird
     const helperFields: Array<{key: string, name: string, yaml: string}> = [
@@ -242,18 +231,8 @@ export class HausgeistCardEditor extends LitElement {
                 // Group sensors by relevance
                 const matchingByClass = areaSensors.filter((e: any) => e.attributes?.device_class === type);
                 const matchingByKeyword = areaSensors.filter((e: any) => {
-                  const keywords = {
-                    temperature: ['temperature','temperatur','température'],
-                    humidity: ['humidity','feuchtigkeit','humidité'],
-                    co2: ['co2'],
-                    window: ['window','fenster'],
-                    door: ['door','tür'],
-                    curtain: ['curtain','vorhang'],
-                    blind: ['blind','jalousie'],
-                    heating: ['heating','heizung','thermostat'],
-                    target: ['target','soll','setpoint']
-                  }[type] || [type];
-                  
+                  // Use the imported SENSOR_KEYWORDS
+                  const keywords = SENSOR_KEYWORDS[type] || [type];
                   return keywords.some(k => 
                     e.entity_id.toLowerCase().includes(k) || 
                     (e.attributes.friendly_name || '').toLowerCase().includes(k)
