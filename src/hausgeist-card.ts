@@ -114,8 +114,28 @@ export class HausgeistCard extends LitElement {
   }
 
   render() {
+    if (!this.config) {
+      return html`<ha-card>
+        <div class="card-content">
+          <p>Invalid configuration</p>
+        </div>
+      </ha-card>`;
+    }
+
+    if (!this.hass) {
+      return html`<ha-card>
+        <div class="card-content">
+          <p>Home Assistant not available</p>
+        </div>
+      </ha-card>`;
+    }
+
     if (!this.engine || !this.ready) {
-      return html`<div>Loading...</div>`;
+      return html`<ha-card>
+        <div class="card-content">
+          <p>Loading...</p>
+        </div>
+      </ha-card>`;
     }
 
     const debugBanner = this.debug ? html`<p class="debug-banner">🛠️ Debug mode active</p>` : '';
@@ -323,6 +343,10 @@ export class HausgeistCard extends LitElement {
   }
 
   public async setConfig(config: any) {
+    if (!config) {
+      throw new Error('Invalid configuration');
+    }
+    
     this.config = config;
     this.debug = !!config?.debug;
     this.notify = !!config?.notify;
@@ -330,7 +354,6 @@ export class HausgeistCard extends LitElement {
     this.rulesJson = config?.rulesJson || '';
 
     try {
-      // Load rules from rulesJson if provided, otherwise from plugin-loader
       const rules = this.rulesJson 
         ? JSON.parse(this.rulesJson)
         : await loadRules();
@@ -349,5 +372,22 @@ export class HausgeistCard extends LitElement {
 
   public static async getConfigElement() {
     return document.createElement('hausgeist-card-editor');
+  }
+
+  public static getStubConfig() {
+    return {
+      type: "custom:hausgeist-card",
+      debug: false,
+      notify: false,
+      highThreshold: 2000,
+      weather_entity: "weather.home"
+    };
+  }
+
+  public static get properties() {
+    return {
+      hass: { type: Object },
+      config: { type: Object },
+    };
   }
 }

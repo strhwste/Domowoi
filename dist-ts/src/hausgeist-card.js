@@ -91,8 +91,26 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         return undefined;
     }
     render() {
+        if (!this.config) {
+            return html `<ha-card>
+        <div class="card-content">
+          <p>Invalid configuration</p>
+        </div>
+      </ha-card>`;
+        }
+        if (!this.hass) {
+            return html `<ha-card>
+        <div class="card-content">
+          <p>Home Assistant not available</p>
+        </div>
+      </ha-card>`;
+        }
         if (!this.engine || !this.ready) {
-            return html `<div>Loading...</div>`;
+            return html `<ha-card>
+        <div class="card-content">
+          <p>Loading...</p>
+        </div>
+      </ha-card>`;
         }
         const debugBanner = this.debug ? html `<p class="debug-banner">🛠️ Debug mode active</p>` : '';
         const debugOut = [];
@@ -264,13 +282,15 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         };
     }
     async setConfig(config) {
+        if (!config) {
+            throw new Error('Invalid configuration');
+        }
         this.config = config;
         this.debug = !!config?.debug;
         this.notify = !!config?.notify;
         this.highThreshold = typeof config?.highThreshold === 'number' ? config.highThreshold : 2000;
         this.rulesJson = config?.rulesJson || '';
         try {
-            // Load rules from rulesJson if provided, otherwise from plugin-loader
             const rules = this.rulesJson
                 ? JSON.parse(this.rulesJson)
                 : await loadRules();
@@ -287,6 +307,21 @@ let HausgeistCard = class HausgeistCard extends LitElement {
     }
     static async getConfigElement() {
         return document.createElement('hausgeist-card-editor');
+    }
+    static getStubConfig() {
+        return {
+            type: "custom:hausgeist-card",
+            debug: false,
+            notify: false,
+            highThreshold: 2000,
+            weather_entity: "weather.home"
+        };
+    }
+    static get properties() {
+        return {
+            hass: { type: Object },
+            config: { type: Object },
+        };
     }
 };
 HausgeistCard.styles = styles;

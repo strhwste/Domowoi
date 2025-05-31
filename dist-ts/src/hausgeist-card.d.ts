@@ -31,4 +31,19 @@ export declare class HausgeistCard extends LitElement {
     private _buildContext;
     setConfig(config: any): Promise<void>;
     static getConfigElement(): Promise<HTMLElement>;
+    static getStubConfig(): {
+        type: string;
+        debug: boolean;
+        notify: boolean;
+        highThreshold: number;
+        weather_entity: string;
+    };
+    static get properties(): {
+        hass: {
+            type: ObjectConstructor;
+        };
+        config: {
+            type: ObjectConstructor;
+        };
+    };
 }
