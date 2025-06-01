@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 export class Ghost3D {
     constructor(options) {
+        this.lastAccessoryUpdate = 0;
+        this.accessoryUpdateInterval = 600000; // 10 Minuten in ms
         this.currentPriority = 'ok';
         this.lastTip = '';
         this.container = options.container;
@@ -68,42 +70,115 @@ export class Ghost3D {
     _setColorByPriority(priority) {
         if (!this.model)
             return;
+        // Dezente Statusfarben für die Grundfarbe
         let color = 0xffffff;
-        let emissive = 0x000000;
         switch (priority) {
             case 'alert':
-                emissive = 0xff8888;
-                break;
+                color = 0xffcccc;
+                break; // sanftes Rot
             case 'warn':
-                emissive = 0xffe082;
-                break;
+                color = 0xfff4cc;
+                break; // sanftes Gelb
             case 'info':
-                emissive = 0x90caf9;
+                color = 0xcce6ff;
+                break; // sanftes Blau
+            case 'ok':
+                color = 0xffffff;
                 break;
         }
+        const emissive = 0x000000;
         this.model.traverse((obj) => {
             if (obj.isMesh && obj.material) {
                 obj.material.color?.set(color);
-                obj.material.emissive?.set(emissive);
+                if (obj.material.emissive) {
+                    obj.material.emissive.set(emissive);
+                }
             }
         });
     }
     _addAccessory() {
         if (!this.model)
             return;
+        const now = Date.now();
         if (this.accessoryMesh && this.model.children.includes(this.accessoryMesh)) {
+            // Prüfen, ob das Intervall überschritten ist
+            if (now - this.lastAccessoryUpdate < this.accessoryUpdateInterval) {
+                // Noch nicht genug Zeit vergangen, Accessoires nicht neu setzen
+                return;
+            }
             this.model.remove(this.accessoryMesh);
         }
-        const geometry = new THREE.CylinderGeometry(0.11, 0.11, 0.07, 32);
-        const material = new THREE.MeshBasicMaterial({ color: 0x222222 });
-        const hat = new THREE.Mesh(geometry, material);
+        this.lastAccessoryUpdate = now;
+        // --- Hat (existing) ---
+        const hatGeometry = new THREE.CylinderGeometry(0.11, 0.11, 0.07, 32);
+        const hatMaterial = new THREE.MeshBasicMaterial({ color: 0x222222 });
+        const hat = new THREE.Mesh(hatGeometry, hatMaterial);
         hat.position.set(0, 0.38, 0);
         const brimGeo = new THREE.CylinderGeometry(0.17, 0.17, 0.015, 32);
-        const brim = new THREE.Mesh(brimGeo, material);
+        const brim = new THREE.Mesh(brimGeo, hatMaterial);
         brim.position.set(0, -0.045, 0);
         hat.add(brim);
-        this.model.add(hat);
-        this.accessoryMesh = hat;
+        // --- Sunglasses ---
+        const glasses = new THREE.Group();
+        const glassMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+        const frameMat = new THREE.MeshBasicMaterial({ color: 0x333333 });
+        // Left lens
+        const lensL = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.012, 32), glassMat);
+        lensL.rotation.x = Math.PI / 2;
+        lensL.position.set(-0.09, 0.23, 0.18);
+        // Right lens
+        const lensR = lensL.clone();
+        lensR.position.x = 0.09;
+        // Bridge
+        const bridge = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.012, 0.012), frameMat);
+        bridge.position.set(0, 0.23, 0.18);
+        // Left arm
+        const armL = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.01, 0.01), frameMat);
+        armL.position.set(-0.16, 0.23, 0.15);
+        armL.rotation.y = Math.PI / 8;
+        // Right arm
+        const armR = armL.clone();
+        armR.position.x = 0.16;
+        armR.rotation.y = -Math.PI / 8;
+        glasses.add(lensL, lensR, bridge, armL, armR);
+        // --- Sweater (simple torus as collar) ---
+        const collarGeo = new THREE.TorusGeometry(0.19, 0.025, 16, 100);
+        const collarMat = new THREE.MeshBasicMaterial({ color: 0x3366cc });
+        const collar = new THREE.Mesh(collarGeo, collarMat);
+        collar.position.set(0, 0.05, 0);
+        collar.rotation.x = Math.PI / 2;
+        // --- Umbrella ---
+        const umbrella = new THREE.Group();
+        // Canopy
+        const canopyGeo = new THREE.SphereGeometry(0.28, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+        const canopyMat = new THREE.MeshBasicMaterial({ color: 0xff4081, transparent: true, opacity: 0.85 });
+        const canopy = new THREE.Mesh(canopyGeo, canopyMat);
+        canopy.position.set(0.32, 0.55, 0);
+        // Stick
+        const stickGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.38, 16);
+        const stickMat = new THREE.MeshBasicMaterial({ color: 0x888888 });
+        const stick = new THREE.Mesh(stickGeo, stickMat);
+        stick.position.set(0.32, 0.36, 0);
+        // Handle
+        const handleGeo = new THREE.TorusGeometry(0.03, 0.008, 8, 16, Math.PI);
+        const handleMat = new THREE.MeshBasicMaterial({ color: 0x444444 });
+        const handle = new THREE.Mesh(handleGeo, handleMat);
+        handle.position.set(0.32, 0.17, 0.03);
+        handle.rotation.z = Math.PI / 2;
+        umbrella.add(canopy, stick, handle);
+        // Add all accessories to a group for easy removal
+        const accessories = new THREE.Group();
+        const todayWeather = window.hausgeistWeatherToday || {};
+        accessories.add(hat); // Hut immer
+        if (todayWeather.sunny)
+            accessories.add(glasses);
+        if (typeof todayWeather.low === 'number' && todayWeather.low < 10)
+            accessories.add(collar);
+        if (todayWeather.rain)
+            accessories.add(umbrella);
+        this.model.add(accessories);
+        // Fix: accessoryMesh should be a Group, not a Mesh, so change its type to Object3D
+        this.accessoryMesh = accessories;
     }
     /*
       private _updateGlow(priority: GhostPriority) {

@@ -7,6 +7,8 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 import { LitElement, html } from 'lit';
 import { property, customElement, state } from 'lit/decorators.js';
 import { SENSOR_KEYWORDS } from './sensor-keywords';
+import '@material/mwc-select';
+import '@material/mwc-list/mwc-list-item';
 let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     constructor() {
         super(...arguments);
@@ -41,6 +43,45 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         s = states.find((st) => (st.entity_id.toLowerCase().includes(areaName) ||
             (st.attributes.friendly_name || '').toLowerCase().includes(areaName)) && kw.some(k => st.entity_id.toLowerCase().includes(k)));
         return s && s.entity_id ? s.entity_id : undefined;
+    }
+    _renderWeatherInfo() {
+        const selectedWeather = this.hass?.states?.[this.config.weather_entity || 'weather.home'];
+        if (!selectedWeather)
+            return '';
+        const temp = selectedWeather.attributes?.temperature;
+        const tempUnit = selectedWeather.attributes?.temperature_unit || selectedWeather.attributes?.unit_of_measurement || 'unknown unit';
+        let rain = selectedWeather.attributes?.precipitation;
+        let rainUnit = selectedWeather.attributes?.precipitation_unit || 'mm';
+        if (rain === undefined && Array.isArray(selectedWeather.attributes?.forecast) && selectedWeather.attributes.forecast.length > 0) {
+            rain = selectedWeather.attributes.forecast[0].precipitation ?? selectedWeather.attributes.forecast[0].rain;
+            rainUnit = selectedWeather.attributes.forecast[0].precipitation_unit || rainUnit;
+        }
+        let rainProb = selectedWeather.attributes?.precipitation_probability;
+        if (rainProb === undefined && selectedWeather.attributes?.forecast && Array.isArray(selectedWeather.attributes.forecast) && selectedWeather.attributes.forecast.length > 0) {
+            rainProb = selectedWeather.attributes.forecast[0].precipitation_probability;
+        }
+        // Zusätzliche Wetterinfos für Logik und Anzeige
+        const humidity = selectedWeather.attributes?.humidity;
+        const windSpeed = selectedWeather.attributes?.wind_speed;
+        const windBearing = selectedWeather.attributes?.wind_bearing;
+        const pressure = selectedWeather.attributes?.pressure;
+        const condition = selectedWeather.state;
+        const cloudCoverage = selectedWeather.attributes?.cloud_coverage;
+        const visibility = selectedWeather.attributes?.visibility;
+        return html `
+      <div class="weather-info">
+        <b>Aktuelle Wetterdaten:</b><br />
+        Temperatur: ${temp !== undefined ? `${temp} ${tempUnit}` : 'n/a'}<br />
+        Luftfeuchtigkeit: ${humidity !== undefined ? `${humidity}%` : 'n/a'}<br />
+        Regen: ${rain !== undefined ? `${rain} ${rainUnit}` : 'n/a'}<br />
+        ${rainProb !== undefined ? html `Regenwahrscheinlichkeit: ${rainProb}%<br />` : ''}
+        Luftdruck: ${pressure !== undefined ? `${pressure} hPa` : 'n/a'}<br />
+        Wind: ${windSpeed !== undefined ? `${windSpeed} km/h` : 'n/a'}${windBearing !== undefined ? ` (${windBearing}°)` : ''}<br />
+        Bewölkung: ${cloudCoverage !== undefined ? `${cloudCoverage}%` : 'n/a'}<br />
+        Sichtweite: ${visibility !== undefined ? `${visibility} m` : 'n/a'}<br />
+        Zustand: ${condition || 'n/a'}
+      </div>
+    `;
     }
     setConfig(config) {
         this.config = config;
@@ -182,7 +223,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         padding: 1em;
       }
       hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
-      select { min-width: 200px; }
+      mwc-select, select { min-width: 200px; }
       li { margin: 0.2em 0; }
       .sensor-row {
         display: flex;
@@ -221,51 +262,29 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
       <!-- Weather Entity Selection -->
       <div style="margin-top:1em;">
         <b>Weather Entity:</b>
-        <select 
-        @change=${(e) => {
-            this.config = {
-                ...this.config,
-                weather_entity: e.target.value
-            };
-            this._configChanged();
+        <mwc-select
+          label="Weather Entity"
+          @selected=${(e) => {
+            const idx = e.target.selectedIndex;
+            const value = weatherEntities[idx]?.entity_id;
+            if (value) {
+                this.config = {
+                    ...this.config,
+                    weather_entity: value
+                };
+                this._configChanged();
+            }
         }}
+          .value=${this.config.weather_entity || 'weather.home'}
+          style="width: 100%;"
         >
-        ${weatherEntities.map(entity => html `
-          <option 
-          value="${entity.entity_id}" 
-          ?selected=${(this.config.weather_entity || 'weather.home') === entity.entity_id}
-          >
-          ${entity.name} (${entity.entity_id})
-          </option>
-        `)}
-        </select>
-        ${(() => {
-            const selectedWeather = hass?.states?.[this.config.weather_entity || 'weather.home'];
-            if (!selectedWeather)
-                return '';
-            const temp = selectedWeather.attributes?.temperature;
-            const tempUnit = selectedWeather.attributes?.temperature_unit || selectedWeather.attributes?.unit_of_measurement || '°C';
-            // Rain: try precipitation, precipitation_probability, or forecast
-            let rain = selectedWeather.attributes?.precipitation;
-            let rainUnit = selectedWeather.attributes?.precipitation_unit || 'mm';
-            if (rain === undefined && selectedWeather.attributes?.forecast && Array.isArray(selectedWeather.attributes.forecast) && selectedWeather.attributes.forecast.length > 0) {
-                rain = selectedWeather.attributes.forecast[0].precipitation ?? selectedWeather.attributes.forecast[0].rain;
-                rainUnit = selectedWeather.attributes.forecast[0].precipitation_unit || rainUnit;
-            }
-            // Precipitation probability
-            let rainProb = selectedWeather.attributes?.precipitation_probability;
-            if (rainProb === undefined && selectedWeather.attributes?.forecast && Array.isArray(selectedWeather.attributes.forecast) && selectedWeather.attributes.forecast.length > 0) {
-                rainProb = selectedWeather.attributes.forecast[0].precipitation_probability;
-            }
-            return html `
-          <div class="weather-info">
-            Temperatur: ${temp !== undefined ? `${temp} ${tempUnit}` : 'n/a'}
-            <br />
-            Regen: ${rain !== undefined ? `${rain} ${rainUnit}` : 'n/a'}
-            ${rainProb !== undefined ? html `<br />Regenwahrscheinlichkeit: ${rainProb}%` : ''}
-          </div>
-          `;
-        })()}
+          ${weatherEntities.map(entity => html `
+            <mwc-list-item value="${entity.entity_id}" ?selected=${(this.config.weather_entity || 'weather.home') === entity.entity_id}>
+              ${entity.name} (${entity.entity_id})
+            </mwc-list-item>
+          `)}
+        </mwc-select>
+        ${this._renderWeatherInfo()}
       </div>
 
       <!-- Default Target Temperature -->

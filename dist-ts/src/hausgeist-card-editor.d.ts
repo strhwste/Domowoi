@@ -1,4 +1,6 @@
 import { LitElement } from 'lit';
+import '@material/mwc-select';
+import '@material/mwc-list/mwc-list-item';
 export declare class HausgeistCardEditor extends LitElement {
     config: {
         debug?: boolean;
@@ -21,6 +23,7 @@ export declare class HausgeistCardEditor extends LitElement {
     highThreshold: number;
     private _lastAreas;
     private _autodetect;
+    private _renderWeatherInfo;
     setConfig(config: any): void;
     get hass(): any;
     set hass(hass: any);

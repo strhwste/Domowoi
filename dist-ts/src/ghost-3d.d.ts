@@ -14,6 +14,8 @@ export declare class Ghost3D {
     private model?;
     private animationId?;
     private accessoryMesh?;
+    private lastAccessoryUpdate;
+    private accessoryUpdateInterval;
     private speechMesh?;
     private speechTexture?;
     private speechCanvas?;

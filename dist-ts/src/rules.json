@@ -46,12 +46,12 @@
         "priority": "alert"
     },
     {
-        "condition": "!occupied && temp > 21",
+        "condition": "occupied === false && temp > 21 && !(typeof outside_temp !== 'undefined' && outside_temp > 20)",
         "message_key": "room_empty_warm",
         "priority": "info"
     },
     {
-        "condition": "outside_temp > 15 && temp > 23",
+        "condition": "outside_temp > 17 && heating == 'on'",
         "message_key": "outside_warm_inside_warm",
         "priority": "info"
     },
