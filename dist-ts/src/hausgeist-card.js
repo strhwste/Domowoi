@@ -167,7 +167,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         groundLight.shadow.bias = -0.01; // Leichtes Bias, um Schattenartefakte zu vermeiden
         groundLight.shadow.radius = 2; // Weicher Schatten
         groundLight.shadow.normalBias = 0.05; // Normal Bias für weichere Schatten
-        groundLight.shadow.penumbra = 0.7; // Leichte Penumbra für weichere Kanten
+        groundLight.penumbra = 0.7; // Leichte Penumbra für weichere Kanten
         this.ghostScene.add(groundLight);
         this.ghostScene.add(groundLight.target);
         // Boden für Schatten

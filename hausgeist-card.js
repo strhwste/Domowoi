@@ -57180,8 +57180,15 @@ let HausgeistCard = class HausgeistCard extends i {
         groundLight.position.set(0, 3, 0);
         groundLight.target.position.set(0, 0, 0);
         groundLight.castShadow = true;
-        groundLight.shadow.mapSize.width = 512;
-        groundLight.shadow.mapSize.height = 512;
+        groundLight.shadow.mapSize.width = 2048;
+        groundLight.shadow.mapSize.height = 2048;
+        groundLight.shadow.camera.near = 0.1;
+        groundLight.shadow.camera.far = 10;
+        groundLight.shadow.camera.fov = 45;
+        groundLight.shadow.bias = -0.01; // Leichtes Bias, um Schattenartefakte zu vermeiden
+        groundLight.shadow.radius = 2; // Weicher Schatten
+        groundLight.shadow.normalBias = 0.05; // Normal Bias für weichere Schatten
+        groundLight.penumbra = 0.7; // Leichte Penumbra für weichere Kanten
         this.ghostScene.add(groundLight);
         this.ghostScene.add(groundLight.target);
         // Boden für Schatten
@@ -57197,7 +57204,7 @@ let HausgeistCard = class HausgeistCard extends i {
         const modelUrl = this.config.ghost_model_url || '/local/ghost.glb';
         loader.load(modelUrl, (gltf) => {
             this.ghostModel = gltf.scene;
-            this.ghostModel.position.set(0, 0.8, 0);
+            this.ghostModel.position.set(0, 1.8, 0);
             this.ghostModel.scale.set(1.2, 1.2, 1.2);
             // Schatten aktivieren und Material aufhellen
             this.ghostModel.traverse((obj) => {
@@ -57207,7 +57214,7 @@ let HausgeistCard = class HausgeistCard extends i {
                     if (obj.material && obj.material.color) {
                         obj.material.color.multiplyScalar(1.8); // Helle das Material auf
                         obj.material.emissive.set(0x222222); // Leichtes Emissive für sanftes Leuchten
-                        obj.material.emissiveIntensity = 0.2; // Sanftes Leuchten
+                        obj.material.emissiveIntensity = 0.8; // Sanftes Leuchten
                     }
                 }
             });
@@ -57222,16 +57229,18 @@ let HausgeistCard = class HausgeistCard extends i {
         });
     }
     _createGhostSpeechBubble(text) {
-        // Create canvas for speech bubble
+        // Hochauflösende Canvas für scharfen Text
+        const scale = 3; // 3x Auflösung für Schärfe
+        const baseWidth = 380, baseHeight = 100;
         this.ghostSpeechCanvas = document.createElement('canvas');
-        this.ghostSpeechCanvas.width = 380;
-        this.ghostSpeechCanvas.height = 100;
+        this.ghostSpeechCanvas.width = baseWidth * scale;
+        this.ghostSpeechCanvas.height = baseHeight * scale;
         this.ghostSpeechCtx = this.ghostSpeechCanvas.getContext('2d');
-        // Initial draw
-        this._updateGhostSpeechTexture(text);
+        // Initiales Zeichnen
+        this._updateGhostSpeechTexture(text, scale);
         this.ghostSpeechTexture = new Texture(this.ghostSpeechCanvas);
         this.ghostSpeechTexture.needsUpdate = true;
-        // Plane geometry for speech bubble
+        // Plane-Geometrie bleibt wie gehabt
         const geometry = new PlaneGeometry(2.2, 0.6);
         const material = new MeshBasicMaterial({ map: this.ghostSpeechTexture, transparent: true });
         this.ghostSpeechMesh = new Mesh(geometry, material);
@@ -57239,17 +57248,18 @@ let HausgeistCard = class HausgeistCard extends i {
         this.ghostSpeechMesh.renderOrder = 2;
         this.ghostScene.add(this.ghostSpeechMesh);
     }
-    _updateGhostSpeechTexture(text) {
+    _updateGhostSpeechTexture(text, scale = 1) {
         if (!this.ghostSpeechCanvas || !this.ghostSpeechCtx)
             return;
         const ctx = this.ghostSpeechCtx;
         ctx.clearRect(0, 0, this.ghostSpeechCanvas.width, this.ghostSpeechCanvas.height);
-        // Bubble background
+        ctx.save();
+        ctx.scale(scale, scale);
+        // Sprechblasen-Hintergrund
         ctx.fillStyle = 'rgba(255,255,255,0.97)';
         ctx.strokeStyle = 'rgba(180,180,180,0.7)';
         ctx.lineWidth = 3;
         ctx.beginPath();
-        // Bubble-Form:
         ctx.moveTo(25, 10);
         ctx.lineTo(355, 10);
         ctx.quadraticCurveTo(370, 10, 370, 30);
@@ -57259,7 +57269,7 @@ let HausgeistCard = class HausgeistCard extends i {
         ctx.quadraticCurveTo(10, 95, 10, 80);
         ctx.lineTo(10, 30);
         ctx.quadraticCurveTo(10, 10, 25, 10);
-        // Bubble tail:
+        // Sprechblasen-Zipfel
         ctx.moveTo(190, 95);
         ctx.lineTo(205, 120);
         ctx.lineTo(175, 95);
@@ -57267,16 +57277,21 @@ let HausgeistCard = class HausgeistCard extends i {
         ctx.fill();
         ctx.stroke();
         // Text
-        ctx.font = 'bold 20px sans-serif';
+        ctx.font = `bold ${20 * scale}px sans-serif`;
         ctx.fillStyle = '#222';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        this._wrapText(ctx, text, 190, 52, 320, 24);
+        this._wrapText(ctx, text, 190, 52, 320, 24, scale);
+        ctx.restore();
         if (this.ghostSpeechTexture) {
             this.ghostSpeechTexture.needsUpdate = true;
         }
     }
-    _wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+    _wrapText(ctx, text, x, y, maxWidth, lineHeight, scale = 1) {
+        x *= scale;
+        y *= scale;
+        maxWidth *= scale;
+        lineHeight *= scale;
         const words = text.split(' ');
         let line = '';
         let lines = [];
