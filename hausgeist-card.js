@@ -57187,7 +57187,7 @@ let HausgeistCard = class HausgeistCard extends i {
         groundLight.shadow.camera.fov = 45;
         groundLight.shadow.bias = -0.01; // Leichtes Bias, um Schattenartefakte zu vermeiden
         groundLight.shadow.radius = 2; // Weicher Schatten
-        groundLight.shadow.normalBias = 0.05; // Normal Bias für weichere Schatten
+        groundLight.shadow.normalBias = 0.2; // Normal Bias für weichere Schatten
         groundLight.penumbra = 0.7; // Leichte Penumbra für weichere Kanten
         this.ghostScene.add(groundLight);
         this.ghostScene.add(groundLight.target);
@@ -57211,10 +57211,30 @@ let HausgeistCard = class HausgeistCard extends i {
                 if (obj.isMesh) {
                     obj.castShadow = true;
                     obj.receiveShadow = false;
-                    if (obj.material && obj.material.color) {
-                        obj.material.color.multiplyScalar(1.8); // Helle das Material auf
-                        obj.material.emissive.set(0x222222); // Leichtes Emissive für sanftes Leuchten
-                        obj.material.emissiveIntensity = 1.8; // Sanftes Leuchten
+                    if (obj.material) {
+                        const origMat = obj.material;
+                        obj.material = new MeshPhysicalMaterial({
+                            color: origMat.color ? origMat.color.clone() : 0xffffff,
+                            map: origMat.map || null,
+                            normalMap: origMat.normalMap || null,
+                            roughnessMap: origMat.roughnessMap || null,
+                            metalnessMap: origMat.metalnessMap || null,
+                            emissiveMap: origMat.emissiveMap || null,
+                            alphaMap: origMat.alphaMap || null,
+                            transparent: true,
+                            opacity: 0.55,
+                            roughness: origMat.roughness !== undefined ? origMat.roughness : 0.55,
+                            metalness: origMat.metalness !== undefined ? origMat.metalness : 0.0,
+                            transmission: 0.7,
+                            thickness: 0.5,
+                            ior: 1.25,
+                            reflectivity: 0.1,
+                            clearcoat: 0.2,
+                            clearcoatRoughness: 0.7,
+                            envMapIntensity: 0.7,
+                            emissive: origMat.emissive ? origMat.emissive.clone() : new Color(0x99ccff),
+                            emissiveIntensity: origMat.emissiveIntensity !== undefined ? origMat.emissiveIntensity : 0.15
+                        });
                     }
                 }
             });
@@ -57328,13 +57348,18 @@ let HausgeistCard = class HausgeistCard extends i {
             return;
         const t = performance.now() * 0.001;
         // Schwebende Animation
-        this.ghostModel.position.y = 0.5 + Math.sin(t * 2) * 0.1;
+        this.ghostModel.position.y = 0.5 + Math.sin(t * 1.5) * 0.1;
+        this.ghostModel.position.x = 0.5 + Math.sin(t * 0.5) * 0.1;
+        this.ghostModel.position.z = 0.5 + Math.sin(t * 0.2) * 0.1;
+        // Rotation für sanfte Bewegung
+        this.ghostModel.rotation.x = Math.sin(t * 0.2) * 0.1;
         this.ghostModel.rotation.y = Math.sin(t * 0.5) * 0.3;
         // Speech bubble folgt dem Geist
         if (this.ghostSpeechMesh) {
             this.ghostSpeechMesh.position.x = this.ghostModel.position.x;
             this.ghostSpeechMesh.position.z = this.ghostModel.position.z;
             this.ghostSpeechMesh.position.y = this.ghostModel.position.y + 1.1;
+            // Sprechblase schaut immer zur Kamera
             this.ghostSpeechMesh.lookAt(this.ghostCamera.position);
         }
         this.ghostRenderer.render(this.ghostScene, this.ghostCamera);
