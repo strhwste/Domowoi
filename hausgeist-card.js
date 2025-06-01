@@ -57471,6 +57471,252 @@ function addPrimitiveAttributes( geometry, primitiveDef, parser ) {
 
 }
 
+class Ghost3D {
+    constructor(options) {
+        this.currentPriority = 'ok';
+        this.lastTip = '';
+        this.container = options.container;
+        this.modelUrl = options.modelUrl;
+        this.onLoad = options.onLoad;
+        this.scene = new Scene();
+        this.scene.fog = new Fog(0x99ccff, 2.5, 6.5);
+        this.renderer = new WebGLRenderer({ alpha: true, antialias: true });
+        this.renderer.setClearColor(0x000000, 0);
+        this.renderer.setSize(320, 320);
+        this.camera = new PerspectiveCamera(45, 1, 0.1, 100);
+        this.camera.position.set(0, 1, 3);
+        const light = new DirectionalLight(0xffffff, 1);
+        light.position.set(0, 2, 2);
+        this.scene.add(light);
+        this.scene.add(new AmbientLight(0xffffff, 0.7));
+        this.container.appendChild(this.renderer.domElement);
+        this._loadModel();
+    }
+    _loadModel() {
+        const loader = new GLTFLoader();
+        loader.load(this.modelUrl, (gltf) => {
+            this.model = gltf.scene;
+            this.model.position.set(0, 0.5, 0);
+            this.model.scale.set(2.0, 2.0, 2.0);
+            this.scene.add(this.model);
+            this._addAccessory();
+            this._createSpeechBubble(this.lastTip);
+            this._animate();
+            if (this.onLoad)
+                this.onLoad();
+        });
+    }
+    setPriority(priority) {
+        this.currentPriority = priority;
+        this._setColorByPriority(priority);
+        this._updateGlow(priority);
+    }
+    setTip(tip) {
+        this.lastTip = tip;
+        this._updateSpeechTexture(tip);
+    }
+    resize(width, height) {
+        this.renderer.setSize(width, height);
+    }
+    dispose() {
+        if (this.animationId)
+            cancelAnimationFrame(this.animationId);
+        this.renderer.dispose();
+        if (this.model && this.glowMesh) {
+            this.model.remove(this.glowMesh);
+        }
+        if (this.model && this.accessoryMesh) {
+            this.model.remove(this.accessoryMesh);
+        }
+        if (this.speechMesh) {
+            this.scene.remove(this.speechMesh);
+        }
+        this.container.removeChild(this.renderer.domElement);
+    }
+    _setColorByPriority(priority) {
+        if (!this.model)
+            return;
+        let color = 0xffffff;
+        let emissive = 0x000000;
+        switch (priority) {
+            case 'alert':
+                color = 0xff4444;
+                emissive = 0xff8888;
+                break;
+            case 'warn':
+                color = 0xffc107;
+                emissive = 0xffe082;
+                break;
+            case 'info':
+                color = 0x2196f3;
+                emissive = 0x90caf9;
+                break;
+            case 'ok':
+            default:
+                color = 0xffffff;
+                break;
+        }
+        this.model.traverse((obj) => {
+            if (obj.isMesh && obj.material) {
+                obj.material.color?.set(color);
+                if (priority === 'alert') {
+                    obj.material.emissive?.set(emissive);
+                }
+                else {
+                    obj.material.emissive?.set(0x000000);
+                }
+            }
+        });
+    }
+    _addAccessory() {
+        if (!this.model)
+            return;
+        if (this.accessoryMesh && this.model.children.includes(this.accessoryMesh)) {
+            this.model.remove(this.accessoryMesh);
+        }
+        const geometry = new CylinderGeometry(0.11, 0.11, 0.07, 32);
+        const material = new MeshBasicMaterial({ color: 0x222222 });
+        const hat = new Mesh(geometry, material);
+        hat.position.set(0, 0.38, 0);
+        hat.rotation.x = 0;
+        const brimGeo = new CylinderGeometry(0.17, 0.17, 0.015, 32);
+        const brimMat = new MeshBasicMaterial({ color: 0x222222 });
+        const brim = new Mesh(brimGeo, brimMat);
+        brim.position.set(0, -0.045, 0);
+        hat.add(brim);
+        this.model.add(hat);
+        this.accessoryMesh = hat;
+    }
+    _updateGlow(priority) {
+        if (!this.model)
+            return;
+        if (this.glowMesh && this.model.children.includes(this.glowMesh)) {
+            this.model.remove(this.glowMesh);
+            this.glowMesh.geometry.dispose();
+            this.glowMesh.material.dispose();
+            this.glowMesh = undefined;
+        }
+        let glowColor = null;
+        let glowOpacity = 0.35;
+        switch (priority) {
+            case 'alert':
+                glowColor = 0xff4444;
+                glowOpacity = 0.45;
+                break;
+            case 'warn':
+                glowColor = 0xffc107;
+                glowOpacity = 0.32;
+                break;
+            case 'info':
+                glowColor = 0x2196f3;
+                glowOpacity = 0.28;
+                break;
+            default: return;
+        }
+        const geometry = new SphereGeometry(0.62, 32, 32);
+        const material = new MeshBasicMaterial({
+            color: glowColor,
+            transparent: true,
+            opacity: glowOpacity,
+            depthWrite: false,
+            blending: AdditiveBlending
+        });
+        const glow = new Mesh(geometry, material);
+        glow.position.set(0, 0.38, 0);
+        this.model.add(glow);
+        this.glowMesh = glow;
+    }
+    _createSpeechBubble(text) {
+        this.speechCanvas = document.createElement('canvas');
+        this.speechCanvas.width = 256;
+        this.speechCanvas.height = 96;
+        this.speechCtx = this.speechCanvas.getContext('2d');
+        this._updateSpeechTexture(text);
+        this.speechTexture = new Texture(this.speechCanvas);
+        this.speechTexture.needsUpdate = true;
+        const geometry = new PlaneGeometry(1.6, 0.6);
+        const material = new MeshBasicMaterial({ map: this.speechTexture, transparent: true });
+        this.speechMesh = new Mesh(geometry, material);
+        this.speechMesh.position.set(0, 1.4, 0);
+        this.speechMesh.renderOrder = 2;
+        this.scene.add(this.speechMesh);
+    }
+    _updateSpeechTexture(text) {
+        if (!this.speechCanvas || !this.speechCtx)
+            return;
+        const ctx = this.speechCtx;
+        ctx.clearRect(0, 0, this.speechCanvas.width, this.speechCanvas.height);
+        ctx.fillStyle = 'rgba(255,255,255,0.95)';
+        ctx.strokeStyle = 'rgba(180,180,180,0.7)';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(20, 10);
+        ctx.lineTo(236, 10);
+        ctx.quadraticCurveTo(246, 10, 246, 26);
+        ctx.lineTo(246, 70);
+        ctx.quadraticCurveTo(246, 86, 236, 86);
+        ctx.lineTo(20, 86);
+        ctx.quadraticCurveTo(10, 86, 10, 70);
+        ctx.lineTo(10, 26);
+        ctx.quadraticCurveTo(10, 10, 20, 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(128, 86);
+        ctx.lineTo(138, 106);
+        ctx.lineTo(118, 86);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillStyle = '#222';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 128, 48);
+        if (this.speechTexture) {
+            this.speechTexture.needsUpdate = true;
+        }
+    }
+    _isTabVisible() {
+        return !(document.hidden || (document.visibilityState && document.visibilityState !== 'visible'));
+    }
+    _animate() {
+        if (!this.model)
+            return;
+        const animateFn = () => {
+            if (!this._isTabVisible()) {
+                this.animationId = requestAnimationFrame(animateFn);
+                return;
+            }
+            const t = performance.now() * 0.001;
+            if (this.model) {
+                this.model.position.y = 0.5 + Math.sin(t * 2) * 0.1;
+                this.model.rotation.y = Math.sin(t * 0.5) * 0.3;
+                this.model.rotation.z = Math.sin(t * 1.2) * 0.05;
+            }
+            if (this.accessoryMesh) {
+                this.accessoryMesh.position.x = 0;
+                this.accessoryMesh.position.z = 0;
+            }
+            if (this.speechMesh && this.model) {
+                this.speechMesh.position.x = this.model.position.x;
+                this.speechMesh.position.z = this.model.position.z;
+                this.speechMesh.position.y = this.model.position.y + 0.9;
+                this.speechMesh.lookAt(this.camera.position);
+            }
+            if (this.glowMesh) {
+                const baseOpacity = this.glowMesh.material.opacity;
+                this.glowMesh.material.opacity = baseOpacity * (0.85 + 0.15 * Math.sin(t * 2));
+                this.glowMesh.scale.set(1.05 + 0.04 * Math.sin(t * 2), 1.05 + 0.04 * Math.sin(t * 2), 1.05 + 0.04 * Math.sin(t * 2));
+            }
+            this.renderer.render(this.scene, this.camera);
+            this.animationId = requestAnimationFrame(animateFn);
+        };
+        animateFn();
+    }
+}
+
 var __decorate = (window && window.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -57566,156 +57812,32 @@ let HausgeistCard = class HausgeistCard extends i {
     updated(changedProps) {
         super.updated(changedProps);
         const container = this.renderRoot?.querySelector('.ghost-3d-container');
-        if (container && this.ghostRenderer) {
+        if (container && !this.ghost3D) {
+            this.ghost3D = new Ghost3D({
+                container,
+                modelUrl: this.config.ghost_model_url || '/local/ghost.glb',
+                onLoad: () => {
+                    this.ghost3D.setPriority(this._currentPriority);
+                    this.ghost3D.setTip(this.lastTip);
+                }
+            });
+        }
+        if (container && this.ghost3D) {
             const card = container.closest('ha-card');
             if (card) {
                 const width = card.offsetWidth || 200;
                 const height = Math.max(160, Math.round(width * 1));
-                this.ghostRenderer.setSize(width, height);
+                this.ghost3D.resize(width, height);
                 container.style.width = width + 'px';
                 container.style.height = height + 'px';
             }
         }
-        this._initGhost3D();
     }
     disconnectedCallback() {
         super.disconnectedCallback();
-        if (this.ghostAnimationId) {
-            cancelAnimationFrame(this.ghostAnimationId);
-        }
-        if (this.ghostRenderer) {
-            this.ghostRenderer.dispose();
-        }
-    }
-    async _initGhost3D() {
-        // Avoid double init
-        if (this.ghostRenderer)
-            return;
-        const container = this.renderRoot?.querySelector('.ghost-3d-container');
-        if (!container)
-            return;
-        // Canvas
-        this.ghostRenderer = new WebGLRenderer({ alpha: true, antialias: true });
-        this.ghostRenderer.setClearColor(0x000000, 0);
-        // Größere Canvas für größeren Geist
-        this.ghostRenderer.setSize(320, 320);
-        this.ghostCanvas = this.ghostRenderer.domElement;
-        if (this.ghostCanvas) {
-            this.ghostCanvas.style.display = 'block';
-            this.ghostCanvas.style.margin = '0 auto';
-            this.ghostCanvas.style.pointerEvents = 'none';
-            container.appendChild(this.ghostCanvas);
-        }
-        // Scene
-        this.ghostScene = new Scene();
-        // Blauer Nebel für die Umgebung (Fog)
-        this.ghostScene.fog = new Fog(0x99ccff, 2.5, 6.5);
-        // Camera
-        this.ghostCamera = new PerspectiveCamera(45, 1, 0.1, 100);
-        this.ghostCamera.position.set(0, 1, 3);
-        // Light
-        const light = new DirectionalLight(0xffffff, 1);
-        light.position.set(0, 2, 2);
-        this.ghostScene.add(light);
-        this.ghostScene.add(new AmbientLight(0xffffff, 0.7));
-        // Load GLB
-        const loader = new GLTFLoader();
-        const modelUrl = this.config.ghost_model_url || '/local/ghost.glb';
-        loader.load(modelUrl, (gltf) => {
-            this.ghostModel = gltf.scene;
-            // Größer skalieren
-            this.ghostModel.position.set(0, 0.5, 0);
-            this.ghostModel.scale.set(2.0, 2.0, 2.0);
-            this.ghostScene.add(this.ghostModel);
-            this.ghostLoadError = false;
-            // Add 3D speech bubble
-            this._createGhostSpeechBubble(this.lastTip);
-            this._animateGhost();
-        }, undefined, (err) => {
-            this.ghostLoadError = true;
-            this.requestUpdate();
-        });
-    }
-    _createGhostSpeechBubble(text) {
-        // Create canvas for speech bubble
-        this.ghostSpeechCanvas = document.createElement('canvas');
-        this.ghostSpeechCanvas.width = 256;
-        this.ghostSpeechCanvas.height = 96;
-        this.ghostSpeechCtx = this.ghostSpeechCanvas.getContext('2d');
-        // Initial draw
-        this._updateGhostSpeechTexture(text);
-        this.ghostSpeechTexture = new Texture(this.ghostSpeechCanvas);
-        this.ghostSpeechTexture.needsUpdate = true;
-        // Plane geometry for speech bubble
-        const geometry = new PlaneGeometry(1.6, 0.6);
-        const material = new MeshBasicMaterial({ map: this.ghostSpeechTexture, transparent: true });
-        this.ghostSpeechMesh = new Mesh(geometry, material);
-        this.ghostSpeechMesh.position.set(0, 1.4, 0);
-        this.ghostSpeechMesh.renderOrder = 2;
-        this.ghostScene.add(this.ghostSpeechMesh);
-    }
-    _updateGhostSpeechTexture(text) {
-        if (!this.ghostSpeechCanvas || !this.ghostSpeechCtx)
-            return;
-        const ctx = this.ghostSpeechCtx;
-        ctx.clearRect(0, 0, this.ghostSpeechCanvas.width, this.ghostSpeechCanvas.height);
-        // Farben je nach Priority
-        const colors = this._getSpeechBubbleColors(this._currentPriority);
-        ctx.fillStyle = colors.fill;
-        ctx.strokeStyle = colors.stroke;
-        ctx.lineWidth = 3;
-        ctx.beginPath();
-        ctx.moveTo(20, 10);
-        ctx.lineTo(236, 10);
-        ctx.quadraticCurveTo(246, 10, 246, 26);
-        ctx.lineTo(246, 70);
-        ctx.quadraticCurveTo(246, 86, 236, 86);
-        ctx.lineTo(20, 86);
-        ctx.quadraticCurveTo(10, 86, 10, 70);
-        ctx.lineTo(10, 26);
-        ctx.quadraticCurveTo(10, 10, 20, 10);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        // Bubble tail
-        ctx.beginPath();
-        ctx.moveTo(128, 86);
-        ctx.lineTo(138, 106);
-        ctx.lineTo(118, 86);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        // Text
-        ctx.font = 'bold 22px sans-serif';
-        ctx.fillStyle = colors.text;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        this._wrapText(ctx, text, 128, 48, 220, 28);
-        if (this.ghostSpeechTexture) {
-            this.ghostSpeechTexture.needsUpdate = true;
-        }
-    }
-    _wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-        const words = text.split(' ');
-        let line = '';
-        let lines = [];
-        for (let n = 0; n < words.length; n++) {
-            const testLine = line + words[n] + ' ';
-            const metrics = ctx.measureText(testLine);
-            if (metrics.width > maxWidth && n > 0) {
-                lines.push(line);
-                line = words[n] + ' ';
-            }
-            else {
-                line = testLine;
-            }
-        }
-        lines.push(line);
-        const totalHeight = lines.length * lineHeight;
-        let offsetY = y - totalHeight / 2 + lineHeight / 2;
-        for (let i = 0; i < lines.length; i++) {
-            ctx.fillText(lines[i].trim(), x, offsetY);
-            offsetY += lineHeight;
+        if (this.ghost3D) {
+            this.ghost3D.dispose();
+            this.ghost3D = undefined;
         }
     }
     _getCurrentTip() {
@@ -57727,192 +57849,6 @@ let HausgeistCard = class HausgeistCard extends i {
         if (this.lastTip)
             return this.lastTip;
         return '';
-    }
-    // 1. Ghost-Farbe je nach Priorität
-    _setGhostColorByPriority(priority) {
-        if (!this.ghostModel)
-            return;
-        let color = 0xffffff;
-        let emissive = 0x000000;
-        switch (priority) {
-            case 'alert':
-                color = 0xff4444;
-                emissive = 0xff8888;
-                break;
-            case 'warn':
-                color = 0xffc107;
-                emissive = 0xffe082;
-                break;
-            case 'info':
-                color = 0x2196f3;
-                emissive = 0x90caf9;
-                break;
-            case 'ok':
-            default:
-                color = 0xffffff;
-                break;
-        }
-        this.ghostModel.traverse((obj) => {
-            if (obj.isMesh && obj.material) {
-                obj.material.color?.set(color);
-                // Kein Leuchten für ok/info/warn, nur für alert
-                if (priority === 'alert') {
-                    obj.material.emissive?.set(emissive);
-                }
-                else {
-                    obj.material.emissive?.set(0x000000);
-                }
-            }
-        });
-    }
-    // 5. Accessoire hinzufügen (z.B. Hut)
-    _addGhostAccessory() {
-        if (!this.ghostModel)
-            return;
-        // Entferne altes Accessoire
-        if (this._ghostAccessoryMesh && this.ghostModel.children.includes(this._ghostAccessoryMesh)) {
-            this.ghostModel.remove(this._ghostAccessoryMesh);
-        }
-        // Kleiner, flacher Zylinder-Hut
-        const geometry = new CylinderGeometry(0.11, 0.11, 0.07, 32);
-        const material = new MeshBasicMaterial({ color: 0x222222 });
-        const hat = new Mesh(geometry, material);
-        hat.position.set(0, 0.38, 0); // etwas tiefer und kleiner
-        hat.rotation.x = 0;
-        // Dünne, größere Krempe
-        const brimGeo = new CylinderGeometry(0.17, 0.17, 0.015, 32);
-        const brimMat = new MeshBasicMaterial({ color: 0x222222 });
-        const brim = new Mesh(brimGeo, brimMat);
-        brim.position.set(0, -0.045, 0); // direkt unter dem Hut
-        hat.add(brim);
-        this.ghostModel.add(hat);
-        this._ghostAccessoryMesh = hat;
-    }
-    _updateGhostGlow(priority) {
-        if (!this.ghostModel)
-            return;
-        // Remove old glow mesh if present
-        if (this._ghostGlowMesh && this.ghostModel.children.includes(this._ghostGlowMesh)) {
-            this.ghostModel.remove(this._ghostGlowMesh);
-            this._ghostGlowMesh.geometry.dispose();
-            this._ghostGlowMesh.material.dispose();
-            this._ghostGlowMesh = undefined;
-        }
-        // Only show glow for warn/info/alert
-        let glowColor = null;
-        let glowOpacity = 0.35;
-        switch (priority) {
-            case 'alert':
-                glowColor = 0xff4444;
-                glowOpacity = 0.45;
-                break;
-            case 'warn':
-                glowColor = 0xffc107;
-                glowOpacity = 0.32;
-                break;
-            case 'info':
-                glowColor = 0x2196f3;
-                glowOpacity = 0.28;
-                break;
-            default: return;
-        }
-        // Create a slightly larger, transparent sphere as glow
-        const geometry = new SphereGeometry(0.62, 32, 32); // slightly larger than ghost
-        const material = new MeshBasicMaterial({
-            color: glowColor,
-            transparent: true,
-            opacity: glowOpacity,
-            depthWrite: false,
-            blending: AdditiveBlending
-        });
-        const glow = new Mesh(geometry, material);
-        glow.position.set(0, 0.38, 0); // match ghost position
-        this.ghostModel.add(glow);
-        this._ghostGlowMesh = glow;
-    }
-    _animateGhost() {
-        if (!this.ghostScene || !this.ghostCamera || !this.ghostRenderer || !this.ghostModel)
-            return;
-        if (!this._isTabVisible()) {
-            this.ghostAnimationId = requestAnimationFrame(() => this._animateGhost());
-            return;
-        }
-        const t = performance.now() * 0.001;
-        // Schwebende Animation + sanftes Wackeln
-        this.ghostModel.position.y = 0.5 + Math.sin(t * 2) * 0.1;
-        this.ghostModel.rotation.y = Math.sin(t * 0.5) * 0.3;
-        this.ghostModel.rotation.z = Math.sin(t * 1.2) * 0.05;
-        // Accessoire folgt Kopf
-        if (this._ghostAccessoryMesh) {
-            this._ghostAccessoryMesh.position.x = 0;
-            this._ghostAccessoryMesh.position.z = 0;
-        }
-        // Speech bubble folgt dem Geist
-        if (this.ghostSpeechMesh) {
-            this.ghostSpeechMesh.position.x = this.ghostModel.position.x;
-            this.ghostSpeechMesh.position.z = this.ghostModel.position.z;
-            this.ghostSpeechMesh.position.y = this.ghostModel.position.y + 0.9;
-            this.ghostSpeechMesh.lookAt(this.ghostCamera.position);
-        }
-        // Optional: Pulsate the glow
-        if (this._ghostGlowMesh) {
-            const t = performance.now() * 0.001;
-            const baseOpacity = this._ghostGlowMesh.material.opacity;
-            this._ghostGlowMesh.material.opacity = baseOpacity * (0.85 + 0.15 * Math.sin(t * 2));
-            this._ghostGlowMesh.scale.set(1.05 + 0.04 * Math.sin(t * 2), 1.05 + 0.04 * Math.sin(t * 2), 1.05 + 0.04 * Math.sin(t * 2));
-        }
-        this.ghostRenderer.render(this.ghostScene, this.ghostCamera);
-        this.ghostAnimationId = requestAnimationFrame(() => this._animateGhost());
-    }
-    // 7. Performance: Animation nur wenn sichtbar
-    _isTabVisible() {
-        return !(document.hidden || (document.visibilityState && document.visibilityState !== 'visible'));
-    }
-    // Find sensor by type in area, with overrides and auto-detection
-    _findSensor(sensors, area, usedSensors, sensorType) {
-        if (this.debug) {
-            console.log(`[_findSensor] Looking for ${sensorType} in area ${area}`);
-            console.log(`[_findSensor] config.overrides[${area}]:`, this.config?.overrides?.[area]);
-            // console.log(`[_findSensor] config.auto[${area}]:`, this.config?.auto?.[area]);
-        }
-        // 1. Check for manual override in config
-        const overrideId = this.config?.overrides?.[area]?.[sensorType];
-        if (overrideId) {
-            const sensor = sensors.find((s) => s.entity_id === overrideId);
-            if (sensor) {
-                usedSensors.push({
-                    type: `${sensorType} (override)`,
-                    entity_id: sensor.entity_id,
-                    value: sensor.state
-                });
-                return sensor;
-            }
-            if (this.debug)
-                console.log(`[_findSensor] Override sensor ${overrideId} not found`);
-        }
-        // 2. Check auto-detected sensor from config (auskommentiert)
-        // const autoId = this.config?.auto?.[area]?.[sensorType];
-        // if (autoId) {
-        //   const sensor = sensors.find((s) => s.entity_id === autoId);
-        //   if (sensor) {
-        //     usedSensors.push({
-        //       type: `${sensorType} (auto)`,
-        //       entity_id: sensor.entity_id,
-        //       value: sensor.state
-        //     });
-        //     return sensor;
-        //   }
-        //   if (this.debug) console.log(`[_findSensor] Auto sensor ${autoId} not found`);
-        // }
-        // 3. Not found
-        if (this.debug) {
-            usedSensors.push({
-                type: sensorType,
-                entity_id: '[NOT FOUND]',
-                value: 'No matching sensor found'
-            });
-        }
-        return undefined;
     }
     render() {
         if (!this.config) {
@@ -58079,18 +58015,11 @@ let HausgeistCard = class HausgeistCard extends i {
             currentTip = this.texts?.[topMessages[0].message_key] || topMessages[0].message_key;
             currentPriority = topMessages[0].priority || 'ok';
         }
-        // Merke den aktuellen Tipp für die Sprechblase
         this.lastTip = currentTip;
         this._currentPriority = currentPriority;
-        // Setze Ghost-Farbe und Accessoire
-        if (this.ghostModel) {
-            this._setGhostColorByPriority(currentPriority);
-            this._addGhostAccessory();
-            this._updateGhostGlow(currentPriority);
-        }
-        // Wenn die Sprechblase existiert, Text aktualisieren
-        if (this.ghostSpeechMesh && this.ghostSpeechCtx) {
-            this._updateGhostSpeechTexture(currentTip);
+        if (this.ghost3D) {
+            this.ghost3D.setPriority(currentPriority);
+            this.ghost3D.setTip(currentTip);
         }
         return x `
       <style>
@@ -58240,15 +58169,51 @@ let HausgeistCard = class HausgeistCard extends i {
         }
         return defaultTarget; // Default to config value on error
     }
-    // 1. Sprechblasenfarbe je nach Priorität
-    _getSpeechBubbleColors(priority) {
-        switch (priority) {
-            case 'alert': return { fill: 'rgba(255,68,68,0.97)', stroke: 'rgba(200,0,0,0.7)', text: '#fff' };
-            case 'warn': return { fill: 'rgba(255,241,118,0.97)', stroke: 'rgba(255,193,7,0.7)', text: '#222' };
-            case 'info': return { fill: 'rgba(230,244,255,0.97)', stroke: 'rgba(33,150,243,0.7)', text: '#222' };
-            case 'ok':
-            default: return { fill: 'rgba(255,255,255,0.95)', stroke: 'rgba(180,180,180,0.7)', text: '#222' };
+    // Find sensor by type in area, with overrides and auto-detection
+    _findSensor(sensors, area, usedSensors, sensorType) {
+        if (this.debug) {
+            console.log(`[_findSensor] Looking for ${sensorType} in area ${area}`);
+            console.log(`[_findSensor] config.overrides[${area}]:`, this.config?.overrides?.[area]);
+            // console.log(`[_findSensor] config.auto[${area}]:`, this.config?.auto?.[area]);
         }
+        // 1. Check for manual override in config
+        const overrideId = this.config?.overrides?.[area]?.[sensorType];
+        if (overrideId) {
+            const sensor = sensors.find((s) => s.entity_id === overrideId);
+            if (sensor) {
+                usedSensors.push({
+                    type: `${sensorType} (override)`,
+                    entity_id: sensor.entity_id,
+                    value: sensor.state
+                });
+                return sensor;
+            }
+            if (this.debug)
+                console.log(`[_findSensor] Override sensor ${overrideId} not found`);
+        }
+        // 2. Check auto-detected sensor from config (auskommentiert)
+        // const autoId = this.config?.auto?.[area]?.[sensorType];
+        // if (autoId) {
+        //   const sensor = sensors.find((s) => s.entity_id === autoId);
+        //   if (sensor) {
+        //     usedSensors.push({
+        //       type: `${sensorType} (auto)`,
+        //       entity_id: sensor.entity_id,
+        //       value: sensor.state
+        //     });
+        //     return sensor;
+        //   }
+        //   if (this.debug) console.log(`[_findSensor] Auto sensor ${autoId} not found`);
+        // }
+        // 3. Not found
+        if (this.debug) {
+            usedSensors.push({
+                type: sensorType,
+                entity_id: '[NOT FOUND]',
+                value: 'No matching sensor found'
+            });
+        }
+        return undefined;
     }
 };
 HausgeistCard.styles = styles;
@@ -58273,6 +58238,8 @@ __decorate([
 HausgeistCard = __decorate([
     t('hausgeist-card')
 ], HausgeistCard);
+// Die Klasse ist jetzt komplett frei von jeglicher Darstellungs-/Farb-/Three.js-Logik für den Geist.
+// Die gesamte Visualisierung und Farblogik ist in Ghost3D ausgelagert.
 
 export { HausgeistCard };
 //# sourceMappingURL=hausgeist-card.js.map
