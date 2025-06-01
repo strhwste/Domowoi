@@ -1,6 +1,7 @@
 import { LitElement } from 'lit';
 import '@material/mwc-select';
 import '@material/mwc-list/mwc-list-item';
+import './ha-entity-combo-box';
 export declare class HausgeistCardEditor extends LitElement {
     config: {
         debug?: boolean;
@@ -13,6 +14,7 @@ export declare class HausgeistCardEditor extends LitElement {
         auto?: Record<string, Record<string, string>>;
         weather_entity?: string;
         default_target?: number;
+        default_target_entity?: string;
     };
     private _hass;
     testValues: {

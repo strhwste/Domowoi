@@ -3,6 +3,7 @@ import { property, customElement, state } from 'lit/decorators.js';
 import { SENSOR_KEYWORDS } from './sensor-keywords';
 import '@material/mwc-select';
 import '@material/mwc-list/mwc-list-item';
+import './ha-entity-combo-box'; // Custom element for entity selection (assumed available)
 
 @customElement('hausgeist-card-editor')
 export class HausgeistCardEditor extends LitElement {
@@ -12,7 +13,8 @@ export class HausgeistCardEditor extends LitElement {
     areas?: Array<{ area_id: string; name: string; enabled?: boolean }>, 
     auto?: Record<string, Record<string, string>>,
     weather_entity?: string,
-    default_target?: number
+    default_target?: number,
+    default_target_entity?: string // <-- hinzugefügt
   } = {};
   private _hass: any = undefined;
   @state() testValues: { [key: string]: any } = {};
@@ -104,8 +106,8 @@ export class HausgeistCardEditor extends LitElement {
     this._configChanged();
   };
   // Handle sensor selection change for a specific area and type
-  private _onAreaSensorChange(areaId: string, type: string, e: Event) {
-    const entity_id = (e.target as HTMLSelectElement).value;
+  private _onAreaSensorChange(areaId: string, type: string, value: string) {
+    const entity_id = value;
     const overrides = { ...(this.config.overrides || {}) };
     overrides[areaId] = { ...(overrides[areaId] || {}), [type]: entity_id };
     this.config = { ...this.config, overrides };
@@ -289,47 +291,62 @@ export class HausgeistCardEditor extends LitElement {
       <!-- Weather Entity Selection -->
       <div style="margin-top:1em;">
         <b>Weather Entity:</b>
-        <mwc-select
-          label="Weather Entity"
-          @selected=${(e: CustomEvent) => {
-            const idx = (e.target as any).selectedIndex;
-            const value = weatherEntities[idx]?.entity_id;
-            if (value) {
+        <ha-entity-combo-box
+          .hass=${this.hass}
+          .value=${this.config.weather_entity || 'weather.home'}
+          .includeDomains=${['weather']}
+          @value-changed=${(e: CustomEvent) => {
+            const value = e.detail.value;
+            if (value && value !== this.config.weather_entity) {
               this.config = {
                 ...this.config,
                 weather_entity: value
               };
-              this._configChanged();
+              const event = new CustomEvent('config-changed', {
+                detail: { config: this.config },
+                bubbles: true,
+                composed: true,
+              });
+              this.dispatchEvent(event);
             }
           }}
-          .value=${this.config.weather_entity || 'weather.home'}
-          style="width: 100%;"
-        >
-          ${weatherEntities.map(entity => html`
-            <mwc-list-item value="${entity.entity_id}" ?selected=${(this.config.weather_entity || 'weather.home') === entity.entity_id}>
-              ${entity.name} (${entity.entity_id})
-            </mwc-list-item>
-          `)}
-        </mwc-select>
+        ></ha-entity-combo-box>
         ${this._renderWeatherInfo()}
       </div>
 
       <!-- Default Target Temperature -->
       <div style="margin-top:1em;">
         <b>Default Target Temperature:</b>
+        <ha-entity-combo-box
+          .hass=${this.hass}
+          .value=${this.config.default_target_entity || ''}
+          .includeDomains=${['input_number','sensor','number']}
+          @value-changed=${(e: CustomEvent) => {
+            const value = e.detail.value;
+            this.config = {
+              ...this.config,
+              default_target_entity: value
+            };
+            this._configChanged();
+          }}
+        ></ha-entity-combo-box>
+        <div class="help-text">
+          Wählen Sie einen Sensor oder Helper für die Standard-Solltemperatur aus.<br />
+          Wenn leer, wird der Wert unten verwendet:
+        </div>
         <input 
-        type="number" 
-        min="15" 
-        max="30" 
-        step="0.5"
-        .value=${this.config.default_target || "21"} 
-        @change=${(e: Event) => {
-          this.config = {
-          ...this.config,
-          default_target: Number((e.target as HTMLInputElement).value)
-          };
-          this._configChanged();
-        }}
+          type="number" 
+          min="15" 
+          max="30" 
+          step="0.5"
+          .value=${this.config.default_target || "21"} 
+          @change=${(e: Event) => {
+            this.config = {
+              ...this.config,
+              default_target: Number((e.target as HTMLInputElement).value)
+            };
+            this._configChanged();
+          }}
         />°C
       </div>
 
@@ -337,6 +354,11 @@ export class HausgeistCardEditor extends LitElement {
       <b>Areas and Sensors:</b>
       ${areas.map(area => {
         const isEnabled = this.config.areas?.find(a => a.area_id === area.area_id)?.enabled !== false;
+        // Zieltemperatur (target) zuerst anzeigen
+        const sensorTypesOrdered = [
+          'target',
+          ...requiredSensorTypes.filter(t => t !== 'target')
+        ];
         return html`
         <div class="${isEnabled ? '' : 'disabled-area'}">
         <div class="area-header">
@@ -348,7 +370,7 @@ export class HausgeistCardEditor extends LitElement {
           <b>${area.name || area.area_id}</b>
         </div>
         <ul>
-          ${requiredSensorTypes.map(type => {
+          ${sensorTypesOrdered.map(type => {
           const areaSensors = states.filter((e: any) => e.attributes?.area_id === area.area_id);
           
           // 1. Direkte Übereinstimmung durch device_class
@@ -411,27 +433,22 @@ export class HausgeistCardEditor extends LitElement {
             <li>
               <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
                 <span class="sensor-label">
-                  ${type === 'target' ? 'Zieltemperatur' : 
+                  ${type === 'target' ? 'Zieltemperatur-Sensor' : 
                   type === 'heating' ? 'Heizung' :
                   type === 'heating_level' ? 'Heizleistung' :
                   type}:
                 </span>
                 <div class="sensor-select">
-                  <select
-                    @change=${(e: Event) => this._onAreaSensorChange(area.area_id, type, e)}
+                  <ha-entity-combo-box
+                    .hass=${this.hass}
                     .value=${selected || ''}
-                  >
-                    <option value="">(kein Sensor ausgewählt)</option>
-                    ${relevantEntities.map((s: any) => html`
-                      <option value="${s.entity_id}" title="${s.attributes.friendly_name || s.entity_id} [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}${s.attributes.area_id ? ` (Bereich: ${this.hass.areas?.[s.attributes.area_id]?.name || s.attributes.area_id})` : ''}">
-                        ${s.attributes.friendly_name || s.entity_id} [${s.state}${s.attributes.unit_of_measurement ? s.attributes.unit_of_measurement : ''}]${s.attributes.device_class ? ` (${s.attributes.device_class})` : ''}${s.attributes.area_id ? ` (Bereich: ${this.hass.areas?.[s.attributes.area_id]?.name || s.attributes.area_id})` : ''}
-                      </option>
-                    `)}
-                  </select>
+                    .includeDomains=${['sensor','binary_sensor','input_number','number','climate','device_tracker','person','input_boolean']}
+                    .area=${area.area_id}
+                    @value-changed=${(e: CustomEvent) => this._onAreaSensorChange(area.area_id, type, e.detail.value)}
+                  ></ha-entity-combo-box>
                   ${type === 'target' ? html`
                   <div class="help-text">
-                  Wählen Sie einen Sensor für die Zieltemperatur aus oder lassen Sie es leer, 
-                  um den Standard-Wert von ${this.config.default_target || 21}°C zu verwenden.
+                  Wählen Sie einen Sensor für die Soll-Temperatur aus. Wenn leer, wird der Standardwert (${this.config.default_target || 21}°C) verwendet.
                   </div>
                   ` : ''}
                 </div>
