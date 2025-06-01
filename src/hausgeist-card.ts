@@ -245,7 +245,6 @@ export class HausgeistCard extends LitElement {
     }
 
     const areaIds: string[] = areas.map(a => a.area_id);
-    const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
     const defaultTarget = this.config?.overrides?.default_target || 21;
     const weatherEntity = this.config.weather_entity || 'weather.home';
 
@@ -277,43 +276,54 @@ export class HausgeistCard extends LitElement {
     const context = this._buildContext(activeAreaId, [], statesArray, weatherEntity, defaultTarget);
     const evals = this.engine ? this.engine.evaluate(context) : [];
 
+    // Sammle alle evals aus allen Bereichen
+    let allEvals: Array<{msg: string, prio: string, area: string}> = [];
+    Object.entries(this._areaResults).forEach(([area, result]) => {
+      result.evals.forEach(ev => {
+        if (typeof ev === 'object' && ev.message_key) {
+          const msg = (ev.message_key && this.texts[ev.message_key]) ? this.texts[ev.message_key] : ev.message_key;
+          allEvals.push({
+            msg: msg + (Object.keys(this._areaResults).length > 1 ? ` (${result.area})` : ''),
+            prio: ev.priority,
+            area: result.area
+          });
+        }
+      });
+    });
+    // Nach Prio sortieren
+    const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
+    allEvals = allEvals.sort((a, b) =>
+      prioOrder[b.prio as keyof typeof prioOrder] - prioOrder[a.prio as keyof typeof prioOrder]
+    );
+
+    // Anzeige-Logik: Nur 1 Alert, sonst max. 3
+    let shownEvals: typeof allEvals = [];
+    const firstAlert = allEvals.find(ev => ev.prio === 'alert');
+    if (firstAlert) {
+      shownEvals = [firstAlert];
+    } else {
+      shownEvals = allEvals.slice(0, 3);
+    }
+
+    // Wichtigste Meldung als Sprechblasen-Text setzen
+    if (this.ghost3D) {
+      const tipText = shownEvals.length > 0 ? shownEvals[0].msg : (this.texts['all_ok'] || 'Alles ok!');
+      this.ghost3D.setTip(tipText);
+    }
+
     return html`
       <ha-card>
         <div class="card-content">
           <h2>👻 Hausgeist</h2>
           <div class="ghost-3d-container" style="width:220px;height:220px;margin:auto;"></div>
           ${debugBanner}
-          ${Object.entries(this._areaResults).map(([area, result]) => this._renderAreaResult(area, result))}
+          ${shownEvals.length === 0 ? html`<div class="warnbox ok">${this.texts['all_ok'] || 'Alles ok!'}</div>` : ''}
+          ${shownEvals.map(ev => html`
+            <div class="warnbox ${ev.prio}">${ev.msg}</div>
+          `)}
           ${debugOut.length > 0 ? html`<pre class="debug">${debugOut.join('\n')}</pre>` : ''}
         </div>
       </ha-card>
-    `;
-  }
-
-  private _renderAreaResult(area: string, result: { area: string; evals: any[]; usedSensors: any[] }): TemplateResult {
-    return html`
-      <div class="area-result">
-        <h3>${result.area}</h3>
-        <ul>
-          ${result.evals.map(ev => {
-            if (typeof ev === 'string') return html`<li>${ev}</li>`;
-            if (ev && typeof ev === 'object') {
-              // Zeige message, tip, description oder JSON als Fallback
-              const msg = ev.message || ev.tip || ev.description || JSON.stringify(ev);
-              return html`<li>${msg}</li>`;
-            }
-            return html`<li>${String(ev)}</li>`;
-          })}
-        </ul>
-        ${this.debug ? html`
-          <details>
-            <summary>Sensors used</summary>
-            <ul>
-              ${result.usedSensors.map(s => html`<li>${s.type}: ${s.entity_id} = ${s.value}</li>`)}
-            </ul>
-          </details>
-        ` : ''}
-      </div>
     `;
   }
 

@@ -1,6 +1,7 @@
 import { css } from 'lit';
 
-export const styles = css`
+export const styles = [
+  css`
 :host {
   display: block;
   background: var(--ha-card-background, var(--card-background-color, #fff));
@@ -52,4 +53,37 @@ p.ok {
   padding: 0.5em 1em;
   margin: 0.5em 0;
   white-space: pre-wrap;
-}`;
+  }
+  `,
+  css`
+    .warnbox {
+      border-radius: 6px;
+      padding: 0.7em 1em;
+      margin: 0.5em 0;
+      font-weight: 500;
+      box-shadow: 0 2px 8px #0001;
+      border-left: 6px solid;
+      background: #f8f8f8;
+    }
+    .warnbox.alert {
+      border-color: #d32f2f;
+      background: #ffeaea;
+      color: #b71c1c;
+    }
+    .warnbox.warn {
+      border-color: #fbc02d;
+      background: #fff8e1;
+      color: #b28704;
+    }
+    .warnbox.info {
+      border-color: #1976d2;
+      background: #e3f2fd;
+      color: #0d47a1;
+    }
+    .warnbox.ok {
+      border-color: #388e3c;
+      background: #e8f5e9;
+      color: #1b5e20;
+    }
+  `
+];

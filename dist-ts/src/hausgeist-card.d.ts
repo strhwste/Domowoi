@@ -26,7 +26,7 @@ export declare class HausgeistCard extends LitElement {
     notify: boolean;
     highThreshold: number;
     rulesJson: string;
-    static styles: import("lit").CSSResult;
+    static styles: import("lit").CSSResult[];
     private engine?;
     private texts;
     private ready;
@@ -57,7 +57,6 @@ export declare class HausgeistCard extends LitElement {
     disconnectedCallback(): void;
     private _getCurrentTip;
     render(): TemplateResult<1>;
-    private _renderAreaResult;
     private _findSensor;
     private _getTargetTemperature;
     private _buildContext;

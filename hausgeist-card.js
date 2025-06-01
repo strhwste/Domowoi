@@ -8043,7 +8043,8 @@ HausgeistCardEditor = __decorate$1([
     t$p('hausgeist-card-editor')
 ], HausgeistCardEditor);
 
-const styles = i$A `
+const styles = [
+    i$A `
 :host {
   display: block;
   background: var(--ha-card-background, var(--card-background-color, #fff));
@@ -8095,7 +8096,40 @@ p.ok {
   padding: 0.5em 1em;
   margin: 0.5em 0;
   white-space: pre-wrap;
-}`;
+  }
+  `,
+    i$A `
+    .warnbox {
+      border-radius: 6px;
+      padding: 0.7em 1em;
+      margin: 0.5em 0;
+      font-weight: 500;
+      box-shadow: 0 2px 8px #0001;
+      border-left: 6px solid;
+      background: #f8f8f8;
+    }
+    .warnbox.alert {
+      border-color: #d32f2f;
+      background: #ffeaea;
+      color: #b71c1c;
+    }
+    .warnbox.warn {
+      border-color: #fbc02d;
+      background: #fff8e1;
+      color: #b28704;
+    }
+    .warnbox.info {
+      border-color: #1976d2;
+      background: #e3f2fd;
+      color: #0d47a1;
+    }
+    .warnbox.ok {
+      border-color: #388e3c;
+      background: #e8f5e9;
+      color: #1b5e20;
+    }
+  `
+];
 
 /**
  * @license
@@ -65322,43 +65356,50 @@ let HausgeistCard = class HausgeistCard extends i$x {
         // Nur den aktiven Bereich neu auswerten und speichern
         const context = this._buildContext(activeAreaId, [], statesArray, weatherEntity, defaultTarget);
         this.engine ? this.engine.evaluate(context) : [];
+        // Sammle alle evals aus allen Bereichen
+        let allEvals = [];
+        Object.entries(this._areaResults).forEach(([area, result]) => {
+            result.evals.forEach(ev => {
+                if (typeof ev === 'object' && ev.message_key) {
+                    const msg = (ev.message_key && this.texts[ev.message_key]) ? this.texts[ev.message_key] : ev.message_key;
+                    allEvals.push({
+                        msg: msg + (Object.keys(this._areaResults).length > 1 ? ` (${result.area})` : ''),
+                        prio: ev.priority,
+                        area: result.area
+                    });
+                }
+            });
+        });
+        // Nach Prio sortieren
+        const prioOrder = { alert: 3, warn: 2, info: 1, ok: 0 };
+        allEvals = allEvals.sort((a, b) => prioOrder[b.prio] - prioOrder[a.prio]);
+        // Anzeige-Logik: Nur 1 Alert, sonst max. 3
+        let shownEvals = [];
+        const firstAlert = allEvals.find(ev => ev.prio === 'alert');
+        if (firstAlert) {
+            shownEvals = [firstAlert];
+        }
+        else {
+            shownEvals = allEvals.slice(0, 3);
+        }
+        // Wichtigste Meldung als Sprechblasen-Text setzen
+        if (this.ghost3D) {
+            const tipText = shownEvals.length > 0 ? shownEvals[0].msg : (this.texts['all_ok'] || 'Alles ok!');
+            this.ghost3D.setTip(tipText);
+        }
         return x$6 `
       <ha-card>
         <div class="card-content">
           <h2>👻 Hausgeist</h2>
           <div class="ghost-3d-container" style="width:220px;height:220px;margin:auto;"></div>
           ${debugBanner}
-          ${Object.entries(this._areaResults).map(([area, result]) => this._renderAreaResult(area, result))}
+          ${shownEvals.length === 0 ? x$6 `<div class="warnbox ok">${this.texts['all_ok'] || 'Alles ok!'}</div>` : ''}
+          ${shownEvals.map(ev => x$6 `
+            <div class="warnbox ${ev.prio}">${ev.msg}</div>
+          `)}
           ${debugOut.length > 0 ? x$6 `<pre class="debug">${debugOut.join('\n')}</pre>` : ''}
         </div>
       </ha-card>
-    `;
-    }
-    _renderAreaResult(area, result) {
-        return x$6 `
-      <div class="area-result">
-        <h3>${result.area}</h3>
-        <ul>
-          ${result.evals.map(ev => {
-            if (typeof ev === 'string')
-                return x$6 `<li>${ev}</li>`;
-            if (ev && typeof ev === 'object') {
-                // Zeige message, tip, description oder JSON als Fallback
-                const msg = ev.message || ev.tip || ev.description || JSON.stringify(ev);
-                return x$6 `<li>${msg}</li>`;
-            }
-            return x$6 `<li>${String(ev)}</li>`;
-        })}
-        </ul>
-        ${this.debug ? x$6 `
-          <details>
-            <summary>Sensors used</summary>
-            <ul>
-              ${result.usedSensors.map(s => x$6 `<li>${s.type}: ${s.entity_id} = ${s.value}</li>`)}
-            </ul>
-          </details>
-        ` : ''}
-      </div>
     `;
     }
     _findSensor(states, area, usedSensors, sensorType) {
