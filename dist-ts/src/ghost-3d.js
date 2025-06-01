@@ -41,7 +41,7 @@ export class Ghost3D {
     setPriority(priority) {
         this.currentPriority = priority;
         this._setColorByPriority(priority);
-        this._updateGlow(priority);
+        //this._updateGlow(priority);
     }
     setTip(tip) {
         this.lastTip = tip;
@@ -54,9 +54,9 @@ export class Ghost3D {
         if (this.animationId)
             cancelAnimationFrame(this.animationId);
         this.renderer.dispose();
-        if (this.model && this.glowMesh) {
-            this.model.remove(this.glowMesh);
-        }
+        //if (this.model && this.glowMesh) {
+        //  this.model.remove(this.glowMesh);
+        //}
         if (this.model && this.accessoryMesh) {
             this.model.remove(this.accessoryMesh);
         }
@@ -105,45 +105,37 @@ export class Ghost3D {
         this.model.add(hat);
         this.accessoryMesh = hat;
     }
-    _updateGlow(priority) {
-        if (!this.model)
-            return;
+    /*
+      private _updateGlow(priority: GhostPriority) {
+        if (!this.model) return;
         if (this.glowMesh && this.model.children.includes(this.glowMesh)) {
-            this.model.remove(this.glowMesh);
-            this.glowMesh.geometry.dispose();
-            this.glowMesh.material.dispose();
-            this.glowMesh = undefined;
+          this.model.remove(this.glowMesh);
+          this.glowMesh.geometry.dispose();
+          (this.glowMesh.material as THREE.Material).dispose();
+          this.glowMesh = undefined;
         }
-        let glowColor = null;
+        let glowColor: number | null = null;
         let glowOpacity = 0.18;
         switch (priority) {
-            case 'alert':
-                glowColor = 0xff4444;
-                glowOpacity = 0.22;
-                break;
-            case 'warn':
-                glowColor = 0xffc107;
-                glowOpacity = 0.13;
-                break;
-            case 'info':
-                glowColor = 0x2196f3;
-                glowOpacity = 0.10;
-                break;
-            default: return;
+          case 'alert': glowColor = 0xff4444; glowOpacity = 0.22; break;
+          case 'warn': glowColor = 0xffc107; glowOpacity = 0.13; break;
+          case 'info': glowColor = 0x2196f3; glowOpacity = 0.10; break;
+          default: return;
         }
         const geometry = new THREE.SphereGeometry(0.62, 32, 32);
         const material = new THREE.MeshBasicMaterial({
-            color: glowColor,
-            transparent: true,
-            opacity: glowOpacity,
-            depthWrite: false,
-            blending: THREE.AdditiveBlending
+          color: glowColor,
+          transparent: true,
+          opacity: glowOpacity,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending
         });
         const glow = new THREE.Mesh(geometry, material);
         glow.position.set(0, 0.38, 0);
         this.model.add(glow);
         this.glowMesh = glow;
-    }
+      }
+    */
     _createSpeechBubble(text) {
         this.speechCanvas = document.createElement('canvas');
         this.speechCanvas.width = 256;

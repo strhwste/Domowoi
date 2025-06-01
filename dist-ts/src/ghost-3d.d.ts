@@ -14,7 +14,6 @@ export declare class Ghost3D {
     private model?;
     private animationId?;
     private accessoryMesh?;
-    private glowMesh?;
     private speechMesh?;
     private speechTexture?;
     private speechCanvas?;
@@ -35,7 +34,6 @@ export declare class Ghost3D {
     dispose(): void;
     private _setColorByPriority;
     private _addAccessory;
-    private _updateGlow;
     private _createSpeechBubble;
     private _updateSpeechTexture;
     private _wrapText;

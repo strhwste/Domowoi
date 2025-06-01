@@ -19,7 +19,7 @@ export class Ghost3D {
   private model?: THREE.Object3D;
   private animationId?: number;
   private accessoryMesh?: THREE.Mesh;
-  private glowMesh?: THREE.Mesh;
+  //private glowMesh?: THREE.Mesh;
   private speechMesh?: THREE.Mesh;
   private speechTexture?: THREE.Texture;
   private speechCanvas?: HTMLCanvasElement;
@@ -75,7 +75,7 @@ export class Ghost3D {
   setPriority(priority: GhostPriority) {
     this.currentPriority = priority;
     this._setColorByPriority(priority);
-    this._updateGlow(priority);
+    //this._updateGlow(priority);
   }
 
   setTip(tip: string) {
@@ -90,9 +90,9 @@ export class Ghost3D {
   dispose() {
     if (this.animationId) cancelAnimationFrame(this.animationId);
     this.renderer.dispose();
-    if (this.model && this.glowMesh) {
-      this.model.remove(this.glowMesh);
-    }
+    //if (this.model && this.glowMesh) {
+    //  this.model.remove(this.glowMesh);
+    //}
     if (this.model && this.accessoryMesh) {
       this.model.remove(this.accessoryMesh);
     }
@@ -135,7 +135,7 @@ export class Ghost3D {
     this.model.add(hat);
     this.accessoryMesh = hat;
   }
-
+/*
   private _updateGlow(priority: GhostPriority) {
     if (!this.model) return;
     if (this.glowMesh && this.model.children.includes(this.glowMesh)) {
@@ -165,7 +165,7 @@ export class Ghost3D {
     this.model.add(glow);
     this.glowMesh = glow;
   }
-
+*/
   private _createSpeechBubble(text: string) {
     this.speechCanvas = document.createElement('canvas');
     this.speechCanvas.width = 256;
