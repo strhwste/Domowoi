@@ -90,6 +90,12 @@ export class HausgeistCard extends LitElement {
   // 1. Animationen & Emotionen: Ghost-Farbe je nach Priorität
   private _currentPriority: string = 'ok';
 
+  // Bereichsrotation: Pro Render nur einen Bereich auswerten
+  private _currentAreaIndex: number = 0;
+  private _lastAreaEvalTimestamp: number = 0;
+  private _areaEvalInterval: number = 2000; // ms, wie oft ein Bereich neu evaluiert wird
+  private _areaResults: Record<string, { area: string; evals: any[]; usedSensors: { type: string; entity_id: string; value: any }[] }> = {};
+
   async connectedCallback() {
     super.connectedCallback();
     
@@ -257,91 +263,117 @@ export class HausgeistCard extends LitElement {
     const areaIdToName: Record<string, string> = {};
     areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
 
+    // Bereichsrotation: Pro Render nur einen Bereich auswerten und Ergebnis zwischenspeichern
+    const now = Date.now();
+    if (!this._lastAreaEvalTimestamp || now - this._lastAreaEvalTimestamp > this._areaEvalInterval) {
+      this._currentAreaIndex = (this._currentAreaIndex + 1) % areaIds.length;
+      this._lastAreaEvalTimestamp = now;
+    }
+    const activeAreaId = areaIds[this._currentAreaIndex];
+
+    // Nur den aktiven Bereich neu auswerten und speichern
+    const area = activeAreaId;
+    const sensors = filterSensorsByArea(statesArray, area);
+    const usedSensors: { type: string; entity_id: string; value: any }[] = [];
+    if (this.debug) {
+      debugOut.push(`Processing area: ${area}`);
+      debugOut.push(`Available sensors: ${sensors.map((s) => s.entity_id).join(', ')}`);
+      debugOut.push(`Configured overrides: ${JSON.stringify(this.config?.overrides?.[area])}`);
+      debugOut.push(`Auto-detected sensors: ${JSON.stringify(this.config?.auto?.[area])}`);
+    }
+    const findSensor = (cls: keyof typeof SENSOR_KEYWORDS) => {
+      return this._findSensor(statesArray, area, usedSensors, cls);
+    };
+    const requiredSensorTypes: (keyof typeof SENSOR_KEYWORDS)[] = [
+      'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'energy', 'motion', 'occupancy', 'air_quality', 'rain', 'sun', 'adjacent', 'forecast'
+    ];
+    requiredSensorTypes.forEach(type => { findSensor(type); });
+    const get = (cls: keyof typeof SENSOR_KEYWORDS) => {
+      const s = findSensor(cls);
+      return s ? Number(s.state) : undefined;
+    };
+    const findState = (fn: (e: any) => boolean) => {
+      const found = statesArray.find(fn);
+      return found ? (found as any) : undefined;
+    };
+    const weatherEntityId = this.config.weather_entity || weatherEntity || 'weather.home';
+    const weather = findState((e: any) => e.entity_id === weatherEntityId);
+    const weatherAttributes = weather?.attributes || {};
+    const forecast = weatherAttributes.forecast?.[0] || {};
+    const context: Record<string, any> = {
+      target: Number(findState((e: any) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
+      temp: get('temperature'),
+      humidity: get('humidity'),
+      co2: get('co2'),
+      window: findState((e: any) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
+      heating: findState((e: any) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
+      outside_temp: Number(weatherAttributes.temperature ?? this.config.default_outside_temp ?? 15),
+      occupied: findState((e: any) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
+      forecast_temp: Number(forecast.temperature ?? 15),
+      forecast_high: (() => {
+        if (Array.isArray(weatherAttributes.forecast)) {
+          // Finde Höchsttemperatur für heute
+          const today = new Date();
+          const todayStr = today.toISOString().slice(0, 10);
+          const todayForecasts = weatherAttributes.forecast.filter((f: any) =>
+            (f.datetime || f.datetime_iso || f.time || '').slice(0, 10) === todayStr
+          );
+          if (todayForecasts.length > 0) {
+            return Math.max(...todayForecasts.map((f: any) => Number(f.temperature ?? f.temp ?? -99)));
+          }
+        }
+        return undefined;
+      })(),
+      forecast_low: (() => {
+        if (Array.isArray(weatherAttributes.forecast)) {
+          const today = new Date();
+          const todayStr = today.toISOString().slice(0, 10);
+          const todayForecasts = weatherAttributes.forecast.filter((f: any) =>
+            (f.datetime || f.datetime_iso || f.time || '').slice(0, 10) === todayStr
+          );
+          if (todayForecasts.length > 0) {
+            return Math.min(...todayForecasts.map((f: any) => Number(f.temperature ?? f.temp ?? 99)));
+          }
+        }
+        return undefined;
+      })(),
+      rain_soon: (() => {
+        if (Array.isArray(weatherAttributes.forecast)) {
+          // Regen in den nächsten 6 Stunden?
+          const now = new Date();
+          const next6h = new Date(now.getTime() + 6 * 3600 * 1000);
+          return weatherAttributes.forecast.some((f: any) => {
+            const t = new Date(f.datetime || f.datetime_iso || f.time || 0);
+            return t > now && t <= next6h && ((f.precipitation ?? 0) > 0 || (f.condition && f.condition.toLowerCase().includes('rain')));
+          });
+        }
+        return (forecast.precipitation ?? 0) > 0 || (forecast.condition === 'rainy');
+      })(),
+      forecast_sun: forecast.condition === 'sunny',
+      debug: this.debug,
+      motion: findState((e: any) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
+      door: findState((e: any) => e.entity_id.includes('door') && e.attributes.area_id === area)?.state,
+    };
+    const evals = this.engine ? this.engine.evaluate(context) : [];
+    if (this.debug) {
+      debugOut.push(
+        `--- ${area} ---\n` +
+        'Sensors used:\n' +
+        usedSensors.map((s) => `  [${s.type}] ${s.entity_id}: ${s.value}`).join('\n') +
+        `\nRules checked: ${this.engine ? this.engine['rules'].length : 0}\n` +
+        `Rules matched: ${evals.length}\n` +
+        evals.map((ev: any) => `${ev.priority}: ${ev.message_key}`).join("\n")
+      );
+    }
+    this._areaResults[area] = { area: areaIdToName[area] || area, evals, usedSensors };
+
+    // Alle gespeicherten Bereichsergebnisse für die Anzeige verwenden
     const areaMessages: {
       area: string;
       evals: any[];
       usedSensors: { type: string; entity_id: string; value: any }[];
-    }[] = areaIds.map((area) => {
-      const sensors = filterSensorsByArea(statesArray, area);
-      const usedSensors: { type: string; entity_id: string; value: any }[] = [];
-      
-      if (this.debug) {
-        debugOut.push(`Processing area: ${area}`);
-        debugOut.push(`Available sensors: ${sensors.map((s) => s.entity_id).join(', ')}`);
-        debugOut.push(`Configured overrides: ${JSON.stringify(this.config?.overrides?.[area])}`);
-        debugOut.push(`Auto-detected sensors: ${JSON.stringify(this.config?.auto?.[area])}`);
-      }
+    }[] = areaIds.map(id => this._areaResults[id] || { area: areaIdToName[id] || id, evals: [], usedSensors: [] });
 
-      // Use imported SENSOR_KEYWORDS from sensor-keywords.ts
-      const findSensor = (cls: keyof typeof SENSOR_KEYWORDS) => {
-        return this._findSensor(statesArray, area, usedSensors, cls);
-      };
-      // Ensure all required sensor types are checked for sensor presence (for usedSensors and warning logic)
-      const requiredSensorTypes: (keyof typeof SENSOR_KEYWORDS)[] = [
-        'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'energy', 'motion', 'occupancy', 'air_quality', 'rain', 'sun', 'adjacent', 'forecast'
-      ];
-      // Call findSensor for all required types to populate usedSensors, even if not used in context
-      requiredSensorTypes.forEach(type => { findSensor(type); });
-      const get = (cls: keyof typeof SENSOR_KEYWORDS) => {
-        const s = findSensor(cls);
-        return s ? Number(s.state) : undefined;
-      };
-      // Helper to always cast to 'any' for state lookups
-      const findState = (fn: (e: any) => boolean) => {
-        const found = statesArray.find(fn);
-        return found ? (found as any) : undefined;
-      };
-      // Get target temperature, default to config override or 21°C
-      // Wetterdaten holen
-      // Nutze die weather_entity aus der aktuellen config (Editor-Auswahl), fallback auf Standard
-      const weatherEntityId = this.config.weather_entity || weatherEntity || 'weather.home';
-      const weather = findState((e: any) => e.entity_id === weatherEntityId);
-      const weatherAttributes = weather?.attributes || {};
-      const forecast = weatherAttributes.forecast?.[0] || {};
-
-      const context: Record<string, any> = {
-        target: Number(findState((e: any) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
-        temp: get('temperature'),
-        humidity: get('humidity'),
-        co2: get('co2'),
-        window: findState((e: any) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
-        heating: findState((e: any) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
-        outside_temp: Number(weatherAttributes.temperature ?? this.config.default_outside_temp ?? 15),
-        occupied: findState((e: any) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
-        forecast_temp: Number(forecast.temperature ?? 15),
-        energy: Number(findState((e: any) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
-        high_threshold: this.highThreshold,
-        temp_change_rate: this._calculateTempChangeRate(area, states),
-        now: Date.now(),
-        curtain: findState((e: any) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
-        blind: findState((e: any) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
-        adjacent_room_temp: Number((findState((e: any) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? this.config.default_adjacent_room_temp) || 0),
-        rain_soon: typeof forecast.precipitation === 'number' && forecast.precipitation > 0,
-        air_quality: (() => {
-          const airQualityState = findState((e: any) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state;
-          return airQualityState !== undefined ? airQualityState : 'unknown';
-        })(),
-        forecast_sun: forecast.condition === 'sunny',
-        debug: this.debug,
-        motion: findState((e: any) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
-        door: findState((e: any) => e.entity_id.includes('door') && e.attributes.area_id === area)?.state,
-      };
-
-      const evals = this.engine ? this.engine.evaluate(context) : [];
-      if (this.debug) {
-        debugOut.push(
-          `--- ${area} ---\n` +
-          'Sensors used:\n' +
-          usedSensors.map((s) => `  [${s.type}] ${s.entity_id}: ${s.value}`).join('\n') +
-          `\nRules checked: ${this.engine ? this.engine['rules'].length : 0}\n` +
-          `Rules matched: ${evals.length}\n` +
-          evals.map((ev: any) => `${ev.priority}: ${ev.message_key}`).join("\n")
-        );
-      }
-      return { area: areaIdToName[area] || area, evals, usedSensors };
-    });
-
-    // Only show areas with rule matches
     const topMessages = areaMessages
       .filter((a) => a.evals.length > 0)
       .map((a) => {
@@ -484,7 +516,45 @@ export class HausgeistCard extends LitElement {
       // Weather data directly from weather entity
       outside_temp: Number(weatherAttributes.temperature ?? 15),
       forecast_temp: Number(forecast.temperature ?? 15),
-      rain_soon: (forecast.precipitation ?? 0) > 0,
+      forecast_high: (() => {
+        if (Array.isArray(weatherAttributes.forecast)) {
+          // Finde Höchsttemperatur für heute
+          const today = new Date();
+          const todayStr = today.toISOString().slice(0, 10);
+          const todayForecasts = weatherAttributes.forecast.filter((f: any) =>
+            (f.datetime || f.datetime_iso || f.time || '').slice(0, 10) === todayStr
+          );
+          if (todayForecasts.length > 0) {
+            return Math.max(...todayForecasts.map((f: any) => Number(f.temperature ?? f.temp ?? -99)));
+          }
+        }
+        return undefined;
+      })(),
+      forecast_low: (() => {
+        if (Array.isArray(weatherAttributes.forecast)) {
+          const today = new Date();
+          const todayStr = today.toISOString().slice(0, 10);
+          const todayForecasts = weatherAttributes.forecast.filter((f: any) =>
+            (f.datetime || f.datetime_iso || f.time || '').slice(0, 10) === todayStr
+          );
+          if (todayForecasts.length > 0) {
+            return Math.min(...todayForecasts.map((f: any) => Number(f.temperature ?? f.temp ?? 99)));
+          }
+        }
+        return undefined;
+      })(),
+      rain_soon: (() => {
+        if (Array.isArray(weatherAttributes.forecast)) {
+          // Regen in den nächsten 6 Stunden?
+          const now = new Date();
+          const next6h = new Date(now.getTime() + 6 * 3600 * 1000);
+          return weatherAttributes.forecast.some((f: any) => {
+            const t = new Date(f.datetime || f.datetime_iso || f.time || 0);
+            return t > now && t <= next6h && ((f.precipitation ?? 0) > 0 || (f.condition && f.condition.toLowerCase().includes('rain')));
+          });
+        }
+        return (forecast.precipitation ?? 0) > 0 || (forecast.condition === 'rainy');
+      })(),
       forecast_sun: forecast.condition === 'sunny',
       
       // Additional sensor data

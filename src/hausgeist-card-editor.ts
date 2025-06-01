@@ -44,6 +44,33 @@ export class HausgeistCardEditor extends LitElement {
     return s && s.entity_id ? s.entity_id : undefined;
   }
 
+  private _renderWeatherInfo() {
+    const selectedWeather = this.hass?.states?.[this.config.weather_entity || 'weather.home'];
+    if (!selectedWeather) return '';
+    const temp = selectedWeather.attributes?.temperature;
+    const tempUnit = selectedWeather.attributes?.temperature_unit || selectedWeather.attributes?.unit_of_measurement || 'unknown unit';
+    // Rain: try precipitation, precipitation_probability, or forecast
+    let rain = selectedWeather.attributes?.precipitation;
+    let rainUnit = selectedWeather.attributes?.precipitation_unit || 'mm';
+    if (rain === undefined && Array.isArray(selectedWeather.attributes?.forecast) && selectedWeather.attributes.forecast.length > 0) {
+      rain = selectedWeather.attributes.forecast[0].precipitation ?? selectedWeather.attributes.forecast[0].rain;
+      rainUnit = selectedWeather.attributes.forecast[0].precipitation_unit || rainUnit;
+    }
+    // Precipitation probability
+    let rainProb = selectedWeather.attributes?.precipitation_probability;
+    if (rainProb === undefined && selectedWeather.attributes?.forecast && Array.isArray(selectedWeather.attributes.forecast) && selectedWeather.attributes.forecast.length > 0) {
+      rainProb = selectedWeather.attributes.forecast[0].precipitation_probability;
+    }
+    return html`
+      <div class="weather-info">
+        Temperatur: ${temp !== undefined ? `${temp} ${tempUnit}` : 'n/a'}
+        <br />
+        Regen: ${rain !== undefined ? `${rain} ${rainUnit}` : 'n/a'}
+        ${rainProb !== undefined ? html`<br />Regenwahrscheinlichkeit: ${rainProb}%` : ''}
+      </div>
+    `;
+  }
+
   setConfig(config: any) {
     this.config = config;
   }
@@ -265,32 +292,8 @@ export class HausgeistCardEditor extends LitElement {
           ${entity.name} (${entity.entity_id})
           </option>
         `)}
-        </select>
-        ${
-        (() => {
-          const selectedWeather = hass?.states?.[this.config.weather_entity || 'weather.home'];
-          if (!selectedWeather) return '';
-          const temp = selectedWeather.attributes?.temperature;
-          const tempUnit = selectedWeather.attributes?.temperature_unit || selectedWeather.attributes?.unit_of_measurement || '°C';
-          // Rain: try precipitation, precipitation_probability, or forecast
-          let rain = selectedWeather.attributes?.precipitation;
-          let rainUnit = selectedWeather.attributes?.precipitation_unit || 'mm';
-          if (rain === undefined && selectedWeather.attributes?.forecast && Array.isArray(selectedWeather.attributes.forecast) && selectedWeather.attributes.forecast.length > 0) {
-          rain = selectedWeather.attributes.forecast[0].precipitation ?? selectedWeather.attributes.forecast[0].rain;
-          rainUnit = selectedWeather.attributes.forecast[0].precipitation_unit || rainUnit;
-          }
-          // Precipitation probability
-          let rainProb = selectedWeather.attributes?.precipitation_probability;
-          if (rainProb === undefined && selectedWeather.attributes?.forecast && Array.isArray(selectedWeather.attributes.forecast) && selectedWeather.attributes.forecast.length > 0) {
-          rainProb = selectedWeather.attributes.forecast[0].precipitation_probability;
-          }
-          return html`
-          <div class="weather-info">
-            Temperatur: ${temp !== undefined ? `${temp} ${tempUnit}` : 'n/a'}
-            <br />
-            Regen: ${rain !== undefined ? `${rain} ${rainUnit}` : 'n/a'}
-            ${rainProb !== undefined ? html`<br />Regenwahrscheinlichkeit: ${rainProb}%` : ''}
-          </div>
+            <br />Regenwahrscheinlichkeit: ${rainProb !== undefined ? `${rainProb}%` : 'n/a'}
+        ${this._renderWeatherInfo()}
           `;
         })()
         }

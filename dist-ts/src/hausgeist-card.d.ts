@@ -44,6 +44,10 @@ export declare class HausgeistCard extends LitElement {
     private lastTip;
     private ghostLoadError;
     private _currentPriority;
+    private _currentAreaIndex;
+    private _lastAreaEvalTimestamp;
+    private _areaEvalInterval;
+    private _areaResults;
     connectedCallback(): Promise<void>;
     updated(changedProps: PropertyValues): void;
     disconnectedCallback(): void;
