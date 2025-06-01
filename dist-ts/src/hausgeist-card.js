@@ -183,8 +183,8 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         const modelUrl = this.config.ghost_model_url || '/local/ghost.glb';
         loader.load(modelUrl, (gltf) => {
             this.ghostModel = gltf.scene;
-            this.ghostModel.position.set(0, 1.8, 0);
-            this.ghostModel.scale.set(1.2, 1.2, 1.2);
+            this.ghostModel.position.set(0, 5, 0);
+            this.ghostModel.scale.set(1, 1, 1);
             // Schatten aktivieren und Material aufhellen
             this.ghostModel.traverse((obj) => {
                 if (obj.isMesh) {
@@ -193,7 +193,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                     if (obj.material && obj.material.color) {
                         obj.material.color.multiplyScalar(1.8); // Helle das Material auf
                         obj.material.emissive.set(0x222222); // Leichtes Emissive für sanftes Leuchten
-                        obj.material.emissiveIntensity = 0.8; // Sanftes Leuchten
+                        obj.material.emissiveIntensity = 1.8; // Sanftes Leuchten
                     }
                 }
             });
@@ -208,15 +208,14 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         });
     }
     _createGhostSpeechBubble(text) {
-        // Hochauflösende Canvas für scharfen Text
-        const scale = 3; // 3x Auflösung für Schärfe
+        // Normale Canvas-Auflösung
         const baseWidth = 380, baseHeight = 100;
         this.ghostSpeechCanvas = document.createElement('canvas');
-        this.ghostSpeechCanvas.width = baseWidth * scale;
-        this.ghostSpeechCanvas.height = baseHeight * scale;
+        this.ghostSpeechCanvas.width = baseWidth;
+        this.ghostSpeechCanvas.height = baseHeight;
         this.ghostSpeechCtx = this.ghostSpeechCanvas.getContext('2d');
         // Initiales Zeichnen
-        this._updateGhostSpeechTexture(text, scale);
+        this._updateGhostSpeechTexture(text, 1);
         this.ghostSpeechTexture = new THREE.Texture(this.ghostSpeechCanvas);
         this.ghostSpeechTexture.needsUpdate = true;
         // Plane-Geometrie bleibt wie gehabt

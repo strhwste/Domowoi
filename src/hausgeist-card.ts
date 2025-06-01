@@ -212,7 +212,8 @@ export class HausgeistCard extends LitElement {
     groundLight.shadow.camera.fov = 45;
     groundLight.shadow.bias = -0.01; // Leichtes Bias, um Schattenartefakte zu vermeiden
     groundLight.shadow.radius = 2; // Weicher Schatten
-    groundLight.shadow.normalBias = 0.05; // Normal Bias für weichere Schatten
+    groundLight.shadow.normalBias = 0.2; // Normal Bias für weichere Schatten
+    groundLight.shadow.opacity = 0.5; // Leicht transparente Schatten
     groundLight.penumbra = 0.7; // Leichte Penumbra für weichere Kanten
     this.ghostScene.add(groundLight);
     this.ghostScene.add(groundLight.target);
@@ -231,8 +232,8 @@ export class HausgeistCard extends LitElement {
       modelUrl,
       (gltf: { scene: THREE.Object3D }) => {
         this.ghostModel = gltf.scene;
-        this.ghostModel.position.set(0, 1.8, 0);
-        this.ghostModel.scale.set(1.2, 1.2, 1.2);
+        this.ghostModel.position.set(0, 5, 0);
+        this.ghostModel.scale.set(1, 1, 1);
         // Schatten aktivieren und Material aufhellen
         this.ghostModel.traverse((obj: any) => {
           if (obj.isMesh) {
@@ -241,7 +242,7 @@ export class HausgeistCard extends LitElement {
             if (obj.material && obj.material.color) {
               obj.material.color.multiplyScalar(1.8); // Helle das Material auf
               obj.material.emissive.set(0x222222); // Leichtes Emissive für sanftes Leuchten
-              obj.material.emissiveIntensity = 0.8; // Sanftes Leuchten
+              obj.material.emissiveIntensity = 1.8; // Sanftes Leuchten
             }
           }
         });
@@ -260,15 +261,14 @@ export class HausgeistCard extends LitElement {
   }
 
   private _createGhostSpeechBubble(text: string) {
-    // Hochauflösende Canvas für scharfen Text
-    const scale = 3; // 3x Auflösung für Schärfe
+    // Normale Canvas-Auflösung
     const baseWidth = 380, baseHeight = 100;
     this.ghostSpeechCanvas = document.createElement('canvas');
-    this.ghostSpeechCanvas.width = baseWidth * scale;
-    this.ghostSpeechCanvas.height = baseHeight * scale;
+    this.ghostSpeechCanvas.width = baseWidth;
+    this.ghostSpeechCanvas.height = baseHeight;
     this.ghostSpeechCtx = this.ghostSpeechCanvas.getContext('2d');
     // Initiales Zeichnen
-    this._updateGhostSpeechTexture(text, scale);
+    this._updateGhostSpeechTexture(text, 1);
     this.ghostSpeechTexture = new THREE.Texture(this.ghostSpeechCanvas);
     this.ghostSpeechTexture.needsUpdate = true;
     // Plane-Geometrie bleibt wie gehabt
@@ -368,7 +368,11 @@ export class HausgeistCard extends LitElement {
     if (!this.ghostScene || !this.ghostCamera || !this.ghostRenderer || !this.ghostModel) return;
     const t = performance.now() * 0.001;
     // Schwebende Animation
-    this.ghostModel.position.y = 0.5 + Math.sin(t * 2) * 0.1;
+    this.ghostModel.position.y = 0.5 + Math.sin(t * 1.5) * 0.1;
+    this.ghostModel.position.x = 0.5 + Math.sin(t * 0.5) * 0.1;
+    this.ghostModel.position.z = 0.5 + Math.sin(t * 0.2) * 0.1; 
+    // Rotation für sanfte Bewegung
+    this.ghostModel.rotation.x = Math.sin(t * 0.2) * 0.1;
     this.ghostModel.rotation.y = Math.sin(t * 0.5) * 0.3;
     // Speech bubble folgt dem Geist
     if (this.ghostSpeechMesh) {
