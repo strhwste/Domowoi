@@ -26707,6 +26707,331 @@ class DepthTexture extends Texture {
 }
 
 /**
+ * A geometry class for representing a cylinder.
+ *
+ * ```js
+ * const geometry = new THREE.CylinderGeometry( 5, 5, 20, 32 );
+ * const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
+ * const cylinder = new THREE.Mesh( geometry, material );
+ * scene.add( cylinder );
+ * ```
+ *
+ * @augments BufferGeometry
+ */
+class CylinderGeometry extends BufferGeometry {
+
+	/**
+	 * Constructs a new cylinder geometry.
+	 *
+	 * @param {number} [radiusTop=1] - Radius of the cylinder at the top.
+	 * @param {number} [radiusBottom=1] - Radius of the cylinder at the bottom.
+	 * @param {number} [height=1] - Height of the cylinder.
+	 * @param {number} [radialSegments=32] - Number of segmented faces around the circumference of the cylinder.
+	 * @param {number} [heightSegments=1] - Number of rows of faces along the height of the cylinder.
+	 * @param {boolean} [openEnded=false] - Whether the base of the cylinder is open or capped.
+	 * @param {number} [thetaStart=0] - Start angle for first segment, in radians.
+	 * @param {number} [thetaLength=Math.PI*2] - The central angle, often called theta, of the circular sector, in radians.
+	 * The default value results in a complete cylinder.
+	 */
+	constructor( radiusTop = 1, radiusBottom = 1, height = 1, radialSegments = 32, heightSegments = 1, openEnded = false, thetaStart = 0, thetaLength = Math.PI * 2 ) {
+
+		super();
+
+		this.type = 'CylinderGeometry';
+
+		/**
+		 * Holds the constructor parameters that have been
+		 * used to generate the geometry. Any modification
+		 * after instantiation does not change the geometry.
+		 *
+		 * @type {Object}
+		 */
+		this.parameters = {
+			radiusTop: radiusTop,
+			radiusBottom: radiusBottom,
+			height: height,
+			radialSegments: radialSegments,
+			heightSegments: heightSegments,
+			openEnded: openEnded,
+			thetaStart: thetaStart,
+			thetaLength: thetaLength
+		};
+
+		const scope = this;
+
+		radialSegments = Math.floor( radialSegments );
+		heightSegments = Math.floor( heightSegments );
+
+		// buffers
+
+		const indices = [];
+		const vertices = [];
+		const normals = [];
+		const uvs = [];
+
+		// helper variables
+
+		let index = 0;
+		const indexArray = [];
+		const halfHeight = height / 2;
+		let groupStart = 0;
+
+		// generate geometry
+
+		generateTorso();
+
+		if ( openEnded === false ) {
+
+			if ( radiusTop > 0 ) generateCap( true );
+			if ( radiusBottom > 0 ) generateCap( false );
+
+		}
+
+		// build geometry
+
+		this.setIndex( indices );
+		this.setAttribute( 'position', new Float32BufferAttribute( vertices, 3 ) );
+		this.setAttribute( 'normal', new Float32BufferAttribute( normals, 3 ) );
+		this.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
+
+		function generateTorso() {
+
+			const normal = new Vector3();
+			const vertex = new Vector3();
+
+			let groupCount = 0;
+
+			// this will be used to calculate the normal
+			const slope = ( radiusBottom - radiusTop ) / height;
+
+			// generate vertices, normals and uvs
+
+			for ( let y = 0; y <= heightSegments; y ++ ) {
+
+				const indexRow = [];
+
+				const v = y / heightSegments;
+
+				// calculate the radius of the current row
+
+				const radius = v * ( radiusBottom - radiusTop ) + radiusTop;
+
+				for ( let x = 0; x <= radialSegments; x ++ ) {
+
+					const u = x / radialSegments;
+
+					const theta = u * thetaLength + thetaStart;
+
+					const sinTheta = Math.sin( theta );
+					const cosTheta = Math.cos( theta );
+
+					// vertex
+
+					vertex.x = radius * sinTheta;
+					vertex.y = - v * height + halfHeight;
+					vertex.z = radius * cosTheta;
+					vertices.push( vertex.x, vertex.y, vertex.z );
+
+					// normal
+
+					normal.set( sinTheta, slope, cosTheta ).normalize();
+					normals.push( normal.x, normal.y, normal.z );
+
+					// uv
+
+					uvs.push( u, 1 - v );
+
+					// save index of vertex in respective row
+
+					indexRow.push( index ++ );
+
+				}
+
+				// now save vertices of the row in our index array
+
+				indexArray.push( indexRow );
+
+			}
+
+			// generate indices
+
+			for ( let x = 0; x < radialSegments; x ++ ) {
+
+				for ( let y = 0; y < heightSegments; y ++ ) {
+
+					// we use the index array to access the correct indices
+
+					const a = indexArray[ y ][ x ];
+					const b = indexArray[ y + 1 ][ x ];
+					const c = indexArray[ y + 1 ][ x + 1 ];
+					const d = indexArray[ y ][ x + 1 ];
+
+					// faces
+
+					if ( radiusTop > 0 || y !== 0 ) {
+
+						indices.push( a, b, d );
+						groupCount += 3;
+
+					}
+
+					if ( radiusBottom > 0 || y !== heightSegments - 1 ) {
+
+						indices.push( b, c, d );
+						groupCount += 3;
+
+					}
+
+				}
+
+			}
+
+			// add a group to the geometry. this will ensure multi material support
+
+			scope.addGroup( groupStart, groupCount, 0 );
+
+			// calculate new start value for groups
+
+			groupStart += groupCount;
+
+		}
+
+		function generateCap( top ) {
+
+			// save the index of the first center vertex
+			const centerIndexStart = index;
+
+			const uv = new Vector2();
+			const vertex = new Vector3();
+
+			let groupCount = 0;
+
+			const radius = ( top === true ) ? radiusTop : radiusBottom;
+			const sign = ( top === true ) ? 1 : -1;
+
+			// first we generate the center vertex data of the cap.
+			// because the geometry needs one set of uvs per face,
+			// we must generate a center vertex per face/segment
+
+			for ( let x = 1; x <= radialSegments; x ++ ) {
+
+				// vertex
+
+				vertices.push( 0, halfHeight * sign, 0 );
+
+				// normal
+
+				normals.push( 0, sign, 0 );
+
+				// uv
+
+				uvs.push( 0.5, 0.5 );
+
+				// increase index
+
+				index ++;
+
+			}
+
+			// save the index of the last center vertex
+			const centerIndexEnd = index;
+
+			// now we generate the surrounding vertices, normals and uvs
+
+			for ( let x = 0; x <= radialSegments; x ++ ) {
+
+				const u = x / radialSegments;
+				const theta = u * thetaLength + thetaStart;
+
+				const cosTheta = Math.cos( theta );
+				const sinTheta = Math.sin( theta );
+
+				// vertex
+
+				vertex.x = radius * sinTheta;
+				vertex.y = halfHeight * sign;
+				vertex.z = radius * cosTheta;
+				vertices.push( vertex.x, vertex.y, vertex.z );
+
+				// normal
+
+				normals.push( 0, sign, 0 );
+
+				// uv
+
+				uv.x = ( cosTheta * 0.5 ) + 0.5;
+				uv.y = ( sinTheta * 0.5 * sign ) + 0.5;
+				uvs.push( uv.x, uv.y );
+
+				// increase index
+
+				index ++;
+
+			}
+
+			// generate indices
+
+			for ( let x = 0; x < radialSegments; x ++ ) {
+
+				const c = centerIndexStart + x;
+				const i = centerIndexEnd + x;
+
+				if ( top === true ) {
+
+					// face top
+
+					indices.push( i, i + 1, c );
+
+				} else {
+
+					// face bottom
+
+					indices.push( i + 1, i, c );
+
+				}
+
+				groupCount += 3;
+
+			}
+
+			// add a group to the geometry. this will ensure multi material support
+
+			scope.addGroup( groupStart, groupCount, top === true ? 1 : 2 );
+
+			// calculate new start value for groups
+
+			groupStart += groupCount;
+
+		}
+
+	}
+
+	copy( source ) {
+
+		super.copy( source );
+
+		this.parameters = Object.assign( {}, source.parameters );
+
+		return this;
+
+	}
+
+	/**
+	 * Factory method for creating an instance of this class from the given
+	 * JSON object.
+	 *
+	 * @param {Object} data - A JSON object representing the serialized geometry.
+	 * @return {CylinderGeometry} A new instance.
+	 */
+	static fromJSON( data ) {
+
+		return new CylinderGeometry( data.radiusTop, data.radiusBottom, data.height, data.radialSegments, data.heightSegments, data.openEnded, data.thetaStart, data.thetaLength );
+
+	}
+
+}
+
+/**
  * A geometry class for representing a plane.
  *
  * ```js
@@ -26829,93 +27154,6 @@ class PlaneGeometry extends BufferGeometry {
 	static fromJSON( data ) {
 
 		return new PlaneGeometry( data.width, data.height, data.widthSegments, data.heightSegments );
-
-	}
-
-}
-
-/**
- * This material can receive shadows, but otherwise is completely transparent.
- *
- * ```js
- * const geometry = new THREE.PlaneGeometry( 2000, 2000 );
- * geometry.rotateX( - Math.PI / 2 );
- *
- * const material = new THREE.ShadowMaterial();
- * material.opacity = 0.2;
- *
- * const plane = new THREE.Mesh( geometry, material );
- * plane.position.y = -200;
- * plane.receiveShadow = true;
- * scene.add( plane );
- * ```
- *
- * @augments Material
- */
-class ShadowMaterial extends Material {
-
-	/**
-	 * Constructs a new shadow material.
-	 *
-	 * @param {Object} [parameters] - An object with one or more properties
-	 * defining the material's appearance. Any property of the material
-	 * (including any property from inherited materials) can be passed
-	 * in here. Color values can be passed any type of value accepted
-	 * by {@link Color#set}.
-	 */
-	constructor( parameters ) {
-
-		super();
-
-		/**
-		 * This flag can be used for type testing.
-		 *
-		 * @type {boolean}
-		 * @readonly
-		 * @default true
-		 */
-		this.isShadowMaterial = true;
-
-		this.type = 'ShadowMaterial';
-
-		/**
-		 * Color of the material.
-		 *
-		 * @type {Color}
-		 * @default (0,0,0)
-		 */
-		this.color = new Color( 0x000000 );
-
-		/**
-		 * Overwritten since shadow materials are transparent
-		 * by default.
-		 *
-		 * @type {boolean}
-		 * @default true
-		 */
-		this.transparent = true;
-
-		/**
-		 * Whether the material is affected by fog or not.
-		 *
-		 * @type {boolean}
-		 * @default true
-		 */
-		this.fog = true;
-
-		this.setValues( parameters );
-
-	}
-
-	copy( source ) {
-
-		super.copy( source );
-
-		this.color.copy( source.color );
-
-		this.fog = source.fog;
-
-		return this;
 
 	}
 
@@ -31490,67 +31728,6 @@ class Light extends Object3D {
 		if ( this.target !== undefined ) data.object.target = this.target.uuid;
 
 		return data;
-
-	}
-
-}
-
-/**
- * A light source positioned directly above the scene, with color fading from
- * the sky color to the ground color.
- *
- * This light cannot be used to cast shadows.
- *
- * ```js
- * const light = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1 );
- * scene.add( light );
- * ```
- *
- * @augments Light
- */
-class HemisphereLight extends Light {
-
-	/**
-	 * Constructs a new hemisphere light.
-	 *
-	 * @param {(number|Color|string)} [skyColor=0xffffff] - The light's sky color.
-	 * @param {(number|Color|string)} [groundColor=0xffffff] - The light's ground color.
-	 * @param {number} [intensity=1] - The light's strength/intensity.
-	 */
-	constructor( skyColor, groundColor, intensity ) {
-
-		super( skyColor, intensity );
-
-		/**
-		 * This flag can be used for type testing.
-		 *
-		 * @type {boolean}
-		 * @readonly
-		 * @default true
-		 */
-		this.isHemisphereLight = true;
-
-		this.type = 'HemisphereLight';
-
-		this.position.copy( Object3D.DEFAULT_UP );
-		this.updateMatrix();
-
-		/**
-		 * The light's ground color.
-		 *
-		 * @type {Color}
-		 */
-		this.groundColor = new Color( groundColor );
-
-	}
-
-	copy( source, recursive ) {
-
-		super.copy( source, recursive );
-
-		this.groundColor.copy( source.groundColor );
-
-		return this;
 
 	}
 
@@ -57049,6 +57226,8 @@ let HausgeistCard = class HausgeistCard extends i {
         this.ready = false;
         this.lastTip = '';
         this.ghostLoadError = false;
+        // 1. Animationen & Emotionen: Ghost-Farbe je nach Priorität
+        this._currentPriority = 'ok';
     }
     // Support the editor UI
     static async getConfigElement() {
@@ -57122,16 +57301,13 @@ let HausgeistCard = class HausgeistCard extends i {
     // Canvas-Initialisierung nach jedem Render sicherstellen
     updated(changedProps) {
         super.updated(changedProps);
-        // Versuche, die Größe des Containers an die Kartengröße anzupassen
         const container = this.renderRoot?.querySelector('.ghost-3d-container');
-        if (container) {
+        if (container && this.ghostRenderer) {
             const card = container.closest('ha-card');
             if (card) {
-                const width = card.offsetWidth || 320;
-                const height = Math.max(240, Math.round(width * 0.8));
-                if (this.ghostRenderer) {
-                    this.ghostRenderer.setSize(width, height);
-                }
+                const width = card.offsetWidth || 200;
+                const height = Math.max(160, Math.round(width * 1));
+                this.ghostRenderer.setSize(width, height);
                 container.style.width = width + 'px';
                 container.style.height = height + 'px';
             }
@@ -57157,9 +57333,7 @@ let HausgeistCard = class HausgeistCard extends i {
         // Canvas
         this.ghostRenderer = new WebGLRenderer({ alpha: true, antialias: true });
         this.ghostRenderer.setClearColor(0x000000, 0);
-        this.ghostRenderer.setSize(320, 320);
-        this.ghostRenderer.shadowMap.enabled = true;
-        this.ghostRenderer.shadowMap.type = PCFSoftShadowMap;
+        this.ghostRenderer.setSize(200, 200);
         this.ghostCanvas = this.ghostRenderer.domElement;
         if (this.ghostCanvas) {
             this.ghostCanvas.style.display = 'block';
@@ -57172,72 +57346,18 @@ let HausgeistCard = class HausgeistCard extends i {
         // Camera
         this.ghostCamera = new PerspectiveCamera(45, 1, 0.1, 100);
         this.ghostCamera.position.set(0, 1, 3);
-        // Weiche, helle Beleuchtung
-        this.ghostScene.add(new AmbientLight(0xffffff, 0.8));
-        this.ghostScene.add(new HemisphereLight(0xffffff, 0x8888ff, 0.7));
-        // SpotLight für Bodenschatten
-        const groundLight = new SpotLight(0xffffff, 0.3, 10, Math.PI / 3, 0.5, 1);
-        groundLight.position.set(0, 3, 0);
-        groundLight.target.position.set(0, 0, 0);
-        groundLight.castShadow = true;
-        groundLight.shadow.mapSize.width = 2048;
-        groundLight.shadow.mapSize.height = 2048;
-        groundLight.shadow.camera.near = 0.1;
-        groundLight.shadow.camera.far = 10;
-        groundLight.shadow.camera.fov = 45;
-        groundLight.shadow.bias = -0.01; // Leichtes Bias, um Schattenartefakte zu vermeiden
-        groundLight.shadow.radius = 2; // Weicher Schatten
-        groundLight.shadow.normalBias = 0.2; // Normal Bias für weichere Schatten
-        groundLight.penumbra = 0.7; // Leichte Penumbra für weichere Kanten
-        this.ghostScene.add(groundLight);
-        this.ghostScene.add(groundLight.target);
-        // Boden für Schatten
-        const groundGeo = new PlaneGeometry(4, 4);
-        const groundMat = new ShadowMaterial({ opacity: 0.25 });
-        const groundMesh = new Mesh(groundGeo, groundMat);
-        groundMesh.position.y = 0;
-        groundMesh.rotation.x = -Math.PI / 2;
-        groundMesh.receiveShadow = true;
-        this.ghostScene.add(groundMesh);
+        // Light
+        const light = new DirectionalLight(0xffffff, 1);
+        light.position.set(0, 2, 2);
+        this.ghostScene.add(light);
+        this.ghostScene.add(new AmbientLight(0xffffff, 0.7));
         // Load GLB
         const loader = new GLTFLoader();
         const modelUrl = this.config.ghost_model_url || '/local/ghost.glb';
         loader.load(modelUrl, (gltf) => {
             this.ghostModel = gltf.scene;
-            this.ghostModel.position.set(0, 5, 0);
-            this.ghostModel.scale.set(1, 1, 1);
-            // Schatten aktivieren und Material aufhellen
-            this.ghostModel.traverse((obj) => {
-                if (obj.isMesh) {
-                    obj.castShadow = true;
-                    obj.receiveShadow = false;
-                    if (obj.material) {
-                        const origMat = obj.material;
-                        obj.material = new MeshPhysicalMaterial({
-                            color: origMat.color ? origMat.color.clone() : 0xffffff,
-                            map: origMat.map || null,
-                            normalMap: origMat.normalMap || null,
-                            roughnessMap: origMat.roughnessMap || null,
-                            metalnessMap: origMat.metalnessMap || null,
-                            emissiveMap: origMat.emissiveMap || null,
-                            alphaMap: origMat.alphaMap || null,
-                            transparent: true,
-                            opacity: 0.55,
-                            roughness: origMat.roughness !== undefined ? origMat.roughness : 0.55,
-                            metalness: origMat.metalness !== undefined ? origMat.metalness : 0.0,
-                            transmission: 0.7,
-                            thickness: 0.5,
-                            ior: 1.25,
-                            reflectivity: 0.1,
-                            clearcoat: 0.2,
-                            clearcoatRoughness: 0.7,
-                            envMapIntensity: 0.7,
-                            emissive: origMat.emissive ? origMat.emissive.clone() : new Color(0x99ccff),
-                            emissiveIntensity: origMat.emissiveIntensity !== undefined ? origMat.emissiveIntensity : 0.15
-                        });
-                    }
-                }
-            });
+            this.ghostModel.position.set(0, 0.5, 0);
+            this.ghostModel.scale.set(1.2, 1.2, 1.2);
             this.ghostScene.add(this.ghostModel);
             this.ghostLoadError = false;
             // Add 3D speech bubble
@@ -57249,68 +57369,65 @@ let HausgeistCard = class HausgeistCard extends i {
         });
     }
     _createGhostSpeechBubble(text) {
-        // Normale Canvas-Auflösung
-        const baseWidth = 380, baseHeight = 100;
+        // Create canvas for speech bubble
         this.ghostSpeechCanvas = document.createElement('canvas');
-        this.ghostSpeechCanvas.width = baseWidth;
-        this.ghostSpeechCanvas.height = baseHeight;
+        this.ghostSpeechCanvas.width = 256;
+        this.ghostSpeechCanvas.height = 96;
         this.ghostSpeechCtx = this.ghostSpeechCanvas.getContext('2d');
-        // Initiales Zeichnen
-        this._updateGhostSpeechTexture(text, 1);
+        // Initial draw
+        this._updateGhostSpeechTexture(text);
         this.ghostSpeechTexture = new Texture(this.ghostSpeechCanvas);
         this.ghostSpeechTexture.needsUpdate = true;
-        // Plane-Geometrie bleibt wie gehabt
-        const geometry = new PlaneGeometry(2.2, 0.6);
+        // Plane geometry for speech bubble
+        const geometry = new PlaneGeometry(1.6, 0.6);
         const material = new MeshBasicMaterial({ map: this.ghostSpeechTexture, transparent: true });
         this.ghostSpeechMesh = new Mesh(geometry, material);
-        this.ghostSpeechMesh.position.set(0, 2.0, 0);
+        this.ghostSpeechMesh.position.set(0, 1.4, 0);
         this.ghostSpeechMesh.renderOrder = 2;
         this.ghostScene.add(this.ghostSpeechMesh);
     }
-    _updateGhostSpeechTexture(text, scale = 1) {
+    _updateGhostSpeechTexture(text) {
         if (!this.ghostSpeechCanvas || !this.ghostSpeechCtx)
             return;
         const ctx = this.ghostSpeechCtx;
         ctx.clearRect(0, 0, this.ghostSpeechCanvas.width, this.ghostSpeechCanvas.height);
-        ctx.save();
-        ctx.scale(scale, scale);
-        // Sprechblasen-Hintergrund
-        ctx.fillStyle = 'rgba(255,255,255,0.97)';
-        ctx.strokeStyle = 'rgba(180,180,180,0.7)';
+        // Farben je nach Priority
+        const colors = this._getSpeechBubbleColors(this._currentPriority);
+        ctx.fillStyle = colors.fill;
+        ctx.strokeStyle = colors.stroke;
         ctx.lineWidth = 3;
         ctx.beginPath();
-        ctx.moveTo(25, 10);
-        ctx.lineTo(355, 10);
-        ctx.quadraticCurveTo(370, 10, 370, 30);
-        ctx.lineTo(370, 80);
-        ctx.quadraticCurveTo(370, 95, 355, 95);
-        ctx.lineTo(25, 95);
-        ctx.quadraticCurveTo(10, 95, 10, 80);
-        ctx.lineTo(10, 30);
-        ctx.quadraticCurveTo(10, 10, 25, 10);
-        // Sprechblasen-Zipfel
-        ctx.moveTo(190, 95);
-        ctx.lineTo(205, 120);
-        ctx.lineTo(175, 95);
+        ctx.moveTo(20, 10);
+        ctx.lineTo(236, 10);
+        ctx.quadraticCurveTo(246, 10, 246, 26);
+        ctx.lineTo(246, 70);
+        ctx.quadraticCurveTo(246, 86, 236, 86);
+        ctx.lineTo(20, 86);
+        ctx.quadraticCurveTo(10, 86, 10, 70);
+        ctx.lineTo(10, 26);
+        ctx.quadraticCurveTo(10, 10, 20, 10);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // Bubble tail
+        ctx.beginPath();
+        ctx.moveTo(128, 86);
+        ctx.lineTo(138, 106);
+        ctx.lineTo(118, 86);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
         // Text
-        ctx.font = `bold ${20 * scale}px sans-serif`;
-        ctx.fillStyle = '#222';
+        ctx.font = 'bold 22px sans-serif';
+        ctx.fillStyle = colors.text;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        this._wrapText(ctx, text, 190, 52, 320, 24, scale);
-        ctx.restore();
+        this._wrapText(ctx, text, 128, 48, 220, 28);
         if (this.ghostSpeechTexture) {
             this.ghostSpeechTexture.needsUpdate = true;
         }
     }
-    _wrapText(ctx, text, x, y, maxWidth, lineHeight, scale = 1) {
-        x *= scale;
-        y *= scale;
-        maxWidth *= scale;
-        lineHeight *= scale;
+    _wrapText(ctx, text, x, y, maxWidth, lineHeight) {
         const words = text.split(' ');
         let line = '';
         let lines = [];
@@ -57343,27 +57460,92 @@ let HausgeistCard = class HausgeistCard extends i {
             return this.lastTip;
         return '';
     }
+    // 1. Ghost-Farbe je nach Priorität
+    _setGhostColorByPriority(priority) {
+        if (!this.ghostModel)
+            return;
+        let color = 0xffffff;
+        let emissive = 0x99ccff;
+        switch (priority) {
+            case 'alert':
+                color = 0xff4444;
+                emissive = 0xff8888;
+                break;
+            case 'warn':
+                color = 0xffc107;
+                emissive = 0xffe082;
+                break;
+            case 'info':
+                color = 0x2196f3;
+                emissive = 0x90caf9;
+                break;
+            case 'ok':
+            default:
+                color = 0xffffff;
+                emissive = 0x99ccff;
+                break;
+        }
+        this.ghostModel.traverse((obj) => {
+            if (obj.isMesh && obj.material) {
+                obj.material.color?.set(color);
+                if (obj.material.emissive)
+                    obj.material.emissive.set(emissive);
+            }
+        });
+    }
+    // 5. Accessoire hinzufügen (z.B. Hut)
+    _addGhostAccessory() {
+        if (!this.ghostModel)
+            return;
+        // Entferne altes Accessoire
+        if (this._ghostAccessoryMesh && this.ghostModel.children.includes(this._ghostAccessoryMesh)) {
+            this.ghostModel.remove(this._ghostAccessoryMesh);
+        }
+        // Einfacher Zylinder-Hut
+        const geometry = new CylinderGeometry(0.18, 0.18, 0.12, 32);
+        const material = new MeshBasicMaterial({ color: 0x222222 });
+        const hat = new Mesh(geometry, material);
+        hat.position.set(0, 0.55, 0);
+        hat.rotation.x = 0.1;
+        // Krempe
+        const brimGeo = new CylinderGeometry(0.26, 0.26, 0.03, 32);
+        const brimMat = new MeshBasicMaterial({ color: 0x222222 });
+        const brim = new Mesh(brimGeo, brimMat);
+        brim.position.set(0, 0.49, 0);
+        hat.add(brim);
+        this.ghostModel.add(hat);
+        this._ghostAccessoryMesh = hat;
+    }
     _animateGhost() {
         if (!this.ghostScene || !this.ghostCamera || !this.ghostRenderer || !this.ghostModel)
             return;
+        if (!this._isTabVisible()) {
+            this.ghostAnimationId = requestAnimationFrame(() => this._animateGhost());
+            return;
+        }
         const t = performance.now() * 0.001;
-        // Schwebende Animation
-        this.ghostModel.position.y = 0.5 + Math.sin(t * 1.5) * 0.1;
-        this.ghostModel.position.x = 0.5 + Math.sin(t * 0.5) * 0.1;
-        this.ghostModel.position.z = 0.5 + Math.sin(t * 0.2) * 0.1;
-        // Rotation für sanfte Bewegung
-        this.ghostModel.rotation.x = Math.sin(t * 0.2) * 0.1;
+        // Schwebende Animation + sanftes Wackeln
+        this.ghostModel.position.y = 0.5 + Math.sin(t * 2) * 0.1;
         this.ghostModel.rotation.y = Math.sin(t * 0.5) * 0.3;
+        this.ghostModel.rotation.z = Math.sin(t * 1.2) * 0.05;
+        // Accessoire folgt Kopf
+        if (this._ghostAccessoryMesh) {
+            this._ghostAccessoryMesh.position.x = 0;
+            this._ghostAccessoryMesh.position.z = 0;
+        }
         // Speech bubble folgt dem Geist
         if (this.ghostSpeechMesh) {
             this.ghostSpeechMesh.position.x = this.ghostModel.position.x;
             this.ghostSpeechMesh.position.z = this.ghostModel.position.z;
-            this.ghostSpeechMesh.position.y = this.ghostModel.position.y + 1.1;
-            // Sprechblase schaut immer zur Kamera
+            this.ghostSpeechMesh.position.y = this.ghostModel.position.y + 0.9;
             this.ghostSpeechMesh.lookAt(this.ghostCamera.position);
         }
         this.ghostRenderer.render(this.ghostScene, this.ghostCamera);
         this.ghostAnimationId = requestAnimationFrame(() => this._animateGhost());
+    }
+    // 7. Performance: Animation nur wenn sichtbar
+    _isTabVisible() {
+        return !(document.hidden || (document.visibilityState && document.visibilityState !== 'visible'));
     }
     // Find sensor by type in area, with overrides and auto-detection
     _findSensor(sensors, area, usedSensors, sensorType) {
@@ -57567,14 +57749,23 @@ let HausgeistCard = class HausgeistCard extends i {
         const anyRulesApplied = areaMessages.some((a) => a.evals.length > 0);
         // Finde den aktuellen Tipp (höchste Priorität)
         let currentTip = '';
+        let currentPriority = 'ok';
         if (this.ghostLoadError) {
             currentTip = 'Geist-Modell nicht gefunden! Bitte ghost_model_url prüfen.';
+            currentPriority = 'alert';
         }
         else if (topMessages.length > 0) {
             currentTip = this.texts?.[topMessages[0].message_key] || topMessages[0].message_key;
+            currentPriority = topMessages[0].priority || 'ok';
         }
         // Merke den aktuellen Tipp für die Sprechblase
         this.lastTip = currentTip;
+        this._currentPriority = currentPriority;
+        // Setze Ghost-Farbe und Accessoire
+        if (this.ghostModel) {
+            this._setGhostColorByPriority(currentPriority);
+            this._addGhostAccessory();
+        }
         // Wenn die Sprechblase existiert, Text aktualisieren
         if (this.ghostSpeechMesh && this.ghostSpeechCtx) {
             this._updateGhostSpeechTexture(currentTip);
@@ -57582,8 +57773,8 @@ let HausgeistCard = class HausgeistCard extends i {
         return x `
       <style>
         .ghost-3d-container {
-          width: 100%;
-          height: 100%;
+          width: 200px;
+          height: 200px;
           margin: 0 auto;
           position: relative;
           z-index: 2;
@@ -57726,6 +57917,16 @@ let HausgeistCard = class HausgeistCard extends i {
             console.error('Error getting target temperature:', error);
         }
         return defaultTarget; // Default to config value on error
+    }
+    // 1. Sprechblasenfarbe je nach Priorität
+    _getSpeechBubbleColors(priority) {
+        switch (priority) {
+            case 'alert': return { fill: 'rgba(255,68,68,0.97)', stroke: 'rgba(200,0,0,0.7)', text: '#fff' };
+            case 'warn': return { fill: 'rgba(255,241,118,0.97)', stroke: 'rgba(255,193,7,0.7)', text: '#222' };
+            case 'info': return { fill: 'rgba(230,244,255,0.97)', stroke: 'rgba(33,150,243,0.7)', text: '#222' };
+            case 'ok':
+            default: return { fill: 'rgba(255,255,255,0.95)', stroke: 'rgba(180,180,180,0.7)', text: '#222' };
+        }
     }
 };
 HausgeistCard.styles = styles;

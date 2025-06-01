@@ -52,6 +52,8 @@ export declare class HausgeistCard extends LitElement {
     private ghostSpeechTexture?;
     private ghostSpeechCanvas?;
     private ghostSpeechCtx?;
+    private _currentPriority;
+    private _ghostAccessoryMesh?;
     connectedCallback(): Promise<void>;
     updated(changedProps: PropertyValues): void;
     disconnectedCallback(): void;
@@ -60,10 +62,14 @@ export declare class HausgeistCard extends LitElement {
     private _updateGhostSpeechTexture;
     private _wrapText;
     private _getCurrentTip;
+    private _setGhostColorByPriority;
+    private _addGhostAccessory;
     private _animateGhost;
+    private _isTabVisible;
     private _findSensor;
     render(): import("lit-html").TemplateResult<1>;
     private _buildContext;
     private _calculateTempChangeRate;
     private _getTargetTemperature;
+    private _getSpeechBubbleColors;
 }
