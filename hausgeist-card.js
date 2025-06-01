@@ -57478,6 +57478,9 @@ class Ghost3D {
         this.container = options.container;
         this.modelUrl = options.modelUrl;
         this.onLoad = options.onLoad;
+        this.modelScale = options.modelScale ?? 1.2;
+        this.modelYOffset = options.modelYOffset ?? 0.5;
+        this.speechBubbleYOffset = options.speechBubbleYOffset ?? 1.4;
         this.scene = new Scene();
         this.scene.fog = new Fog(0x99ccff, 2.5, 6.5);
         this.renderer = new WebGLRenderer({ alpha: true, antialias: true });
@@ -57496,8 +57499,8 @@ class Ghost3D {
         const loader = new GLTFLoader();
         loader.load(this.modelUrl, (gltf) => {
             this.model = gltf.scene;
-            this.model.position.set(0, 0.5, 0);
-            this.model.scale.set(1.2, 1.2, 1.2); // kleiner, damit nicht zu dominant
+            this.model.position.set(0, this.modelYOffset, 0);
+            this.model.scale.set(this.modelScale, this.modelScale, this.modelScale); // kleiner, damit nicht zu dominant
             this.scene.add(this.model);
             this._addAccessory();
             this._createSpeechBubble(this.lastTip);
@@ -57637,7 +57640,7 @@ class Ghost3D {
         const geometry = new PlaneGeometry(1.6, 0.6);
         const material = new MeshBasicMaterial({ map: this.speechTexture, transparent: true });
         this.speechMesh = new Mesh(geometry, material);
-        this.speechMesh.position.set(0, 1.4, 0);
+        this.speechMesh.position.set(0, this.speechBubbleYOffset, 0);
         this.speechMesh.renderOrder = 2;
         this.scene.add(this.speechMesh);
     }
@@ -57815,18 +57818,18 @@ let HausgeistCard = class HausgeistCard extends i {
                 onLoad: () => {
                     this.ghost3D.setPriority(this._currentPriority);
                     this.ghost3D.setTip(this.lastTip);
-                }
+                },
+                modelScale: 1.05,
+                modelYOffset: 0.35,
+                speechBubbleYOffset: 1.1
             });
         }
         if (container && this.ghost3D) {
-            const card = container.closest('ha-card');
-            if (card) {
-                const width = card.offsetWidth || 500; // Default width if not set
-                const height = Math.max(300, Math.round(width * 1)); // Aspect ratio 1:1
-                this.ghost3D.resize(width, height);
-                container.style.width = width + 'px';
-                container.style.height = height + 'px';
-            }
+            const width = container.offsetWidth || 220;
+            const height = container.offsetHeight || 220;
+            this.ghost3D.resize(width, height);
+            container.style.width = width + 'px';
+            container.style.height = height + 'px';
         }
     }
     disconnectedCallback() {
@@ -58020,11 +58023,15 @@ let HausgeistCard = class HausgeistCard extends i {
         return x `
       <style>
         .ghost-3d-container {
-          width: 200px;
-          height: 200px;
-          margin: 0 auto;
+          width: 100%;
+          max-width: 320px;
+          height: 220px;
+          margin: 0 auto 12px auto;
           position: relative;
           z-index: 2;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
         }
       </style>
       <div class="ghost-3d-container">

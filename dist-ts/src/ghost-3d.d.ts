@@ -3,6 +3,9 @@ export interface Ghost3DOptions {
     container: HTMLElement;
     modelUrl: string;
     onLoad?: () => void;
+    modelScale?: number;
+    modelYOffset?: number;
+    speechBubbleYOffset?: number;
 }
 export declare class Ghost3D {
     private scene;
@@ -21,6 +24,9 @@ export declare class Ghost3D {
     private container;
     private modelUrl;
     private onLoad?;
+    private modelScale;
+    private modelYOffset;
+    private speechBubbleYOffset;
     constructor(options: Ghost3DOptions);
     private _loadModel;
     setPriority(priority: GhostPriority): void;

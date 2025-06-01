@@ -146,18 +146,18 @@ export class HausgeistCard extends LitElement {
         onLoad: () => {
           this.ghost3D!.setPriority(this._currentPriority as GhostPriority);
           this.ghost3D!.setTip(this.lastTip);
-        }
+        },
+        modelScale: 1.05,
+        modelYOffset: 0.35,
+        speechBubbleYOffset: 1.1
       });
     }
     if (container && this.ghost3D) {
-      const card = container.closest('ha-card') as HTMLElement;
-      if (card) {
-        const width = card.offsetWidth || 500;  // Default width if not set
-        const height = Math.max(300, Math.round(width * 1)); // Aspect ratio 1:1
-        this.ghost3D.resize(width, height);
-        container.style.width = width + 'px';
-        container.style.height = height + 'px';
-      }
+      const width = container.offsetWidth || 220;
+      const height = container.offsetHeight || 220;
+      this.ghost3D.resize(width, height);
+      container.style.width = width + 'px';
+      container.style.height = height + 'px';
     }
   }
 
@@ -383,11 +383,15 @@ export class HausgeistCard extends LitElement {
     return html`
       <style>
         .ghost-3d-container {
-          width: 200px;
-          height: 200px;
-          margin: 0 auto;
+          width: 100%;
+          max-width: 320px;
+          height: 220px;
+          margin: 0 auto 12px auto;
           position: relative;
           z-index: 2;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
         }
       </style>
       <div class="ghost-3d-container">

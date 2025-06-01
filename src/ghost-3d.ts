@@ -7,6 +7,9 @@ export interface Ghost3DOptions {
   container: HTMLElement;
   modelUrl: string;
   onLoad?: () => void;
+  modelScale?: number;
+  modelYOffset?: number;
+  speechBubbleYOffset?: number;
 }
 
 export class Ghost3D {
@@ -26,11 +29,17 @@ export class Ghost3D {
   private container: HTMLElement;
   private modelUrl: string;
   private onLoad?: () => void;
+  private modelScale: number;
+  private modelYOffset: number;
+  private speechBubbleYOffset: number;
 
   constructor(options: Ghost3DOptions) {
     this.container = options.container;
     this.modelUrl = options.modelUrl;
     this.onLoad = options.onLoad;
+    this.modelScale = options.modelScale ?? 1.2;
+    this.modelYOffset = options.modelYOffset ?? 0.5;
+    this.speechBubbleYOffset = options.speechBubbleYOffset ?? 1.4;
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(0x99ccff, 2.5, 6.5);
     this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
@@ -52,8 +61,8 @@ export class Ghost3D {
       this.modelUrl,
       (gltf: { scene: THREE.Object3D }) => {
         this.model = gltf.scene;
-        this.model.position.set(0, 0.5, 0);
-        this.model.scale.set(1.2, 1.2, 1.2); // kleiner, damit nicht zu dominant
+        this.model.position.set(0, this.modelYOffset, 0);
+        this.model.scale.set(this.modelScale, this.modelScale, this.modelScale); // kleiner, damit nicht zu dominant
         this.scene.add(this.model);
         this._addAccessory();
         this._createSpeechBubble(this.lastTip);
@@ -175,7 +184,7 @@ export class Ghost3D {
     const geometry = new THREE.PlaneGeometry(1.6, 0.6);
     const material = new THREE.MeshBasicMaterial({ map: this.speechTexture, transparent: true });
     this.speechMesh = new THREE.Mesh(geometry, material);
-    this.speechMesh.position.set(0, 1.4, 0);
+    this.speechMesh.position.set(0, this.speechBubbleYOffset, 0);
     this.speechMesh.renderOrder = 2;
     this.scene.add(this.speechMesh);
   }
