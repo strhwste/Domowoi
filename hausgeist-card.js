@@ -65326,6 +65326,7 @@ let HausgeistCard = class HausgeistCard extends i$x {
       <ha-card>
         <div class="card-content">
           <h2>👻 Hausgeist</h2>
+          <div class="ghost-3d-container" style="width:220px;height:220px;margin:auto;"></div>
           ${debugBanner}
           ${Object.entries(this._areaResults).map(([area, result]) => this._renderAreaResult(area, result))}
           ${debugOut.length > 0 ? x$6 `<pre class="debug">${debugOut.join('\n')}</pre>` : ''}
@@ -65338,7 +65339,16 @@ let HausgeistCard = class HausgeistCard extends i$x {
       <div class="area-result">
         <h3>${result.area}</h3>
         <ul>
-          ${result.evals.map(evalResult => x$6 `<li>${evalResult}</li>`)}
+          ${result.evals.map(ev => {
+            if (typeof ev === 'string')
+                return x$6 `<li>${ev}</li>`;
+            if (ev && typeof ev === 'object') {
+                // Zeige message, tip, description oder JSON als Fallback
+                const msg = ev.message || ev.tip || ev.description || JSON.stringify(ev);
+                return x$6 `<li>${msg}</li>`;
+            }
+            return x$6 `<li>${String(ev)}</li>`;
+        })}
         </ul>
         ${this.debug ? x$6 `
           <details>
@@ -65511,13 +65521,15 @@ let HausgeistCard = class HausgeistCard extends i$x {
         // Build context for rule evaluation
         const usedSensors = [];
         const context = this._buildContext(area.area_id, usedSensors, states, this.config.weather_entity || 'weather.home', this.config.default_target || 21);
-        if (this.engine && context) {
+        if (this.engine && context && Object.keys(context).length > 0) {
             const evals = this.engine.evaluate(context);
             this._areaResults[area.area_id] = {
                 area: area.name || area.area_id,
                 evals,
                 usedSensors
             };
+            // Nur updaten, wenn sich das Ergebnis geändert hat
+            // (Optional: hier könnte man einen Vergleich einbauen)
             this.requestUpdate();
         }
     }

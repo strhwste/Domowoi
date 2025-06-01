@@ -231,6 +231,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
       <ha-card>
         <div class="card-content">
           <h2>👻 Hausgeist</h2>
+          <div class="ghost-3d-container" style="width:220px;height:220px;margin:auto;"></div>
           ${debugBanner}
           ${Object.entries(this._areaResults).map(([area, result]) => this._renderAreaResult(area, result))}
           ${debugOut.length > 0 ? html `<pre class="debug">${debugOut.join('\n')}</pre>` : ''}
@@ -243,7 +244,16 @@ let HausgeistCard = class HausgeistCard extends LitElement {
       <div class="area-result">
         <h3>${result.area}</h3>
         <ul>
-          ${result.evals.map(evalResult => html `<li>${evalResult}</li>`)}
+          ${result.evals.map(ev => {
+            if (typeof ev === 'string')
+                return html `<li>${ev}</li>`;
+            if (ev && typeof ev === 'object') {
+                // Zeige message, tip, description oder JSON als Fallback
+                const msg = ev.message || ev.tip || ev.description || JSON.stringify(ev);
+                return html `<li>${msg}</li>`;
+            }
+            return html `<li>${String(ev)}</li>`;
+        })}
         </ul>
         ${this.debug ? html `
           <details>
@@ -416,13 +426,15 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         // Build context for rule evaluation
         const usedSensors = [];
         const context = this._buildContext(area.area_id, usedSensors, states, this.config.weather_entity || 'weather.home', this.config.default_target || 21);
-        if (this.engine && context) {
+        if (this.engine && context && Object.keys(context).length > 0) {
             const evals = this.engine.evaluate(context);
             this._areaResults[area.area_id] = {
                 area: area.name || area.area_id,
                 evals,
                 usedSensors
             };
+            // Nur updaten, wenn sich das Ergebnis geändert hat
+            // (Optional: hier könnte man einen Vergleich einbauen)
             this.requestUpdate();
         }
     }
