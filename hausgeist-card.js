@@ -22816,6 +22816,101 @@ class WebXRController {
 }
 
 /**
+ * This class can be used to define a linear fog that grows linearly denser
+ * with the distance.
+ *
+ * ```js
+ * const scene = new THREE.Scene();
+ * scene.fog = new THREE.Fog( 0xcccccc, 10, 15 );
+ * ```
+ */
+class Fog {
+
+	/**
+	 * Constructs a new fog.
+	 *
+	 * @param {number|Color} color - The fog's color.
+	 * @param {number} [near=1] - The minimum distance to start applying fog.
+	 * @param {number} [far=1000] - The maximum distance at which fog stops being calculated and applied.
+	 */
+	constructor( color, near = 1, far = 1000 ) {
+
+		/**
+		 * This flag can be used for type testing.
+		 *
+		 * @type {boolean}
+		 * @readonly
+		 * @default true
+		 */
+		this.isFog = true;
+
+		/**
+		 * The name of the fog.
+		 *
+		 * @type {string}
+		 */
+		this.name = '';
+
+		/**
+		 * The fog's color.
+		 *
+		 * @type {Color}
+		 */
+		this.color = new Color( color );
+
+		/**
+		 * The minimum distance to start applying fog. Objects that are less than
+		 * `near` units from the active camera won't be affected by fog.
+		 *
+		 * @type {number}
+		 * @default 1
+		 */
+		this.near = near;
+
+		/**
+		 * The maximum distance at which fog stops being calculated and applied.
+		 * Objects that are more than `far` units away from the active camera won't
+		 * be affected by fog.
+		 *
+		 * @type {number}
+		 * @default 1000
+		 */
+		this.far = far;
+
+	}
+
+	/**
+	 * Returns a new fog with copied values from this instance.
+	 *
+	 * @return {Fog} A clone of this instance.
+	 */
+	clone() {
+
+		return new Fog( this.color, this.near, this.far );
+
+	}
+
+	/**
+	 * Serializes the fog into JSON.
+	 *
+	 * @param {?(Object|string)} meta - An optional value holding meta information about the serialization.
+	 * @return {Object} A JSON object representing the serialized fog
+	 */
+	toJSON( /* meta */ ) {
+
+		return {
+			type: 'Fog',
+			name: this.name,
+			color: this.color.getHex(),
+			near: this.near,
+			far: this.far
+		};
+
+	}
+
+}
+
+/**
  * Scenes allow you to set up what is to be rendered and where by three.js.
  * This is where you place 3D objects like meshes, lines or lights.
  *
@@ -27154,6 +27249,175 @@ class PlaneGeometry extends BufferGeometry {
 	static fromJSON( data ) {
 
 		return new PlaneGeometry( data.width, data.height, data.widthSegments, data.heightSegments );
+
+	}
+
+}
+
+/**
+ * A class for generating a sphere geometry.
+ *
+ * ```js
+ * const geometry = new THREE.SphereGeometry( 15, 32, 16 );
+ * const material = new THREE.MeshBasicMaterial( { color: 0xffff00 } );
+ * const sphere = new THREE.Mesh( geometry, material );
+ * scene.add( sphere );
+ * ```
+ *
+ * @augments BufferGeometry
+ */
+class SphereGeometry extends BufferGeometry {
+
+	/**
+	 * Constructs a new sphere geometry.
+	 *
+	 * @param {number} [radius=1] - The sphere radius.
+	 * @param {number} [widthSegments=32] - The number of horizontal segments. Minimum value is `3`.
+	 * @param {number} [heightSegments=16] - The number of vertical segments. Minimum value is `2`.
+	 * @param {number} [phiStart=0] - The horizontal starting angle in radians.
+	 * @param {number} [phiLength=Math.PI*2] - The horizontal sweep angle size.
+	 * @param {number} [thetaStart=0] - The vertical starting angle in radians.
+	 * @param {number} [thetaLength=Math.PI] - The vertical sweep angle size.
+	 */
+	constructor( radius = 1, widthSegments = 32, heightSegments = 16, phiStart = 0, phiLength = Math.PI * 2, thetaStart = 0, thetaLength = Math.PI ) {
+
+		super();
+
+		this.type = 'SphereGeometry';
+
+		/**
+		 * Holds the constructor parameters that have been
+		 * used to generate the geometry. Any modification
+		 * after instantiation does not change the geometry.
+		 *
+		 * @type {Object}
+		 */
+		this.parameters = {
+			radius: radius,
+			widthSegments: widthSegments,
+			heightSegments: heightSegments,
+			phiStart: phiStart,
+			phiLength: phiLength,
+			thetaStart: thetaStart,
+			thetaLength: thetaLength
+		};
+
+		widthSegments = Math.max( 3, Math.floor( widthSegments ) );
+		heightSegments = Math.max( 2, Math.floor( heightSegments ) );
+
+		const thetaEnd = Math.min( thetaStart + thetaLength, Math.PI );
+
+		let index = 0;
+		const grid = [];
+
+		const vertex = new Vector3();
+		const normal = new Vector3();
+
+		// buffers
+
+		const indices = [];
+		const vertices = [];
+		const normals = [];
+		const uvs = [];
+
+		// generate vertices, normals and uvs
+
+		for ( let iy = 0; iy <= heightSegments; iy ++ ) {
+
+			const verticesRow = [];
+
+			const v = iy / heightSegments;
+
+			// special case for the poles
+
+			let uOffset = 0;
+
+			if ( iy === 0 && thetaStart === 0 ) {
+
+				uOffset = 0.5 / widthSegments;
+
+			} else if ( iy === heightSegments && thetaEnd === Math.PI ) {
+
+				uOffset = -0.5 / widthSegments;
+
+			}
+
+			for ( let ix = 0; ix <= widthSegments; ix ++ ) {
+
+				const u = ix / widthSegments;
+
+				// vertex
+
+				vertex.x = - radius * Math.cos( phiStart + u * phiLength ) * Math.sin( thetaStart + v * thetaLength );
+				vertex.y = radius * Math.cos( thetaStart + v * thetaLength );
+				vertex.z = radius * Math.sin( phiStart + u * phiLength ) * Math.sin( thetaStart + v * thetaLength );
+
+				vertices.push( vertex.x, vertex.y, vertex.z );
+
+				// normal
+
+				normal.copy( vertex ).normalize();
+				normals.push( normal.x, normal.y, normal.z );
+
+				// uv
+
+				uvs.push( u + uOffset, 1 - v );
+
+				verticesRow.push( index ++ );
+
+			}
+
+			grid.push( verticesRow );
+
+		}
+
+		// indices
+
+		for ( let iy = 0; iy < heightSegments; iy ++ ) {
+
+			for ( let ix = 0; ix < widthSegments; ix ++ ) {
+
+				const a = grid[ iy ][ ix + 1 ];
+				const b = grid[ iy ][ ix ];
+				const c = grid[ iy + 1 ][ ix ];
+				const d = grid[ iy + 1 ][ ix + 1 ];
+
+				if ( iy !== 0 || thetaStart > 0 ) indices.push( a, b, d );
+				if ( iy !== heightSegments - 1 || thetaEnd < Math.PI ) indices.push( b, c, d );
+
+			}
+
+		}
+
+		// build geometry
+
+		this.setIndex( indices );
+		this.setAttribute( 'position', new Float32BufferAttribute( vertices, 3 ) );
+		this.setAttribute( 'normal', new Float32BufferAttribute( normals, 3 ) );
+		this.setAttribute( 'uv', new Float32BufferAttribute( uvs, 2 ) );
+
+	}
+
+	copy( source ) {
+
+		super.copy( source );
+
+		this.parameters = Object.assign( {}, source.parameters );
+
+		return this;
+
+	}
+
+	/**
+	 * Factory method for creating an instance of this class from the given
+	 * JSON object.
+	 *
+	 * @param {Object} data - A JSON object representing the serialized geometry.
+	 * @return {SphereGeometry} A new instance.
+	 */
+	static fromJSON( data ) {
+
+		return new SphereGeometry( data.radius, data.widthSegments, data.heightSegments, data.phiStart, data.phiLength, data.thetaStart, data.thetaLength );
 
 	}
 
@@ -57333,7 +57597,8 @@ let HausgeistCard = class HausgeistCard extends i {
         // Canvas
         this.ghostRenderer = new WebGLRenderer({ alpha: true, antialias: true });
         this.ghostRenderer.setClearColor(0x000000, 0);
-        this.ghostRenderer.setSize(200, 200);
+        // Größere Canvas für größeren Geist
+        this.ghostRenderer.setSize(320, 320);
         this.ghostCanvas = this.ghostRenderer.domElement;
         if (this.ghostCanvas) {
             this.ghostCanvas.style.display = 'block';
@@ -57343,6 +57608,8 @@ let HausgeistCard = class HausgeistCard extends i {
         }
         // Scene
         this.ghostScene = new Scene();
+        // Blauer Nebel für die Umgebung (Fog)
+        this.ghostScene.fog = new Fog(0x99ccff, 2.5, 6.5);
         // Camera
         this.ghostCamera = new PerspectiveCamera(45, 1, 0.1, 100);
         this.ghostCamera.position.set(0, 1, 3);
@@ -57356,8 +57623,9 @@ let HausgeistCard = class HausgeistCard extends i {
         const modelUrl = this.config.ghost_model_url || '/local/ghost.glb';
         loader.load(modelUrl, (gltf) => {
             this.ghostModel = gltf.scene;
+            // Größer skalieren
             this.ghostModel.position.set(0, 0.5, 0);
-            this.ghostModel.scale.set(1.2, 1.2, 1.2);
+            this.ghostModel.scale.set(2.0, 2.0, 2.0);
             this.ghostScene.add(this.ghostModel);
             this.ghostLoadError = false;
             // Add 3D speech bubble
@@ -57465,7 +57733,7 @@ let HausgeistCard = class HausgeistCard extends i {
         if (!this.ghostModel)
             return;
         let color = 0xffffff;
-        let emissive = 0x99ccff;
+        let emissive = 0x000000;
         switch (priority) {
             case 'alert':
                 color = 0xff4444;
@@ -57482,14 +57750,18 @@ let HausgeistCard = class HausgeistCard extends i {
             case 'ok':
             default:
                 color = 0xffffff;
-                emissive = 0x99ccff;
                 break;
         }
         this.ghostModel.traverse((obj) => {
             if (obj.isMesh && obj.material) {
                 obj.material.color?.set(color);
-                if (obj.material.emissive)
-                    obj.material.emissive.set(emissive);
+                // Kein Leuchten für ok/info/warn, nur für alert
+                if (priority === 'alert') {
+                    obj.material.emissive?.set(emissive);
+                }
+                else {
+                    obj.material.emissive?.set(0x000000);
+                }
             }
         });
     }
@@ -57501,20 +57773,62 @@ let HausgeistCard = class HausgeistCard extends i {
         if (this._ghostAccessoryMesh && this.ghostModel.children.includes(this._ghostAccessoryMesh)) {
             this.ghostModel.remove(this._ghostAccessoryMesh);
         }
-        // Einfacher Zylinder-Hut
-        const geometry = new CylinderGeometry(0.18, 0.18, 0.12, 32);
+        // Kleiner, flacher Zylinder-Hut
+        const geometry = new CylinderGeometry(0.11, 0.11, 0.07, 32);
         const material = new MeshBasicMaterial({ color: 0x222222 });
         const hat = new Mesh(geometry, material);
-        hat.position.set(0, 0.55, 0);
-        hat.rotation.x = 0.1;
-        // Krempe
-        const brimGeo = new CylinderGeometry(0.26, 0.26, 0.03, 32);
+        hat.position.set(0, 0.38, 0); // etwas tiefer und kleiner
+        hat.rotation.x = 0;
+        // Dünne, größere Krempe
+        const brimGeo = new CylinderGeometry(0.17, 0.17, 0.015, 32);
         const brimMat = new MeshBasicMaterial({ color: 0x222222 });
         const brim = new Mesh(brimGeo, brimMat);
-        brim.position.set(0, 0.49, 0);
+        brim.position.set(0, -0.045, 0); // direkt unter dem Hut
         hat.add(brim);
         this.ghostModel.add(hat);
         this._ghostAccessoryMesh = hat;
+    }
+    _updateGhostGlow(priority) {
+        if (!this.ghostModel)
+            return;
+        // Remove old glow mesh if present
+        if (this._ghostGlowMesh && this.ghostModel.children.includes(this._ghostGlowMesh)) {
+            this.ghostModel.remove(this._ghostGlowMesh);
+            this._ghostGlowMesh.geometry.dispose();
+            this._ghostGlowMesh.material.dispose();
+            this._ghostGlowMesh = undefined;
+        }
+        // Only show glow for warn/info/alert
+        let glowColor = null;
+        let glowOpacity = 0.35;
+        switch (priority) {
+            case 'alert':
+                glowColor = 0xff4444;
+                glowOpacity = 0.45;
+                break;
+            case 'warn':
+                glowColor = 0xffc107;
+                glowOpacity = 0.32;
+                break;
+            case 'info':
+                glowColor = 0x2196f3;
+                glowOpacity = 0.28;
+                break;
+            default: return;
+        }
+        // Create a slightly larger, transparent sphere as glow
+        const geometry = new SphereGeometry(0.62, 32, 32); // slightly larger than ghost
+        const material = new MeshBasicMaterial({
+            color: glowColor,
+            transparent: true,
+            opacity: glowOpacity,
+            depthWrite: false,
+            blending: AdditiveBlending
+        });
+        const glow = new Mesh(geometry, material);
+        glow.position.set(0, 0.38, 0); // match ghost position
+        this.ghostModel.add(glow);
+        this._ghostGlowMesh = glow;
     }
     _animateGhost() {
         if (!this.ghostScene || !this.ghostCamera || !this.ghostRenderer || !this.ghostModel)
@@ -57539,6 +57853,13 @@ let HausgeistCard = class HausgeistCard extends i {
             this.ghostSpeechMesh.position.z = this.ghostModel.position.z;
             this.ghostSpeechMesh.position.y = this.ghostModel.position.y + 0.9;
             this.ghostSpeechMesh.lookAt(this.ghostCamera.position);
+        }
+        // Optional: Pulsate the glow
+        if (this._ghostGlowMesh) {
+            const t = performance.now() * 0.001;
+            const baseOpacity = this._ghostGlowMesh.material.opacity;
+            this._ghostGlowMesh.material.opacity = baseOpacity * (0.85 + 0.15 * Math.sin(t * 2));
+            this._ghostGlowMesh.scale.set(1.05 + 0.04 * Math.sin(t * 2), 1.05 + 0.04 * Math.sin(t * 2), 1.05 + 0.04 * Math.sin(t * 2));
         }
         this.ghostRenderer.render(this.ghostScene, this.ghostCamera);
         this.ghostAnimationId = requestAnimationFrame(() => this._animateGhost());
@@ -57765,6 +58086,7 @@ let HausgeistCard = class HausgeistCard extends i {
         if (this.ghostModel) {
             this._setGhostColorByPriority(currentPriority);
             this._addGhostAccessory();
+            this._updateGhostGlow(currentPriority);
         }
         // Wenn die Sprechblase existiert, Text aktualisieren
         if (this.ghostSpeechMesh && this.ghostSpeechCtx) {

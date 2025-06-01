@@ -54,6 +54,7 @@ export declare class HausgeistCard extends LitElement {
     private ghostSpeechCtx?;
     private _currentPriority;
     private _ghostAccessoryMesh?;
+    private _ghostGlowMesh?;
     connectedCallback(): Promise<void>;
     updated(changedProps: PropertyValues): void;
     disconnectedCallback(): void;
@@ -64,6 +65,7 @@ export declare class HausgeistCard extends LitElement {
     private _getCurrentTip;
     private _setGhostColorByPriority;
     private _addGhostAccessory;
+    private _updateGhostGlow;
     private _animateGhost;
     private _isTabVisible;
     private _findSensor;

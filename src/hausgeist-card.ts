@@ -101,6 +101,7 @@ export class HausgeistCard extends LitElement {
   // 1. Animationen & Emotionen: Ghost-Farbe je nach Priorität
   private _currentPriority: string = 'ok';
   private _ghostAccessoryMesh?: THREE.Mesh; // 5. Accessoire
+  private _ghostGlowMesh?: THREE.Mesh;
 
   async connectedCallback() {
     super.connectedCallback();
@@ -182,7 +183,8 @@ export class HausgeistCard extends LitElement {
     // Canvas
     this.ghostRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     this.ghostRenderer.setClearColor(0x000000, 0);
-    this.ghostRenderer.setSize(200, 200);
+    // Größere Canvas für größeren Geist
+    this.ghostRenderer.setSize(320, 320);
     this.ghostCanvas = this.ghostRenderer.domElement;
     if (this.ghostCanvas) {
       this.ghostCanvas.style.display = 'block';
@@ -192,6 +194,8 @@ export class HausgeistCard extends LitElement {
     }
     // Scene
     this.ghostScene = new THREE.Scene();
+    // Blauer Nebel für die Umgebung (Fog)
+    this.ghostScene.fog = new THREE.Fog(0x99ccff, 2.5, 6.5);
     // Camera
     this.ghostCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
     this.ghostCamera.position.set(0, 1, 3);
@@ -207,8 +211,9 @@ export class HausgeistCard extends LitElement {
       modelUrl,
       (gltf: { scene: THREE.Object3D }) => {
         this.ghostModel = gltf.scene;
+        // Größer skalieren
         this.ghostModel.position.set(0, 0.5, 0);
-        this.ghostModel.scale.set(1.2, 1.2, 1.2);
+        this.ghostModel.scale.set(2.0, 2.0, 2.0);
         this.ghostScene!.add(this.ghostModel);
         this.ghostLoadError = false;
         // Add 3D speech bubble
@@ -320,17 +325,23 @@ export class HausgeistCard extends LitElement {
   private _setGhostColorByPriority(priority: string) {
     if (!this.ghostModel) return;
     let color = 0xffffff;
-    let emissive = 0x99ccff;
+    let useOriginalEmissive = false;
+    let emissive = 0x000000;
     switch (priority) {
       case 'alert': color = 0xff4444; emissive = 0xff8888; break;
       case 'warn': color = 0xffc107; emissive = 0xffe082; break;
       case 'info': color = 0x2196f3; emissive = 0x90caf9; break;
-      case 'ok': default: color = 0xffffff; emissive = 0x99ccff; break;
+      case 'ok': default: color = 0xffffff; useOriginalEmissive = true; break;
     }
     this.ghostModel.traverse((obj: any) => {
       if (obj.isMesh && obj.material) {
         obj.material.color?.set(color);
-        if (obj.material.emissive) obj.material.emissive.set(emissive);
+        // Kein Leuchten für ok/info/warn, nur für alert
+        if (priority === 'alert') {
+          obj.material.emissive?.set(emissive);
+        } else {
+          obj.material.emissive?.set(0x000000);
+        }
       }
     });
   }
@@ -342,20 +353,53 @@ export class HausgeistCard extends LitElement {
     if (this._ghostAccessoryMesh && this.ghostModel.children.includes(this._ghostAccessoryMesh)) {
       this.ghostModel.remove(this._ghostAccessoryMesh);
     }
-    // Einfacher Zylinder-Hut
-    const geometry = new THREE.CylinderGeometry(0.18, 0.18, 0.12, 32);
+    // Kleiner, flacher Zylinder-Hut
+    const geometry = new THREE.CylinderGeometry(0.11, 0.11, 0.07, 32);
     const material = new THREE.MeshBasicMaterial({ color: 0x222222 });
     const hat = new THREE.Mesh(geometry, material);
-    hat.position.set(0, 0.55, 0);
-    hat.rotation.x = 0.1;
-    // Krempe
-    const brimGeo = new THREE.CylinderGeometry(0.26, 0.26, 0.03, 32);
+    hat.position.set(0, 0.38, 0); // etwas tiefer und kleiner
+    hat.rotation.x = 0;
+    // Dünne, größere Krempe
+    const brimGeo = new THREE.CylinderGeometry(0.17, 0.17, 0.015, 32);
     const brimMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
     const brim = new THREE.Mesh(brimGeo, brimMat);
-    brim.position.set(0, 0.49, 0);
+    brim.position.set(0, -0.045, 0); // direkt unter dem Hut
     hat.add(brim);
     this.ghostModel.add(hat);
     this._ghostAccessoryMesh = hat;
+  }
+
+  private _updateGhostGlow(priority: string) {
+    if (!this.ghostModel) return;
+    // Remove old glow mesh if present
+    if (this._ghostGlowMesh && this.ghostModel.children.includes(this._ghostGlowMesh)) {
+      this.ghostModel.remove(this._ghostGlowMesh);
+      this._ghostGlowMesh.geometry.dispose();
+      (this._ghostGlowMesh.material as THREE.Material).dispose();
+      this._ghostGlowMesh = undefined;
+    }
+    // Only show glow for warn/info/alert
+    let glowColor: number | null = null;
+    let glowOpacity = 0.35;
+    switch (priority) {
+      case 'alert': glowColor = 0xff4444; glowOpacity = 0.45; break;
+      case 'warn': glowColor = 0xffc107; glowOpacity = 0.32; break;
+      case 'info': glowColor = 0x2196f3; glowOpacity = 0.28; break;
+      default: return;
+    }
+    // Create a slightly larger, transparent sphere as glow
+    const geometry = new THREE.SphereGeometry(0.62, 32, 32); // slightly larger than ghost
+    const material = new THREE.MeshBasicMaterial({ 
+      color: glowColor, 
+      transparent: true, 
+      opacity: glowOpacity, 
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    const glow = new THREE.Mesh(geometry, material);
+    glow.position.set(0, 0.38, 0); // match ghost position
+    this.ghostModel.add(glow);
+    this._ghostGlowMesh = glow;
   }
 
   private _animateGhost() {
@@ -380,6 +424,13 @@ export class HausgeistCard extends LitElement {
       this.ghostSpeechMesh.position.z = this.ghostModel.position.z;
       this.ghostSpeechMesh.position.y = this.ghostModel.position.y + 0.9;
       this.ghostSpeechMesh.lookAt(this.ghostCamera.position);
+    }
+    // Optional: Pulsate the glow
+    if (this._ghostGlowMesh) {
+      const t = performance.now() * 0.001;
+      const baseOpacity = (this._ghostGlowMesh.material as THREE.MeshBasicMaterial).opacity;
+      (this._ghostGlowMesh.material as THREE.MeshBasicMaterial).opacity = baseOpacity * (0.85 + 0.15 * Math.sin(t * 2));
+      this._ghostGlowMesh.scale.set(1.05 + 0.04 * Math.sin(t * 2), 1.05 + 0.04 * Math.sin(t * 2), 1.05 + 0.04 * Math.sin(t * 2));
     }
     this.ghostRenderer.render(this.ghostScene, this.ghostCamera);
     this.ghostAnimationId = requestAnimationFrame(() => this._animateGhost());
@@ -646,6 +697,7 @@ export class HausgeistCard extends LitElement {
     if (this.ghostModel) {
       this._setGhostColorByPriority(currentPriority);
       this._addGhostAccessory();
+      this._updateGhostGlow(currentPriority);
     }
     // Wenn die Sprechblase existiert, Text aktualisieren
     if (this.ghostSpeechMesh && this.ghostSpeechCtx) {
