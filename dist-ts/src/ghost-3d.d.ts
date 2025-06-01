@@ -38,6 +38,7 @@ export declare class Ghost3D {
     private _updateGlow;
     private _createSpeechBubble;
     private _updateSpeechTexture;
+    private _wrapText;
     private _isTabVisible;
     private _animate;
 }

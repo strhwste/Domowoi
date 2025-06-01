@@ -62,7 +62,7 @@ export class Ghost3D {
       (gltf: { scene: THREE.Object3D }) => {
         this.model = gltf.scene;
         this.model.position.set(0, this.modelYOffset, 0);
-        this.model.scale.set(this.modelScale, this.modelScale, this.modelScale); // kleiner, damit nicht zu dominant
+        this.model.scale.set(this.modelScale, this.modelScale, this.modelScale);
         this.scene.add(this.model);
         this._addAccessory();
         this._createSpeechBubble(this.lastTip);
@@ -107,19 +107,14 @@ export class Ghost3D {
     let color = 0xffffff;
     let emissive = 0x000000;
     switch (priority) {
-      case 'alert': color = 0xffffff; emissive = 0xff8888; break;
-      case 'warn': color = 0xffffff; emissive = 0xffe082; break;
-      case 'info': color = 0xffffff; emissive = 0x90caf9; break;
-      case 'ok': default: color = 0xffffff; break;
+      case 'alert': emissive = 0xff8888; break;
+      case 'warn': emissive = 0xffe082; break;
+      case 'info': emissive = 0x90caf9; break;
     }
     this.model.traverse((obj: any) => {
       if (obj.isMesh && obj.material) {
         obj.material.color?.set(color);
-        if (priority === 'alert') {
-          obj.material.emissive?.set(emissive);
-        } else {
-          obj.material.emissive?.set(0x000000);
-        }
+        obj.material.emissive?.set(emissive);
       }
     });
   }
@@ -133,10 +128,8 @@ export class Ghost3D {
     const material = new THREE.MeshBasicMaterial({ color: 0x222222 });
     const hat = new THREE.Mesh(geometry, material);
     hat.position.set(0, 0.38, 0);
-    hat.rotation.x = 0;
     const brimGeo = new THREE.CylinderGeometry(0.17, 0.17, 0.015, 32);
-    const brimMat = new THREE.MeshBasicMaterial({ color: 0x222222 });
-    const brim = new THREE.Mesh(brimGeo, brimMat);
+    const brim = new THREE.Mesh(brimGeo, material);
     brim.position.set(0, -0.045, 0);
     hat.add(brim);
     this.model.add(hat);
@@ -192,10 +185,17 @@ export class Ghost3D {
   private _updateSpeechTexture(text: string) {
     if (!this.speechCanvas || !this.speechCtx) return;
     const ctx = this.speechCtx;
+    const padding = 10;
+    const maxWidth = this.speechCanvas.width - padding * 2;
+    const lineHeight = 24;
+    const x = this.speechCanvas.width / 2;
+    const yStart = 28;
+
     ctx.clearRect(0, 0, this.speechCanvas.width, this.speechCanvas.height);
     ctx.fillStyle = 'rgba(255,255,255,0.95)';
     ctx.strokeStyle = 'rgba(180,180,180,0.7)';
     ctx.lineWidth = 3;
+
     ctx.beginPath();
     ctx.moveTo(20, 10);
     ctx.lineTo(236, 10);
@@ -209,6 +209,7 @@ export class Ghost3D {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
+
     ctx.beginPath();
     ctx.moveTo(128, 86);
     ctx.lineTo(138, 106);
@@ -216,14 +217,42 @@ export class Ghost3D {
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
-    ctx.font = 'bold 22px sans-serif';
+
+    ctx.font = 'bold 20px sans-serif';
     ctx.fillStyle = '#222';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, 128, 48);
+
+    const lines = this._wrapText(ctx, text, maxWidth);
+    const textHeight = lines.length * lineHeight;
+    const yOffset = yStart + (60 - textHeight) / 2;
+
+    lines.forEach((line, i) => {
+      ctx.fillText(line, x, yOffset + i * lineHeight);
+    });
+
     if (this.speechTexture) {
       this.speechTexture.needsUpdate = true;
     }
+  }
+
+  private _wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let line = '';
+
+    for (let i = 0; i < words.length; i++) {
+      const testLine = line + words[i] + ' ';
+      const metrics = ctx.measureText(testLine);
+      if (metrics.width > maxWidth && i > 0) {
+        lines.push(line.trim());
+        line = words[i] + ' ';
+      } else {
+        line = testLine;
+      }
+    }
+    lines.push(line.trim());
+    return lines;
   }
 
   private _isTabVisible(): boolean {
@@ -253,7 +282,6 @@ export class Ghost3D {
         this.speechMesh.position.y = this.model.position.y + 0.9;
         this.speechMesh.lookAt(this.camera.position);
       }
-      // Kein Blinken/Pulsieren mehr für Glow
       this.renderer.render(this.scene, this.camera);
       this.animationId = requestAnimationFrame(animateFn);
     };
