@@ -26,7 +26,7 @@ export class Ghost3D {
         loader.load(this.modelUrl, (gltf) => {
             this.model = gltf.scene;
             this.model.position.set(0, 0.5, 0);
-            this.model.scale.set(2.0, 2.0, 2.0);
+            this.model.scale.set(1.2, 1.2, 1.2); // kleiner, damit nicht zu dominant
             this.scene.add(this.model);
             this._addAccessory();
             this._createSpeechBubble(this.lastTip);
@@ -69,15 +69,15 @@ export class Ghost3D {
         let emissive = 0x000000;
         switch (priority) {
             case 'alert':
-                color = 0xff4444;
+                color = 0xffffff;
                 emissive = 0xff8888;
                 break;
             case 'warn':
-                color = 0xffc107;
+                color = 0xffffff;
                 emissive = 0xffe082;
                 break;
             case 'info':
-                color = 0x2196f3;
+                color = 0xffffff;
                 emissive = 0x90caf9;
                 break;
             case 'ok':
@@ -126,19 +126,19 @@ export class Ghost3D {
             this.glowMesh = undefined;
         }
         let glowColor = null;
-        let glowOpacity = 0.35;
+        let glowOpacity = 0.18;
         switch (priority) {
             case 'alert':
                 glowColor = 0xff4444;
-                glowOpacity = 0.45;
+                glowOpacity = 0.22;
                 break;
             case 'warn':
                 glowColor = 0xffc107;
-                glowOpacity = 0.32;
+                glowOpacity = 0.13;
                 break;
             case 'info':
                 glowColor = 0x2196f3;
-                glowOpacity = 0.28;
+                glowOpacity = 0.10;
                 break;
             default: return;
         }
@@ -234,11 +234,7 @@ export class Ghost3D {
                 this.speechMesh.position.y = this.model.position.y + 0.9;
                 this.speechMesh.lookAt(this.camera.position);
             }
-            if (this.glowMesh) {
-                const baseOpacity = this.glowMesh.material.opacity;
-                this.glowMesh.material.opacity = baseOpacity * (0.85 + 0.15 * Math.sin(t * 2));
-                this.glowMesh.scale.set(1.05 + 0.04 * Math.sin(t * 2), 1.05 + 0.04 * Math.sin(t * 2), 1.05 + 0.04 * Math.sin(t * 2));
-            }
+            // Kein Blinken/Pulsieren mehr für Glow
             this.renderer.render(this.scene, this.camera);
             this.animationId = requestAnimationFrame(animateFn);
         };

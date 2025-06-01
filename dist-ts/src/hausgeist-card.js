@@ -116,8 +116,8 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         if (container && this.ghost3D) {
             const card = container.closest('ha-card');
             if (card) {
-                const width = card.offsetWidth || 200;
-                const height = Math.max(160, Math.round(width * 1));
+                const width = card.offsetWidth || 500; // Default width if not set
+                const height = Math.max(300, Math.round(width * 1)); // Aspect ratio 1:1
                 this.ghost3D.resize(width, height);
                 container.style.width = width + 'px';
                 container.style.height = height + 'px';
