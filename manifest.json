@@ -3,6 +3,6 @@
   "description": "A customizable card for home automation rules",
   "type": "module",
   "version": "1.0.0",
-  "frontend_path": "hausgeist-card.js",
+  "frontend_path": "dist/hausgeist-card.js",
   "editor": true
 }
