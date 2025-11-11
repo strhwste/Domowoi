@@ -54,7 +54,7 @@ export class Ghost3D {
     const light = new THREE.DirectionalLight(0xffffff, 1);
     light.position.set(0, 2, 2);
     this.scene.add(light);
-    this.scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    this.scene.add(new THREE.AmbientLight(0xffffff, 1));
     this.container.appendChild(this.renderer.domElement);
     this._loadModel();
   }
