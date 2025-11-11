@@ -7,7 +7,7 @@ export type Rule = {
 export declare class RuleEngine {
     private rules;
     constructor(rules: Rule[]);
-    evaluate(context: Record<string, any>): {
+    evaluate(context: Record<string, any> | null | undefined): {
         message_key: string;
         priority: string;
     }[];

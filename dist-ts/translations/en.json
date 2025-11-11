@@ -3,6 +3,7 @@
     "high_co2": "High CO₂ levels – please air out",
     "cold_temp": "Temperature below 18 °C – check heating or windows",
     "all_ok": "All good here 🎉",
+    "loading": "Collecting sensor data...",
     "temp_above_target": "⚠️ Temperature well above target – check heating curve.",
     "temp_below_target": "❄️ Room is undercooled – check heating or windows.",
     "humidity_low": "💧 Humidity too low – consider using a humidifier.",

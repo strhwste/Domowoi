@@ -38,7 +38,9 @@ export declare class HausgeistCard extends LitElement {
     private _lastAreaEvalTimestamp;
     private _areaEvalInterval;
     private _areaResults;
-    private _areaEvalTimer;
+    private _resolvedAreas;
+    private _pendingAreaQueue;
+    private _evaluationTimer;
     private _areaSensorCache;
     private _areaLastEval;
     private _areaMaxEvalInterval;
@@ -53,6 +55,7 @@ export declare class HausgeistCard extends LitElement {
         default_outside_temp: number;
     };
     connectedCallback(): Promise<void>;
+    protected willUpdate(changedProps: PropertyValues): void;
     updated(changedProps: PropertyValues): void;
     disconnectedCallback(): void;
     private _getCurrentTip;
@@ -61,5 +64,9 @@ export declare class HausgeistCard extends LitElement {
     private _getTargetTemperature;
     private _buildContext;
     private _calculateTempChangeRate;
-    private _evaluateNextArea;
+    private _getStatesArray;
+    private _resolveDefaultTarget;
+    private _refreshAreasCache;
+    private _enqueueAreasForEvaluation;
+    private _processEvaluationQueue;
 }

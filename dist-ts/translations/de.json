@@ -3,6 +3,7 @@
     "high_co2": "CO₂-Wert hoch – bitte Stoßlüften",
     "cold_temp": "Temperatur unter 18 °C – Heizung prüfen bzw. Fenster schließen",
     "all_ok": "Alles im grünen Bereich 🎉",
+    "loading": "Sammle Sensordaten...",
     "temp_above_target": "⚠️ Temperatur deutlich über dem Sollwert – Heizkurve prüfen.",
     "temp_below_target": "❄️ Raum ist unterkühlt – Heizung oder Fenster prüfen.",
     "humidity_low": "💧 Luftfeuchtigkeit zu niedrig – ggf. Luftbefeuchter nutzen.",

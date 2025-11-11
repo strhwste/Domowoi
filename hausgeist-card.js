@@ -47,28 +47,40 @@ class RuleEngine {
     constructor(rules) {
         this.rules = [];
         this.rules = rules;
-        console.log('[RuleEngine] Initialized with', rules.length, 'rules');
     }
     evaluate(context) {
-        // Debug: log available context
-        console.log('[RuleEngine] Evaluating rules with context:', context);
+        if (!context || Object.keys(context).length === 0) {
+            return [];
+        }
+        const paramNames = Object.keys(context);
+        const paramValues = paramNames.map(name => context[name]);
+        const debugEnabled = Boolean(context.debug);
+        if (debugEnabled) {
+            console.debug('[RuleEngine] Evaluating rules with context:', context);
+        }
         const results = [];
         for (const rule of this.rules) {
             let hit = false;
             try {
                 // eslint-disable-next-line no-new-func
-                hit = Function(...Object.keys(context), `return (${rule.condition});`)(...Object.values(context));
-                console.log(`[RuleEngine] Rule '${rule.id || rule.message_key}' (${rule.condition}) => ${hit}`);
+                hit = Function(...paramNames, `return (${rule.condition});`)(...paramValues);
+                if (debugEnabled) {
+                    console.debug(`[RuleEngine] Rule '${rule.id || rule.message_key}' (${rule.condition}) => ${hit}`);
+                }
             }
             catch (e) {
-                console.warn(`[RuleEngine] Error evaluating rule '${rule.id || rule.message_key}':`, e);
+                if (debugEnabled) {
+                    console.warn(`[RuleEngine] Error evaluating rule '${rule.id || rule.message_key}':`, e);
+                }
                 continue;
             }
             if (hit) {
                 results.push({ message_key: rule.message_key, priority: rule.priority });
             }
         }
-        console.log('[RuleEngine] Evaluation complete,', results.length, 'rules matched');
+        if (debugEnabled) {
+            console.debug('[RuleEngine] Evaluation complete,', results.length, 'rules matched');
+        }
         return results;
     }
 }
@@ -300,6 +312,7 @@ var low_humidity$1 = "Humidity below 35% – please ventilate or humidify";
 var high_co2$1 = "High CO₂ levels – please air out";
 var cold_temp$1 = "Temperature below 18 °C – check heating or windows";
 var all_ok$1 = "All good here 🎉";
+var loading$2 = "Collecting sensor data...";
 var temp_above_target$1 = "⚠️ Temperature well above target – check heating curve.";
 var temp_below_target$1 = "❄️ Room is undercooled – check heating or windows.";
 var humidity_low$1 = "💧 Humidity too low – consider using a humidifier.";
@@ -336,6 +349,7 @@ var en = {
 	high_co2: high_co2$1,
 	cold_temp: cold_temp$1,
 	all_ok: all_ok$1,
+	loading: loading$2,
 	temp_above_target: temp_above_target$1,
 	temp_below_target: temp_below_target$1,
 	humidity_low: humidity_low$1,
@@ -373,6 +387,7 @@ var low_humidity = "Luftfeuchtigkeit unter 35 % – lüften oder befeuchten empf
 var high_co2 = "CO₂-Wert hoch – bitte Stoßlüften";
 var cold_temp = "Temperatur unter 18 °C – Heizung prüfen bzw. Fenster schließen";
 var all_ok = "Alles im grünen Bereich 🎉";
+var loading$1 = "Sammle Sensordaten...";
 var temp_above_target = "⚠️ Temperatur deutlich über dem Sollwert – Heizkurve prüfen.";
 var temp_below_target = "❄️ Raum ist unterkühlt – Heizung oder Fenster prüfen.";
 var humidity_low = "💧 Luftfeuchtigkeit zu niedrig – ggf. Luftbefeuchter nutzen.";
@@ -409,6 +424,7 @@ var de = {
 	high_co2: high_co2,
 	cold_temp: cold_temp,
 	all_ok: all_ok,
+	loading: loading$1,
 	temp_above_target: temp_above_target,
 	temp_below_target: temp_below_target,
 	humidity_low: humidity_low,
@@ -65175,9 +65191,11 @@ let HausgeistCard = class HausgeistCard extends i$x {
         this._currentPriority = 'ok';
         this._currentAreaIndex = 0;
         this._lastAreaEvalTimestamp = 0;
-        this._areaEvalInterval = 2000; // ms, wie oft ein Bereich neu evaluiert wird
+        this._areaEvalInterval = 2000; // ms delay between queued evaluations
         this._areaResults = {};
-        this._areaEvalTimer = null;
+        this._resolvedAreas = [];
+        this._pendingAreaQueue = [];
+        this._evaluationTimer = null;
         this._areaSensorCache = {};
         this._areaLastEval = {};
         this._areaMaxEvalInterval = 60000; // 60s
@@ -65196,6 +65214,8 @@ let HausgeistCard = class HausgeistCard extends i$x {
         if (config.rulesJson) {
             this.rulesJson = config.rulesJson;
         }
+        this._refreshAreasCache();
+        this._enqueueAreasForEvaluation(this._resolvedAreas.map(a => a.area_id));
     }
     // Support the editor UI
     static async getConfigElement() {
@@ -65245,16 +65265,18 @@ let HausgeistCard = class HausgeistCard extends i$x {
                 console.log('[Hausgeist] Initialization complete, requesting update');
             }
             this.requestUpdate();
-            // Start area evaluation timer
-            if (this._areaEvalTimer) {
-                clearInterval(this._areaEvalTimer);
-            }
-            this._areaEvalTimer = setInterval(() => this._evaluateNextArea(), this._areaEvalInterval);
-            this._evaluateNextArea(); // Initial evaluation
+            this._refreshAreasCache();
+            this._enqueueAreasForEvaluation(this._resolvedAreas.map(a => a.area_id), true);
         }
         catch (error) {
             console.error('[Hausgeist] Error initializing card:', error);
             this.ready = false;
+        }
+    }
+    willUpdate(changedProps) {
+        super.willUpdate(changedProps);
+        if (changedProps.has('config') || changedProps.has('hass')) {
+            this._refreshAreasCache();
         }
     }
     updated(changedProps) {
@@ -65280,6 +65302,9 @@ let HausgeistCard = class HausgeistCard extends i$x {
             container.style.width = width + 'px';
             container.style.height = height + 'px';
         }
+        if (changedProps.has('config') || changedProps.has('hass')) {
+            this._enqueueAreasForEvaluation(this._resolvedAreas.map(a => a.area_id));
+        }
     }
     disconnectedCallback() {
         super.disconnectedCallback();
@@ -65287,10 +65312,11 @@ let HausgeistCard = class HausgeistCard extends i$x {
             this.ghost3D.dispose();
             this.ghost3D = undefined;
         }
-        if (this._areaEvalTimer) {
-            clearInterval(this._areaEvalTimer);
-            this._areaEvalTimer = null;
+        if (this._evaluationTimer !== null) {
+            clearTimeout(this._evaluationTimer);
+            this._evaluationTimer = null;
         }
+        this._pendingAreaQueue = [];
     }
     _getCurrentTip() {
         if (this.ghostLoadError) {
@@ -65322,21 +65348,7 @@ let HausgeistCard = class HausgeistCard extends i$x {
         }
         const debugBanner = this.debug ? x$6 `<p class="debug-banner">🛠️ Debug mode active</p>` : '';
         const debugOut = [];
-        const { states } = this.hass;
-        // Ensure states is always an array for downstream logic
-        const statesArray = Array.isArray(states) ? states : Object.values(states || {});
-        // If no areas are configured, use all areas from Home Assistant
-        let areas = this.config.areas || [];
-        if (areas.length === 0 && this.hass.areas) {
-            areas = Object.entries(this.hass.areas).map(([id, area]) => ({
-                area_id: id,
-                name: area.name || id,
-                enabled: true
-            }));
-        }
-        // Filter enabled areas
-        areas = areas.filter(a => a.enabled !== false);
-        // If no areas are enabled, show a message
+        const areas = this._resolvedAreas;
         if (areas.length === 0) {
             return x$6 `<ha-card>
         <div class="card-content">
@@ -65346,11 +65358,11 @@ let HausgeistCard = class HausgeistCard extends i$x {
       </ha-card>`;
         }
         const areaIds = areas.map(a => a.area_id);
-        const defaultTarget = this.config?.overrides?.default_target || 21;
         const weatherEntity = this.config.weather_entity || 'weather.home';
         if (this.debug) {
             debugOut.push(`DEBUG: Enabled areas: ${JSON.stringify(areas.map(a => a.name || a.area_id))}`);
             debugOut.push(`DEBUG: Weather entity: ${weatherEntity}`);
+            debugOut.push(`DEBUG: Pending evaluations: ${this._pendingAreaQueue.join(', ') || 'none'}`);
         }
         const lang = this.hass.selectedLanguage || 'de';
         const langKey = lang;
@@ -65360,17 +65372,14 @@ let HausgeistCard = class HausgeistCard extends i$x {
         }
         // Mapping areaId -> Klartextname (aus config.areas)
         const areaIdToName = {};
-        areas.forEach(a => { areaIdToName[a.area_id] = a.name; });
+        areas.forEach(a => { areaIdToName[a.area_id] = a.name || a.area_id; });
         // Bereichsrotation: Pro Render nur einen Bereich auswerten und Ergebnis zwischenspeichern
         const now = Date.now();
         if (!this._lastAreaEvalTimestamp || now - this._lastAreaEvalTimestamp > this._areaEvalInterval) {
             this._currentAreaIndex = (this._currentAreaIndex + 1) % areaIds.length;
             this._lastAreaEvalTimestamp = now;
         }
-        const activeAreaId = areaIds[this._currentAreaIndex];
-        // Nur den aktiven Bereich neu auswerten und speichern
-        const context = this._buildContext(activeAreaId, [], statesArray, weatherEntity, defaultTarget);
-        this.engine ? this.engine.evaluate(context) : [];
+        areaIds[this._currentAreaIndex];
         // Sammle alle evals aus allen Bereichen
         let allEvals = [];
         Object.entries(this._areaResults).forEach(([area, result]) => {
@@ -65398,17 +65407,35 @@ let HausgeistCard = class HausgeistCard extends i$x {
             shownEvals = allEvals.slice(0, 3);
         }
         // Wichtigste Meldung als Sprechblasen-Text setzen
+        const hasEvaluations = Object.keys(this._areaResults).length > 0;
+        const tipText = shownEvals.length > 0
+            ? shownEvals[0].msg
+            : hasEvaluations
+                ? (this.texts['all_ok'] || 'Alles ok!')
+                : (this.texts['loading'] || 'Collecting sensor data...');
+        const nextPriority = shownEvals[0]?.prio ?? 'ok';
+        if (this._currentPriority !== nextPriority) {
+            this._currentPriority = nextPriority;
+            if (this.ghost3D) {
+                this.ghost3D.setPriority(nextPriority);
+            }
+        }
+        this.lastTip = tipText;
         if (this.ghost3D) {
-            const tipText = shownEvals.length > 0 ? shownEvals[0].msg : (this.texts['all_ok'] || 'Alles ok!');
             this.ghost3D.setTip(tipText);
         }
+        const emptyStateTemplate = shownEvals.length === 0
+            ? (hasEvaluations
+                ? x$6 `<div class="warnbox ok">${this.texts['all_ok'] || 'Alles ok!'}</div>`
+                : x$6 `<div class="warnbox info">${this.texts['loading'] || 'Collecting sensor data...'}</div>`)
+            : null;
         return x$6 `
       <ha-card>
         <div class="card-content">
           <h2>👻 Hausgeist</h2>
           <div class="ghost-3d-container" style="width:220px;height:220px;margin:auto;"></div>
           ${debugBanner}
-          ${shownEvals.length === 0 ? x$6 `<div class="warnbox ok">${this.texts['all_ok'] || 'Alles ok!'}</div>` : ''}
+          ${emptyStateTemplate ?? ''}
           ${shownEvals.map(ev => x$6 `
             <div class="warnbox ${ev.prio}">${ev.msg}</div>
           `)}
@@ -65534,7 +65561,7 @@ let HausgeistCard = class HausgeistCard extends i$x {
         const maxIntervalReached = nowTime - lastEval > this._areaMaxEvalInterval;
         const changed = !lastCache || Object.keys(cacheObj).some(k => lastCache[k] !== cacheObj[k]);
         if (!changed && !maxIntervalReached) {
-            return {};
+            return null;
         }
         this._areaSensorCache[area] = cacheObj;
         this._areaLastEval[area] = nowTime;
@@ -65563,29 +65590,122 @@ let HausgeistCard = class HausgeistCard extends i$x {
         }
         return 0;
     }
-    _evaluateNextArea() {
-        if (!this.hass?.states || !this.config?.areas)
+    _getStatesArray() {
+        if (!this.hass?.states) {
+            return [];
+        }
+        return Array.isArray(this.hass.states) ? this.hass.states : Object.values(this.hass.states);
+    }
+    _resolveDefaultTarget() {
+        return this.config?.overrides?.default_target ?? this.config?.default_target ?? 21;
+    }
+    _refreshAreasCache() {
+        const configuredAreas = Array.isArray(this.config?.areas) ? this.config.areas : [];
+        let resolved = configuredAreas.map(area => ({
+            area_id: area.area_id,
+            name: area.name || area.area_id,
+            enabled: area.enabled !== false
+        }));
+        if (resolved.length === 0 && this.hass?.areas) {
+            resolved = Object.entries(this.hass.areas).map(([id, area]) => ({
+                area_id: id,
+                name: area?.name || id,
+                enabled: true
+            }));
+        }
+        resolved = resolved.filter(area => area.enabled !== false && !!area.area_id);
+        const oldSignature = JSON.stringify(this._resolvedAreas.map(a => `${a.area_id}:${a.name}`));
+        const newSignature = JSON.stringify(resolved.map(a => `${a.area_id}:${a.name}`));
+        if (oldSignature === newSignature) {
             return;
-        const areas = this.config.areas.filter(a => a.enabled !== false);
-        if (areas.length === 0)
+        }
+        this._resolvedAreas = resolved;
+        const validIds = new Set(resolved.map(a => a.area_id));
+        Object.keys(this._areaResults).forEach(areaId => {
+            if (!validIds.has(areaId)) {
+                delete this._areaResults[areaId];
+                delete this._areaSensorCache[areaId];
+                delete this._areaLastEval[areaId];
+            }
+        });
+        this._pendingAreaQueue = this._pendingAreaQueue.filter(id => validIds.has(id));
+        if (this._currentAreaIndex >= this._resolvedAreas.length) {
+            this._currentAreaIndex = 0;
+        }
+        if (this._resolvedAreas.length > 0) {
+            this._enqueueAreasForEvaluation(this._resolvedAreas.map(a => a.area_id));
+        }
+    }
+    _enqueueAreasForEvaluation(areaIds, immediate = false) {
+        if (!areaIds || areaIds.length === 0) {
             return;
-        // Rotate to next area
-        this._currentAreaIndex = (this._currentAreaIndex + 1) % areas.length;
-        const area = areas[this._currentAreaIndex];
-        // Get all states
-        const states = Array.isArray(this.hass.states) ? this.hass.states : Object.values(this.hass.states);
-        // Build context for rule evaluation
-        const usedSensors = [];
-        const context = this._buildContext(area.area_id, usedSensors, states, this.config.weather_entity || 'weather.home', this.config.default_target || 21);
-        if (this.engine && context && Object.keys(context).length > 0) {
+        }
+        const pendingSet = new Set(this._pendingAreaQueue);
+        let added = false;
+        for (const id of areaIds) {
+            if (!id || pendingSet.has(id)) {
+                continue;
+            }
+            this._pendingAreaQueue.push(id);
+            pendingSet.add(id);
+            added = true;
+        }
+        if (!added && !immediate) {
+            return;
+        }
+        if (this._evaluationTimer !== null) {
+            if (!immediate) {
+                return;
+            }
+            clearTimeout(this._evaluationTimer);
+            this._evaluationTimer = null;
+        }
+        if (immediate) {
+            this._processEvaluationQueue(true);
+        }
+        else {
+            this._evaluationTimer = window.setTimeout(() => this._processEvaluationQueue(), 0);
+        }
+    }
+    _processEvaluationQueue(processAll = false) {
+        this._evaluationTimer = null;
+        if (!this.engine || !this.hass?.states) {
+            return;
+        }
+        const states = this._getStatesArray();
+        const weatherEntity = this.config.weather_entity || 'weather.home';
+        const defaultTarget = this._resolveDefaultTarget();
+        const batchSize = processAll ? this._pendingAreaQueue.length : 1;
+        let processed = 0;
+        let updated = false;
+        while (this._pendingAreaQueue.length > 0 && processed < batchSize) {
+            const areaId = this._pendingAreaQueue.shift();
+            if (!areaId) {
+                continue;
+            }
+            const area = this._resolvedAreas.find(a => a.area_id === areaId);
+            if (!area) {
+                continue;
+            }
+            const usedSensors = [];
+            const context = this._buildContext(area.area_id, usedSensors, states, weatherEntity, defaultTarget);
+            if (!context) {
+                processed++;
+                continue;
+            }
             const evals = this.engine.evaluate(context);
             this._areaResults[area.area_id] = {
                 area: area.name || area.area_id,
                 evals,
                 usedSensors
             };
-            // Nur updaten, wenn sich das Ergebnis geändert hat
-            // (Optional: hier könnte man einen Vergleich einbauen)
+            updated = true;
+            processed++;
+        }
+        if (this._pendingAreaQueue.length > 0) {
+            this._evaluationTimer = window.setTimeout(() => this._processEvaluationQueue(), this._areaEvalInterval);
+        }
+        if (updated) {
             this.requestUpdate();
         }
     }
