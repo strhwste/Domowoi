@@ -38,6 +38,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         this._areaSensorCache = {};
         this._areaLastEval = {};
         this._areaMaxEvalInterval = 60000; // 60s
+        this._tempHistory = {};
     }
     // Add required setConfig method for custom cards
     setConfig(config) {
@@ -337,8 +338,12 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             return this._findSensor(states, area, usedSensors, type);
         };
         const get = (type) => {
-            const s = findSensor(type);
-            return s ? Number(s.state) : undefined;
+            const sensor = findSensor(type);
+            if (!sensor) {
+                return undefined;
+            }
+            const value = Number(sensor.state);
+            return Number.isFinite(value) ? value : undefined;
         };
         const findState = (fn) => {
             const found = states.find(fn);
@@ -348,8 +353,34 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         const weatherAttributes = weather?.attributes || {};
         const forecast = weatherAttributes.forecast?.[0] || {};
         const target = this._getTargetTemperature(area, states, defaultTarget);
+        const nowTime = Date.now();
+        const tempSensor = findSensor('temperature');
+        const rawTemp = tempSensor ? Number(tempSensor.state) : undefined;
+        const temp = typeof rawTemp === 'number' && Number.isFinite(rawTemp) ? rawTemp : undefined;
+        const rainSoon = (() => {
+            if (!Array.isArray(weatherAttributes.forecast) || weatherAttributes.forecast.length === 0) {
+                return false;
+            }
+            const horizon = nowTime + 2 * 3600000; // ~2 hours lookahead
+            return weatherAttributes.forecast.some((entry) => {
+                const rawTime = entry.datetime || entry.datetime_iso || entry.time;
+                const timestamp = rawTime ? Date.parse(rawTime) : NaN;
+                if (!Number.isFinite(timestamp)) {
+                    return false;
+                }
+                if (timestamp < nowTime || timestamp > horizon) {
+                    return false;
+                }
+                const precipitation = Number(entry.precipitation ?? entry.rain ?? 0);
+                const probability = Number(entry.precipitation_probability ?? entry.probability ?? entry.chance_of_rain ?? 0);
+                const hasPrecip = Number.isFinite(precipitation) && precipitation > 0;
+                const hasProbability = Number.isFinite(probability) && probability >= 50;
+                return hasPrecip || hasProbability;
+            });
+        })();
         const cacheObj = {
-            temp: get('temperature'),
+            temp: Number.isFinite(temp) ? temp : undefined,
+            target,
             humidity: get('humidity'),
             co2: get('co2'),
             window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
@@ -380,14 +411,14 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                 return undefined;
             })(),
             forecast_sun: forecast.condition === 'sunny',
-            target,
             debug: this.debug,
             motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
             door: findState((e) => e.entity_id.includes('door') && e.attributes.area_id === area)?.state,
             energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
             high_threshold: this.highThreshold,
-            temp_change_rate: this._calculateTempChangeRate(area, states),
-            now: Date.now(),
+            rain_soon: rainSoon,
+            temp_change_rate: this._calculateTempChangeRate(area, tempSensor),
+            now: nowTime,
             curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
             blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
             adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
@@ -396,7 +427,6 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         // Update cache and check for changes
         const lastCache = this._areaSensorCache[area] || {};
         const lastEval = this._areaLastEval[area] || 0;
-        const nowTime = Date.now();
         const maxIntervalReached = nowTime - lastEval > this._areaMaxEvalInterval;
         const changed = !lastCache || Object.keys(cacheObj).some(k => lastCache[k] !== cacheObj[k]);
         if (!changed && !maxIntervalReached) {
@@ -404,30 +434,41 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         }
         this._areaSensorCache[area] = cacheObj;
         this._areaLastEval[area] = nowTime;
-        return {
-            ...cacheObj,
-            target: Number(findState((e) => e.entity_id.endsWith('_temperature_target') && e.attributes.area_id === area)?.state ?? defaultTarget),
-            debug: this.debug
-        };
+        return cacheObj;
     }
-    _calculateTempChangeRate(area, states) {
-        try {
-            const tempSensor = states.find(s => s.attributes?.area_id === area && s.entity_id.includes('temperature'));
-            if (tempSensor) {
-                const history = Array.isArray(tempSensor.attributes?.history) ? tempSensor.attributes.history : [];
-                if (history.length >= 2) {
-                    const [latest, previous] = history.slice(-2);
-                    const timeDiff = (latest.timestamp - previous.timestamp) / 3600000; // Convert ms to hours
-                    if (timeDiff > 0) {
-                        return (latest.value - previous.value) / timeDiff;
-                    }
-                }
+    _calculateTempChangeRate(area, tempSensor) {
+        if (!tempSensor) {
+            return 0;
+        }
+        const rawValue = Number(tempSensor.state);
+        if (!Number.isFinite(rawValue)) {
+            return 0;
+        }
+        const timeSource = tempSensor.last_updated || tempSensor.last_changed || tempSensor.attributes?.last_updated;
+        let timestamp = typeof timeSource === 'number' ? timeSource : undefined;
+        if (!timestamp && typeof timeSource === 'string') {
+            const parsed = Date.parse(timeSource);
+            if (Number.isFinite(parsed)) {
+                timestamp = parsed;
             }
         }
-        catch (error) {
-            console.error('Error calculating temperature change rate:', error);
+        if (!timestamp && timeSource instanceof Date) {
+            timestamp = timeSource.getTime();
         }
-        return 0;
+        if (!timestamp) {
+            timestamp = Date.now();
+        }
+        const previous = this._tempHistory[area];
+        this._tempHistory[area] = { timestamp, value: rawValue };
+        if (!previous || timestamp <= previous.timestamp) {
+            return 0;
+        }
+        const timeDiffHours = (timestamp - previous.timestamp) / 3600000;
+        if (timeDiffHours <= 0) {
+            return 0;
+        }
+        const rate = (rawValue - previous.value) / timeDiffHours;
+        return Number.isFinite(rate) ? rate : 0;
     }
     _getStatesArray() {
         if (!this.hass?.states) {

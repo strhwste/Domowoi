@@ -1,4 +1,4 @@
-import { LitElement, PropertyValues, TemplateResult } from 'lit';
+import { LitElement, PropertyValues } from 'lit';
 import './hausgeist-card-editor';
 declare module 'three/examples/jsm/loaders/GLTFLoader.js';
 export declare class HausgeistCard extends LitElement {
@@ -44,6 +44,7 @@ export declare class HausgeistCard extends LitElement {
     private _areaSensorCache;
     private _areaLastEval;
     private _areaMaxEvalInterval;
+    private _tempHistory;
     setConfig(config: any): void;
     static getConfigElement(): Promise<HTMLElement>;
     static getStubConfig(): {
@@ -59,7 +60,7 @@ export declare class HausgeistCard extends LitElement {
     updated(changedProps: PropertyValues): void;
     disconnectedCallback(): void;
     private _getCurrentTip;
-    render(): TemplateResult<1>;
+    render(): import("lit-html").TemplateResult<1>;
     private _findSensor;
     private _getTargetTemperature;
     private _buildContext;
