@@ -69,6 +69,7 @@ export class Ghost3D {
         this.model.position.set(0, this.modelYOffset, 0);
         this.model.scale.set(this.modelScale, this.modelScale, this.modelScale);
         this.scene.add(this.model);
+        this._boostModelLighting(this.model);
         this._addAccessory();
         this._createSpeechBubble(this.lastTip);
         this._animate();
@@ -364,5 +365,27 @@ private _addAccessory() {
       this.animationId = requestAnimationFrame(animateFn);
     };
     animateFn();
+  }
+
+  private _boostModelLighting(root: THREE.Object3D) {
+    const white = new THREE.Color(0xffffff);
+    root.traverse((child: any) => {
+      if (!child.isMesh) return;
+      const materials = Array.isArray(child.material) ? child.material : [child.material];
+      materials.forEach((mat: THREE.Material | null) => {
+        if (!mat) return;
+        const standard = mat as THREE.MeshStandardMaterial;
+        if ((standard as any).color) {
+          (standard as any).color.lerp(white, 0.35);
+        }
+        if ((standard as any).emissive) {
+          (standard as any).emissive.lerp(white, 0.2);
+          (standard as any).emissiveIntensity = Math.max((standard as any).emissiveIntensity ?? 0, 0.45);
+        }
+        if (typeof (standard as any).envMapIntensity === 'number') {
+          (standard as any).envMapIntensity = Math.max((standard as any).envMapIntensity, 1.4);
+        }
+      });
+    });
   }
 }

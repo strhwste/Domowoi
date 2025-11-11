@@ -41,4 +41,5 @@ export declare class Ghost3D {
     private _wrapText;
     private _isTabVisible;
     private _animate;
+    private _boostModelLighting;
 }
