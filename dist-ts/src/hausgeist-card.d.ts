@@ -45,6 +45,10 @@ export declare class HausgeistCard extends LitElement {
     private _areaLastEval;
     private _areaMaxEvalInterval;
     private _tempHistory;
+    private _targetHistory;
+    private _humidityHighSince;
+    private _windowOpenSince;
+    private _doorOpenSince;
     setConfig(config: any): void;
     static getConfigElement(): Promise<HTMLElement>;
     static getStubConfig(): {
@@ -65,6 +69,8 @@ export declare class HausgeistCard extends LitElement {
     private _getTargetTemperature;
     private _buildContext;
     private _calculateTempChangeRate;
+    private _trackTargetChange;
+    private _updateActiveDuration;
     private _getStatesArray;
     private _resolveDefaultTarget;
     private _refreshAreasCache;

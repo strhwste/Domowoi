@@ -39,6 +39,10 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         this._areaLastEval = {};
         this._areaMaxEvalInterval = 60000; // 60s
         this._tempHistory = {};
+        this._targetHistory = {};
+        this._humidityHighSince = {};
+        this._windowOpenSince = {};
+        this._doorOpenSince = {};
     }
     // Add required setConfig method for custom cards
     setConfig(config) {
@@ -357,6 +361,124 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         const tempSensor = findSensor('temperature');
         const rawTemp = tempSensor ? Number(tempSensor.state) : undefined;
         const temp = typeof rawTemp === 'number' && Number.isFinite(rawTemp) ? rawTemp : undefined;
+        const heatingSensor = findSensor('heating');
+        const heatingLevelSensor = findSensor('heating_level');
+        const windowSensor = findSensor('window');
+        const doorSensor = findSensor('door');
+        const curtainSensor = findSensor('curtain');
+        const blindSensor = findSensor('blind');
+        const occupancySensor = findSensor('occupancy');
+        const motionSensor = findSensor('motion');
+        const energySensor = findSensor('energy');
+        const airQualitySensor = findSensor('air_quality');
+        const toContactState = (value) => {
+            if (typeof value !== 'string') {
+                return 'unknown';
+            }
+            const normalized = value.toLowerCase();
+            if (['open', 'on', 'opened', 'active', 'detected', 'true', 'raising', 'opening', 'up'].includes(normalized)) {
+                return 'open';
+            }
+            if (['closed', 'off', 'inactive', 'false', 'shut', 'down', 'lowered'].includes(normalized)) {
+                return 'closed';
+            }
+            return 'unknown';
+        };
+        const toBool = (value) => {
+            if (typeof value === 'boolean') {
+                return value;
+            }
+            if (typeof value === 'string') {
+                const normalized = value.toLowerCase();
+                return ['on', 'true', 'home', 'occupied', 'present', 'detected', 'motion', 'active'].includes(normalized);
+            }
+            return Boolean(value);
+        };
+        const isFiniteNumber = (value) => typeof value === 'number' && Number.isFinite(value);
+        const heatingLevelRaw = heatingLevelSensor ? Number(heatingLevelSensor.state) : NaN;
+        const heatingLevel = Number.isFinite(heatingLevelRaw) ? heatingLevelRaw : undefined;
+        const hvacAction = typeof heatingSensor?.attributes?.hvac_action === 'string'
+            ? heatingSensor.attributes.hvac_action.toLowerCase()
+            : undefined;
+        const hvacActionAlt = typeof heatingSensor?.attributes?.action === 'string'
+            ? heatingSensor.attributes.action.toLowerCase()
+            : undefined;
+        const hvacMode = typeof heatingSensor?.attributes?.hvac_mode === 'string'
+            ? heatingSensor.attributes.hvac_mode.toLowerCase()
+            : undefined;
+        const heatingStateRaw = typeof heatingSensor?.state === 'string'
+            ? heatingSensor.state.toLowerCase()
+            : undefined;
+        const heatingCall = (() => {
+            const action = hvacAction || hvacActionAlt;
+            if (action) {
+                return ['heating', 'heat', 'preheating', 'boost', 'aux_heat', 'supplemental heat'].includes(action);
+            }
+            if (typeof heatingLevel === 'number' && heatingLevel > 5) {
+                return true;
+            }
+            if (heatingStateRaw) {
+                return ['on', 'heating', 'heat', 'boost'].includes(heatingStateRaw);
+            }
+            return false;
+        })();
+        const heatingEffort = heatingCall || (typeof heatingLevel === 'number' && heatingLevel > 10);
+        const heatingState = hvacAction || heatingStateRaw || hvacMode || 'unknown';
+        const baselineTarget = this._resolveDefaultTarget();
+        const hasValidTarget = Number.isFinite(target) && target > 0;
+        const effectiveTarget = hasValidTarget ? target : baselineTarget;
+        const comfortHigh = Math.max(effectiveTarget, baselineTarget);
+        const comfortLow = effectiveTarget;
+        const targetChange = this._trackTargetChange(area, target, nowTime);
+        const humidity = get('humidity');
+        const co2 = get('co2');
+        const humidityHighMinutes = this._updateActiveDuration(this._humidityHighSince, area, isFiniteNumber(humidity) && humidity >= 65, nowTime);
+        const windowState = toContactState(windowSensor?.state);
+        const windowOpenMinutes = this._updateActiveDuration(this._windowOpenSince, area, windowState === 'open', nowTime);
+        const doorState = toContactState(doorSensor?.state);
+        const doorOpenMinutes = this._updateActiveDuration(this._doorOpenSince, area, doorState === 'open', nowTime);
+        const outsideTempRaw = Number(weatherAttributes.temperature);
+        const outsideTemp = Number.isFinite(outsideTempRaw)
+            ? outsideTempRaw
+            : Number(this.config.default_outside_temp ?? 15);
+        const forecastTempRaw = Number(forecast.temperature ?? forecast.temp);
+        const forecastTemp = Number.isFinite(forecastTempRaw) ? forecastTempRaw : outsideTemp;
+        const energyRaw = energySensor ? Number(energySensor.state) : NaN;
+        const energy = Number.isFinite(energyRaw) ? energyRaw : 0;
+        const motion = toBool(motionSensor?.state);
+        const occupied = toBool(occupancySensor?.state);
+        const curtainState = toContactState(curtainSensor?.state);
+        const blindState = toContactState(blindSensor?.state);
+        const airQualityState = typeof airQualitySensor?.state === 'string'
+            ? airQualitySensor.state
+            : 'unknown';
+        const forecastEntries = Array.isArray(weatherAttributes.forecast)
+            ? weatherAttributes.forecast
+            : [];
+        const todayStr = new Date(nowTime).toISOString().slice(0, 10);
+        const todayTemps = forecastEntries
+            .filter((f) => {
+            const raw = f.datetime || f.datetime_iso || f.time;
+            return typeof raw === 'string' && raw.slice(0, 10) === todayStr;
+        })
+            .map((f) => Number(f.temperature ?? f.temp))
+            .filter((value) => Number.isFinite(value));
+        const forecastHigh = todayTemps.length > 0 ? Math.max(...todayTemps) : undefined;
+        const forecastLow = todayTemps.length > 0 ? Math.min(...todayTemps) : undefined;
+        const forecastCondition = typeof forecast.condition === 'string' ? forecast.condition.toLowerCase() : '';
+        const adjacentSensor = findSensor('adjacent');
+        let adjacentRoomTemp;
+        if (adjacentSensor) {
+            const raw = Number(adjacentSensor.state);
+            adjacentRoomTemp = Number.isFinite(raw) ? raw : undefined;
+        }
+        if (typeof adjacentRoomTemp === 'undefined') {
+            const fallbackAdjacent = findState((e) => e.entity_id.includes('adjacent') &&
+                e.entity_id.includes('temperature') &&
+                e.attributes.area_id === area);
+            const rawFallback = fallbackAdjacent ? Number(fallbackAdjacent.state) : NaN;
+            adjacentRoomTemp = Number.isFinite(rawFallback) ? rawFallback : undefined;
+        }
         const rainSoon = (() => {
             if (!Array.isArray(weatherAttributes.forecast) || weatherAttributes.forecast.length === 0) {
                 return false;
@@ -379,50 +501,41 @@ let HausgeistCard = class HausgeistCard extends LitElement {
             });
         })();
         const cacheObj = {
-            temp: Number.isFinite(temp) ? temp : undefined,
+            temp,
             target,
-            humidity: get('humidity'),
-            co2: get('co2'),
-            window: findState((e) => e.entity_id.includes('window') && e.attributes.area_id === area)?.state,
-            heating: findState((e) => e.entity_id.includes('heating') && e.attributes.area_id === area)?.state,
-            outside_temp: Number(weatherAttributes.temperature ?? this.config.default_outside_temp ?? 15),
-            occupied: findState((e) => e.entity_id.includes('occupancy') && e.attributes.area_id === area)?.state === 'on',
-            forecast_temp: Number(forecast.temperature ?? 15),
-            forecast_high: (() => {
-                if (Array.isArray(weatherAttributes.forecast)) {
-                    const today = new Date();
-                    const todayStr = today.toISOString().slice(0, 10);
-                    const todayForecasts = weatherAttributes.forecast.filter((f) => (f.datetime || f.datetime_iso || f.time || '').slice(0, 10) === todayStr);
-                    if (todayForecasts.length > 0) {
-                        return Math.max(...todayForecasts.map((f) => Number(f.temperature ?? f.temp ?? -99)));
-                    }
-                }
-                return undefined;
-            })(),
-            forecast_low: (() => {
-                if (Array.isArray(weatherAttributes.forecast)) {
-                    const today = new Date();
-                    const todayStr = today.toISOString().slice(0, 10);
-                    const todayForecasts = weatherAttributes.forecast.filter((f) => (f.datetime || f.datetime_iso || f.time || '').slice(0, 10) === todayStr);
-                    if (todayForecasts.length > 0) {
-                        return Math.min(...todayForecasts.map((f) => Number(f.temperature ?? f.temp ?? 99)));
-                    }
-                }
-                return undefined;
-            })(),
-            forecast_sun: forecast.condition === 'sunny',
+            effective_target: effectiveTarget,
+            comfort_high: comfortHigh,
+            comfort_low: comfortLow,
+            target_recently_changed: targetChange.recentlyChanged,
+            target_change_minutes: targetChange.minutesSinceChange,
+            humidity,
+            humidity_high_minutes: humidityHighMinutes,
+            co2,
+            window: windowState,
+            window_open_minutes: windowOpenMinutes,
+            heating: heatingState,
+            heating_call: heatingCall,
+            heating_effort: Boolean(heatingEffort),
+            heating_level: heatingLevel,
+            outside_temp: outsideTemp,
+            occupied,
+            forecast_temp: forecastTemp,
+            forecast_high: forecastHigh,
+            forecast_low: forecastLow,
+            forecast_sun: ['sunny', 'clear', 'partlycloudy', 'partly-cloudy-day', 'partly cloudy'].includes(forecastCondition),
             debug: this.debug,
-            motion: findState((e) => e.entity_id.includes('motion') && e.attributes.area_id === area)?.state === 'on',
-            door: findState((e) => e.entity_id.includes('door') && e.attributes.area_id === area)?.state,
-            energy: Number(findState((e) => e.entity_id.includes('energy') && e.attributes.area_id === area)?.state ?? 0),
+            motion,
+            door: doorState,
+            door_open_minutes: doorOpenMinutes,
+            energy,
             high_threshold: this.highThreshold,
             rain_soon: rainSoon,
             temp_change_rate: this._calculateTempChangeRate(area, tempSensor),
             now: nowTime,
-            curtain: findState((e) => e.entity_id.includes('curtain') && e.attributes.area_id === area)?.state,
-            blind: findState((e) => e.entity_id.includes('blind') && e.attributes.area_id === area)?.state,
-            adjacent_room_temp: Number(findState((e) => e.entity_id.includes('adjacent') && e.entity_id.includes('temperature') && e.attributes.area_id === area)?.state ?? 0),
-            air_quality: findState((e) => e.entity_id.includes('air_quality') && e.attributes.area_id === area)?.state ?? 'unknown'
+            curtain: curtainState,
+            blind: blindState,
+            adjacent_room_temp: adjacentRoomTemp,
+            air_quality: airQualityState
         };
         // Update cache and check for changes
         const lastCache = this._areaSensorCache[area] || {};
@@ -469,6 +582,39 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         }
         const rate = (rawValue - previous.value) / timeDiffHours;
         return Number.isFinite(rate) ? rate : 0;
+    }
+    _trackTargetChange(area, target, timestamp) {
+        if (!Number.isFinite(target)) {
+            this._targetHistory[area] = undefined;
+            return { recentlyChanged: false, minutesSinceChange: Number.POSITIVE_INFINITY };
+        }
+        const previous = this._targetHistory[area];
+        if (!previous) {
+            this._targetHistory[area] = { timestamp, value: target };
+            return { recentlyChanged: false, minutesSinceChange: Number.POSITIVE_INFINITY };
+        }
+        const changed = previous.value !== target;
+        if (changed) {
+            this._targetHistory[area] = { timestamp, value: target };
+            return { recentlyChanged: true, minutesSinceChange: 0 };
+        }
+        const minutesSinceChange = Math.max(0, (timestamp - previous.timestamp) / 60000);
+        return {
+            recentlyChanged: minutesSinceChange < 30,
+            minutesSinceChange
+        };
+    }
+    _updateActiveDuration(store, area, active, now) {
+        if (active) {
+            if (!store[area]) {
+                store[area] = now;
+                return 0;
+            }
+            const minutes = (now - store[area]) / 60000;
+            return minutes > 0 ? minutes : 0;
+        }
+        store[area] = undefined;
+        return 0;
     }
     _getStatesArray() {
         if (!this.hass?.states) {

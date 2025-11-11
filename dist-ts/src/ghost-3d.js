@@ -15,6 +15,9 @@ export class Ghost3D {
         this.scene = new THREE.Scene();
         this.scene.fog = new THREE.Fog(0x99ccff, 2.5, 6.5);
         this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        this.renderer.outputColorSpace = THREE.SRGBColorSpace; // Match GLTF authoring color space so the ghost stays bright
+        this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        this.renderer.toneMappingExposure = 1.05;
         this.renderer.setClearColor(0x000000, 0);
         this.renderer.setSize(320, 320);
         this.camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);

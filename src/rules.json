@@ -6,22 +6,22 @@
     "priority": "info"
   },
   {
-    "condition": "temp > target + 2 && !(outside_temp > temp)",
+    "condition": "heating_call === true && temp > comfort_high + 1 && !(outside_temp > temp) && target_recently_changed === false",
     "message_key": "temp_above_target",
     "priority": "warn"
   },
   {
-    "condition": "temp > target + 2 && outside_temp < temp && window == 'closed'",
+    "condition": "heating_call === true && temp > comfort_high + 1 && outside_temp + 1 < temp && window == 'closed' && target_recently_changed === false",
     "message_key": "temp_above_target_ventilate_possible",
     "priority": "info"
   },
   {
-    "condition": "temp > target + 2 && outside_temp > temp",
+    "condition": "heating_call === true && temp > comfort_high + 1 && outside_temp >= temp && target_recently_changed === false",
     "message_key": "temp_above_target_outside_hot",
     "priority": "info"
   },
   {
-    "condition": "temp < target - 2",
+    "condition": "heating_call === true && window != 'open' && temp + 1 < comfort_low && target_recently_changed === false",
     "message_key": "temp_below_target",
     "priority": "warn"
   },
@@ -31,9 +31,9 @@
     "priority": "info"
   },
   {
-    "condition": "humidity > 70",
+    "condition": "humidity >= 70 && humidity_high_minutes >= 5 && window != 'open'",
     "message_key": "humidity_high",
-    "priority": "alert"
+    "priority": "warn"
   },
   {
     "condition": "co2 > 1000",
@@ -41,22 +41,22 @@
     "priority": "warn"
   },
   {
-    "condition": "window == 'open' && heating == 'on'",
+    "condition": "window == 'open' && heating_call === true && window_open_minutes >= 5 && outside_temp + 1 < temp",
     "message_key": "window_open_heating_on",
     "priority": "alert"
   },
   {
-    "condition": "occupied === false && temp > 21 && !(typeof outside_temp !== 'undefined' && outside_temp > 20)",
+    "condition": "occupied === false && heating_call === true && temp > comfort_high && target_recently_changed === false",
     "message_key": "room_empty_warm",
     "priority": "info"
   },
   {
-    "condition": "outside_temp > 17 && heating == 'on'",
+    "condition": "outside_temp > comfort_high && heating_call === true && target_recently_changed === false",
     "message_key": "outside_warm_inside_warm",
     "priority": "info"
   },
   {
-    "condition": "forecast_temp > 18 && target > 21",
+    "condition": "forecast_temp > comfort_high && heating_call === true && target_recently_changed === false && target_change_minutes > 60 && temp >= comfort_low - 1",
     "message_key": "forecast_warmer_target_high",
     "priority": "info"
   },
@@ -71,12 +71,12 @@
     "priority": "ok"
   },
   {
-    "condition": "temp_change_rate > 2",
+    "condition": "temp_change_rate > 2 && heating_call === true",
     "message_key": "temp_rising_fast",
     "priority": "warn"
   },
   {
-    "condition": "motion == false && heating == 'on'",
+    "condition": "motion === false && heating_call === true && target_recently_changed === false",
     "message_key": "no_motion_heating_on",
     "priority": "info"
   },
@@ -86,7 +86,7 @@
     "priority": "info"
   },
   {
-    "condition": "outside_temp > temp && now % 86400000 > 11 * 3600000 && window == 'open'",
+    "condition": "outside_temp > temp && now % 86400000 > 11 * 3600000 && window == 'open' && window_open_minutes >= 5",
     "message_key": "afternoon_window_open_hot_outside",
     "priority": "warn"
   },
@@ -96,7 +96,7 @@
     "priority": "info"
   },
   {
-    "condition": "forecast_temp > 28 && window == 'open' && now % 86400000 > 12 * 3600000",
+    "condition": "forecast_temp > 28 && window == 'open' && now % 86400000 > 12 * 3600000 && window_open_minutes >= 5",
     "message_key": "very_hot_window_open",
     "priority": "alert"
   },
@@ -121,37 +121,37 @@
     "priority": "alert"
   },
   {
-    "condition": "door == 'open' && heating == 'on' && adjacent_room_temp > temp + 1",
+    "condition": "door == 'open' && heating_call === true && door_open_minutes >= 5 && adjacent_room_temp > temp + 1",
     "message_key": "close_door_to_save_heat",
     "priority": "info"
   },
   {
-    "condition": "air_quality == 'poor' && window == 'closed'",
+    "condition": "air_quality == 'poor' && window != 'open'",
     "message_key": "ventilate_air_quality_poor",
     "priority": "warn"
   },
   {
-    "condition": "humidity > 70 && window == 'closed'",
+    "condition": "humidity >= 65 && humidity < 70 && humidity_high_minutes >= 10 && window != 'open'",
     "message_key": "ventilate_high_humidity",
     "priority": "info"
   },
   {
-    "condition": "forecast_sun == true && now % 86400000 > 7 * 3600000 && blind == 'closed' && temp < 21",
+    "condition": "forecast_sun == true && now % 86400000 > 7 * 3600000 && blind == 'closed' && temp < comfort_low",
     "message_key": "open_blinds_for_sun_warmth",
     "priority": "info"
   },
   {
-    "condition": "window == 'open' && outside_temp < 10 && now % 86400000 > 22 * 3600000",
+    "condition": "window == 'open' && outside_temp < 10 && now % 86400000 > 22 * 3600000 && window_open_minutes >= 5",
     "message_key": "window_open_night_cold",
     "priority": "alert"
   },
   {
-    "condition": "temp < 17 && window == 'open'",
+    "condition": "temp < 17 && window == 'open' && window_open_minutes >= 5",
     "message_key": "room_too_cold_window_open",
     "priority": "warn"
   },
   {
-    "condition": "humidity > 70 && temp - (outside_temp + (humidity/100)*(temp-outside_temp)) < 2",
+    "condition": "humidity > 70 && humidity_high_minutes >= 5 && temp - (outside_temp + (humidity/100)*(temp-outside_temp)) < 2",
     "message_key": "mold_risk_dew_point",
     "priority": "alert"
   }
