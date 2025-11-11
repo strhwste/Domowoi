@@ -1,69 +1,72 @@
 # Domowoi
-A friendly Ghost who watches over your home and gives recommendations.
+A friendly ghost who watches over your home and gives recommendations.
 
 # Hausgeist Card
 
-Eine intelligente, mehrsprachige Home Assistant Lovelace Karte für Raumklima, Energie und Komforthinweise.
+An intelligent, multilingual Home Assistant Lovelace card for indoor climate, energy, and comfort suggestions.
 
 ## Features
-- Flexible, konfigurierbare Regeln (`src/rules.json`)
-- Mehrsprachigkeit (de/en, leicht erweiterbar)
-- Automatische Auswertung aller Sensoren im gewählten Bereich, robuste Erkennung (mehrsprachig, device_class und Name)
-- Zeigt die wichtigsten Hinweise für alle Räume/Bereiche (nicht nur einen)
-- Debug-Modus: Zeigt alle evaluierten Regeln pro Raum (umschaltbar im Editor)
-- Visueller Editor für Home Assistant (Lovelace UI)
-- Modernes, anpassbares Design (nutzt Home Assistant Theme-Variablen)
+- Flexible, configurable rules (`src/rules.json`)
+- Multilingual support (de/en, easily extendable)
+- Automatic evaluation of all sensors in the selected area, robust detection (multilingual, device_class and name)
+- Shows the most important suggestions for all rooms/areas (not just one)
+- Debug mode: shows all evaluated rules per room (toggleable in the editor)
+- Visual editor for Home Assistant (Lovelace UI)
+- Modern, customizable design (uses Home Assistant theme variables)
+
+## Screenshots
+![Screenshot 1](assets/ghost_bsp.png)
 
 ## Installation
-1. **Build** (im Projektordner):
+1. **Build** (in the project folder):
    ```bash
    npm install
    npm run build
    ```
-   (Passe ggf. das Build-Target in `rollup.config.js` an, z.B. auf `dist/hausgeist-card.js`)
+   (If needed, adjust the build target in `rollup.config.js`, e.g. to `dist/hausgeist-card.js`)
 
-2. **Kopiere die gebaute JS-Datei** (z.B. `dist/hausgeist-card.js` oder `hausgeist-card.js`) nach `/config/www/` auf deinem Home Assistant Server.
+2. **Copy the built JS file** (e.g. `dist/hausgeist-card.js` or `hausgeist-card.js`) to `/config/www/` on your Home Assistant server.
 
-3. **Füge die Ressource in Home Assistant hinzu:**
-   - Einstellungen → Dashboards → Ressourcen → Ressource hinzufügen
+3. **Add the resource in Home Assistant:**
+   - Settings → Dashboards → Resources → Add resource
    - URL: `/local/hausgeist-card.js`
-   - Typ: JavaScript Modul
+   - Type: JavaScript Module
 
-4. **Karte im Lovelace Dashboard einbinden:**
+4. **Add the card to your Lovelace dashboard:**
    ```yaml
    type: 'custom:hausgeist-card'
-   # area_id ist optional, die Karte zeigt automatisch alle Bereiche an
-   debug: false  # Optional: Debug-Modus anzeigen
+   # area_id is optional; the card will automatically show all areas
+   debug: false  # Optional: show debug mode
    ```
-   (Passe weitere Optionen im visuellen Editor oder YAML an)
+   (Adjust further options in the visual editor or YAML)
 
-## Regeln & Übersetzungen
-- Regeln: `src/rules.json` (message_key, Bedingung als JS-Ausdruck)
-- Übersetzungen: `translations/de.json`, `translations/en.json`
-- Neue Regeln: z.B. für "Fenster schließen bei Regen", "Tür schließen bei Wärmeverlust", etc.
+## Rules & Translations
+- Rules: `src/rules.json` (message_key, condition as JS expression)
+- Translations: `translations/de.json`, `translations/en.json`
+- New rules: e.g. for "close windows when it rains", "close doors to prevent heat loss", etc.
 
-## Visueller Editor
-- Die Karte unterstützt den Home Assistant Visual Editor (Lovelace UI).
-- Debug-Modus und weitere Optionen können direkt im Editor konfiguriert werden.
+## Visual Editor
+- The card supports the Home Assistant Visual Editor (Lovelace UI).
+- Debug mode and other options can be configured directly in the editor.
 
-## Entwicklung
-- Quellcode: `src/`
-- Übersetzungen: `translations/`
+## Development
+- Source code: `src/`
+- Translations: `translations/`
 - Build: `npm run build`
-- Automatisches Kopieren der gebauten Datei für HACS/Manuelle Installation
+- Automatic copying of the built file for HACS/manual installation
 
-## HACS & 3D-Geist-Integration
+## HACS & 3D Ghost Integration
 
-- Nach der Installation über HACS findest du die Card-JS unter `dist/hausgeist-card.js`.
-- Das 3D-Modell `ghost.glb` liegt im Ordner `www/` und muss **manuell** nach `/config/www/` deiner Home Assistant-Installation kopiert werden.
-- In der Card-Konfiguration:
+- After installation via HACS, you will find the card JS under `dist/hausgeist-card.js`.
+- The 3D model `ghost.glb` is located in the `www/` folder and must be **manually** copied to `/config/www/` of your Home Assistant installation.
+- In the card configuration:
   ```yaml
   type: 'custom:hausgeist-card'
   ghost_model_url: /local/ghost.glb
   ...
   ```
-- Prüfe nach dem Kopieren, ob das Modell unter `http://<dein-ha>/local/ghost.glb` erreichbar ist.
-- HACS kann das Modell nicht automatisch nach `/config/www/` kopieren – das ist ein manueller Schritt!
+- After copying, check if the model is accessible at `http://<your-ha>/local/ghost.glb`.
+- HACS cannot automatically copy the model to `/config/www/` – this is a manual step!
 
-## Lizenz
-Siehe LICENSE.
+## License
+See LICENSE.
