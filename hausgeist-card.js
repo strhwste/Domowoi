@@ -39370,6 +39370,67 @@ class Light extends Object3D {
 
 }
 
+/**
+ * A light source positioned directly above the scene, with color fading from
+ * the sky color to the ground color.
+ *
+ * This light cannot be used to cast shadows.
+ *
+ * ```js
+ * const light = new THREE.HemisphereLight( 0xffffbb, 0x080820, 1 );
+ * scene.add( light );
+ * ```
+ *
+ * @augments Light
+ */
+class HemisphereLight extends Light {
+
+	/**
+	 * Constructs a new hemisphere light.
+	 *
+	 * @param {(number|Color|string)} [skyColor=0xffffff] - The light's sky color.
+	 * @param {(number|Color|string)} [groundColor=0xffffff] - The light's ground color.
+	 * @param {number} [intensity=1] - The light's strength/intensity.
+	 */
+	constructor( skyColor, groundColor, intensity ) {
+
+		super( skyColor, intensity );
+
+		/**
+		 * This flag can be used for type testing.
+		 *
+		 * @type {boolean}
+		 * @readonly
+		 * @default true
+		 */
+		this.isHemisphereLight = true;
+
+		this.type = 'HemisphereLight';
+
+		this.position.copy( Object3D.DEFAULT_UP );
+		this.updateMatrix();
+
+		/**
+		 * The light's ground color.
+		 *
+		 * @type {Color}
+		 */
+		this.groundColor = new Color( groundColor );
+
+	}
+
+	copy( source, recursive ) {
+
+		super.copy( source, recursive );
+
+		this.groundColor.copy( source.groundColor );
+
+		return this;
+
+	}
+
+}
+
 const _projScreenMatrix$1 = /*@__PURE__*/ new Matrix4();
 const _lightPositionWorld$1 = /*@__PURE__*/ new Vector3();
 const _lookTarget$1 = /*@__PURE__*/ new Vector3();
@@ -64859,17 +64920,18 @@ class Ghost3D {
         this.scene = new Scene();
         this.scene.fog = new Fog(0x99ccff, 2.5, 6.5);
         this.renderer = new WebGLRenderer({ alpha: true, antialias: true });
-        this.renderer.outputColorSpace = SRGBColorSpace; // Match GLTF authoring color space so the ghost stays bright
+        this.renderer.outputColorSpace = SRGBColorSpace; // Keep GLTF colors bright instead of linear-darkening
         this.renderer.toneMapping = ACESFilmicToneMapping;
-        this.renderer.toneMappingExposure = 1.05;
+        this.renderer.toneMappingExposure = 1.6;
         this.renderer.setClearColor(0x000000, 0);
         this.renderer.setSize(320, 320);
         this.camera = new PerspectiveCamera(45, 1, 0.1, 100);
         this.camera.position.set(0, 1, 3);
-        const light = new DirectionalLight(0xffffff, 1);
+        const light = new DirectionalLight(0xffffff, 1.6);
         light.position.set(0, 2, 2);
         this.scene.add(light);
-        this.scene.add(new AmbientLight(0xffffff, 1));
+        this.scene.add(new HemisphereLight(0xffffff, 0x8899ff, 1.25));
+        this.scene.add(new AmbientLight(0xffffff, 1.3));
         this.container.appendChild(this.renderer.domElement);
         this._loadModel();
     }
