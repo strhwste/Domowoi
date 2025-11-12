@@ -4,508 +4,683 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
-import { LitElement, html } from 'lit';
-import { property, customElement, state } from 'lit/decorators.js';
+import { LitElement, css, html, nothing } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
 import { SENSOR_KEYWORDS } from './sensor-keywords';
-import '@material/mwc-select';
-import '@material/mwc-list/mwc-list-item';
+const SENSOR_TYPES = [
+    'temperature',
+    'humidity',
+    'co2',
+    'window',
+    'door',
+    'curtain',
+    'blind',
+    'heating',
+    'heating_level',
+    'target',
+    'occupancy',
+];
+const SENSOR_DESCRIPTORS = {
+    temperature: {
+        label: 'Temperature sensor',
+        helper: 'Room temperature used for comfort evaluation.',
+        domains: ['sensor', 'climate'],
+        deviceClasses: ['temperature'],
+    },
+    humidity: {
+        label: 'Humidity sensor',
+        helper: 'Relative humidity in %.',
+        domains: ['sensor'],
+        deviceClasses: ['humidity'],
+    },
+    co2: {
+        label: 'CO2 sensor',
+        helper: 'CO2 concentration sensor in ppm.',
+        domains: ['sensor'],
+        deviceClasses: ['carbon_dioxide', 'aqi'],
+        extraKeywords: ['airquality', 'co2', 'air_quality'],
+    },
+    window: {
+        label: 'Window contact',
+        helper: 'Binary sensor indicating open windows.',
+        domains: ['binary_sensor'],
+        deviceClasses: ['window', 'opening'],
+        extraKeywords: ['fenster'],
+    },
+    door: {
+        label: 'Door contact',
+        helper: 'Binary sensor indicating open doors.',
+        domains: ['binary_sensor'],
+        deviceClasses: ['door', 'opening'],
+        extraKeywords: ['tuer', 'tür'],
+    },
+    curtain: {
+        label: 'Curtain control',
+        helper: 'Cover entity for curtains.',
+        domains: ['cover'],
+        deviceClasses: ['curtain'],
+        extraKeywords: ['vorhang'],
+    },
+    blind: {
+        label: 'Blind or shade',
+        helper: 'Cover entity for blinds, shutters, or shades.',
+        domains: ['cover'],
+        deviceClasses: ['blind', 'shade', 'shutter'],
+        extraKeywords: ['rolladen', 'jalousie'],
+    },
+    heating: {
+        label: 'Heating device',
+        helper: 'Primary climate entity controlling the room heating.',
+        domains: ['climate'],
+        extraKeywords: ['heating', 'heater', 'thermostat', 'heizung'],
+    },
+    heating_level: {
+        label: 'Heating level',
+        helper: 'Sensor or helper representing the valve or heating output in %. ',
+        domains: ['sensor', 'number', 'input_number'],
+        extraKeywords: ['valve', 'heizleistung', 'duty', 'heizkoerper'],
+    },
+    target: {
+        label: 'Target temperature',
+        helper: 'Sensor or helper providing the desired target temperature.',
+        domains: ['sensor', 'number', 'input_number', 'climate'],
+        deviceClasses: ['temperature'],
+        extraKeywords: ['soll', 'setpoint'],
+    },
+    occupancy: {
+        label: 'Occupancy sensor',
+        helper: 'Presence or motion sensor for the room.',
+        domains: ['binary_sensor', 'sensor', 'person', 'device_tracker'],
+        deviceClasses: ['occupancy', 'motion', 'presence'],
+        extraKeywords: ['motion', 'presence'],
+    },
+};
 let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     constructor() {
         super(...arguments);
         this.config = {};
-        this._hass = undefined;
-        this.testValues = {};
-        this.rulesJson = '';
-        this.notify = false;
-        this.highThreshold = 2000;
+        this._areas = [];
         this._selectorReady = false;
-        this._lastAreas = [];
-        // Use arrow function to auto-bind 'this'
-        this._onDebugChange = (e) => {
-            const debug = e.target.checked;
-            this.config = { ...this.config, debug };
-            this._configChanged();
-        };
     }
-    _autodetect(areaId, type) {
-        const states = Object.values(this.hass?.states || {});
-        // 1. device_class
-        let s = states.find((st) => st.attributes?.area_id === areaId && st.attributes?.device_class === type);
-        if (s && s.entity_id)
-            return s.entity_id;
-        // 2. keywords from centralized list
-        const kw = SENSOR_KEYWORDS[type] || [type];
-        s = states.find((st) => st.attributes?.area_id === areaId && kw.some(k => st.entity_id.toLowerCase().includes(k) ||
-            (st.attributes.friendly_name || '').toLowerCase().includes(k)));
-        if (s && s.entity_id)
-            return s.entity_id;
-        // 3. fallback: area name
-        const areaName = (this.hass?.areas && this.hass.areas[areaId]?.name?.toLowerCase()) || areaId.toLowerCase();
-        s = states.find((st) => (st.entity_id.toLowerCase().includes(areaName) ||
-            (st.attributes.friendly_name || '').toLowerCase().includes(areaName)) && kw.some(k => st.entity_id.toLowerCase().includes(k)));
-        return s && s.entity_id ? s.entity_id : undefined;
+    set hass(value) {
+        this._hass = value;
+        this._ensureSelectorSystem();
+        this._syncAreas();
     }
-    _renderWeatherInfo() {
-        const selectedWeather = this.hass?.states?.[this.config.weather_entity || 'weather.home'];
-        if (!selectedWeather)
-            return '';
-        const temp = selectedWeather.attributes?.temperature;
-        const tempUnit = selectedWeather.attributes?.temperature_unit || selectedWeather.attributes?.unit_of_measurement || 'unknown unit';
-        let rain = selectedWeather.attributes?.precipitation;
-        let rainUnit = selectedWeather.attributes?.precipitation_unit || 'mm';
-        if (rain === undefined && Array.isArray(selectedWeather.attributes?.forecast) && selectedWeather.attributes.forecast.length > 0) {
-            rain = selectedWeather.attributes.forecast[0].precipitation ?? selectedWeather.attributes.forecast[0].rain;
-            rainUnit = selectedWeather.attributes.forecast[0].precipitation_unit || rainUnit;
-        }
-        let rainProb = selectedWeather.attributes?.precipitation_probability;
-        if (rainProb === undefined && selectedWeather.attributes?.forecast && Array.isArray(selectedWeather.attributes.forecast) && selectedWeather.attributes.forecast.length > 0) {
-            rainProb = selectedWeather.attributes.forecast[0].precipitation_probability;
-        }
-        // Zusätzliche Wetterinfos für Logik und Anzeige
-        const humidity = selectedWeather.attributes?.humidity;
-        const windSpeed = selectedWeather.attributes?.wind_speed;
-        const windBearing = selectedWeather.attributes?.wind_bearing;
-        const pressure = selectedWeather.attributes?.pressure;
-        const condition = selectedWeather.state;
-        const cloudCoverage = selectedWeather.attributes?.cloud_coverage;
-        const visibility = selectedWeather.attributes?.visibility;
-        return html `
-      <div class="weather-info">
-        <b>Aktuelle Wetterdaten:</b><br />
-        Temperatur: ${temp !== undefined ? `${temp} ${tempUnit}` : 'n/a'}<br />
-        Luftfeuchtigkeit: ${humidity !== undefined ? `${humidity}%` : 'n/a'}<br />
-        Regen: ${rain !== undefined ? `${rain} ${rainUnit}` : 'n/a'}<br />
-        ${rainProb !== undefined ? html `Regenwahrscheinlichkeit: ${rainProb}%<br />` : ''}
-        Luftdruck: ${pressure !== undefined ? `${pressure} hPa` : 'n/a'}<br />
-        Wind: ${windSpeed !== undefined ? `${windSpeed} km/h` : 'n/a'}${windBearing !== undefined ? ` (${windBearing}°)` : ''}<br />
-        Bewölkung: ${cloudCoverage !== undefined ? `${cloudCoverage}%` : 'n/a'}<br />
-        Sichtweite: ${visibility !== undefined ? `${visibility} m` : 'n/a'}<br />
-        Zustand: ${condition || 'n/a'}
-      </div>
-    `;
-    }
-    setConfig(config) {
-        this.config = config;
-    }
-    // Getter and setter for hass
     get hass() {
         return this._hass;
     }
-    set hass(hass) {
-        this._hass = hass;
-        this._ensureSelectorSystem();
-        this.requestUpdate();
+    setConfig(config) {
+        this.config = {
+            debug: false,
+            notify: false,
+            highThreshold: 2000,
+            default_target: 21,
+            ...config,
+            overrides: { ...(config.overrides ?? {}) },
+        };
+        this._areas = (config.areas ?? []).map((area) => ({ ...area }));
+        this._syncAreas();
     }
     connectedCallback() {
         super.connectedCallback();
         this._ensureSelectorSystem();
     }
-    // Handle sensor selection change for a specific area and type
-    _onAreaSensorChange(areaId, type, value) {
-        const entity_id = value;
-        const overrides = { ...(this.config.overrides || {}) };
-        overrides[areaId] = { ...(overrides[areaId] || {}), [type]: entity_id };
-        this.config = { ...this.config, overrides };
-        this._configChanged();
-    }
-    // Dispatch a custom event to notify that the config has changed
-    _configChanged() {
-        // Always include the current areas in the config
-        if (this._lastAreas && Array.isArray(this._lastAreas)) {
-            // Build auto-mapping: auto[area_id][type] = entity_id (wie im Editor angezeigt)
-            const auto = {};
-            const areas = this._lastAreas;
-            const sensorTypes = [
-                'temperature', 'humidity', 'co2', 'window', 'door', 'curtain', 'blind', 'heating', 'target'
-            ];
-            // Debug: Show all states with their area_ids
-            if (this.config.debug) {
-                const states = Object.values(this.hass?.states || {});
-                console.log('All states with area_ids:', states.filter((s) => s.attributes?.area_id)
-                    .map((s) => `${s.entity_id} (${s.attributes.area_id})`));
-            }
-            for (const area of areas) {
-                auto[area.area_id] = {};
-                for (const type of sensorTypes) {
-                    const autoId = this._autodetect(area.area_id, type);
-                    if (autoId)
-                        auto[area.area_id][type] = autoId;
-                    // Debug: Log each detected sensor
-                    if (this.config.debug) {
-                        console.log(`Auto-detected for ${area.area_id} - ${type}: ${autoId || 'none'}`);
-                    }
-                }
-            }
-            // Debug: Log the final auto config
-            if (this.config.debug) {
-                console.log('Final auto config:', JSON.stringify(auto, null, 2));
-            }
-            this.config = { ...this.config, areas: this._lastAreas, auto };
-        }
-        const event = new CustomEvent('config-changed', {
-            detail: { config: this.config },
-            bubbles: true,
-            composed: true,
-        });
-        this.dispatchEvent(event);
-    }
-    // Handle test value changes for a specific area and type
-    handleTestValueChange(areaId, type, e) {
-        const value = e.target.value;
-        this.testValues = { ...this.testValues, [areaId + '_' + type]: value };
-        this.requestUpdate();
-    }
-    // Handle changes in the rules JSON text area
-    handleRulesChange(e) {
-        this.rulesJson = e.target.value;
-        this._configChanged();
-    }
-    // Handle changes in the notification checkbox
-    handleNotifyChange(e) {
-        this.notify = e.target.checked;
-        this._configChanged();
-    }
-    // Handle changes in the high threshold input
-    handleThresholdChange(e) {
-        this.highThreshold = Number(e.target.value);
-        this._configChanged();
-    }
-    // Handle area enable/disable
-    _onAreaEnabledChange(areaId, e) {
-        const checked = e.target.checked;
-        const areas = [...(this.config.areas || this._lastAreas.map(a => ({ ...a })))];
-        const areaIndex = areas.findIndex(a => a.area_id === areaId);
-        if (areaIndex >= 0) {
-            areas[areaIndex] = { ...areas[areaIndex], enabled: checked };
-        }
-        else {
-            areas.push({ area_id: areaId, name: areaId, enabled: checked });
-        }
-        this.config = { ...this.config, areas };
-        this._configChanged();
-    }
-    // Render the editor UI
     render() {
-        const hass = this.hass;
-        // Find all Weather Entities
-        const weatherEntities = Object.entries(hass?.states || {})
-            .filter(([entity_id, state]) => entity_id.startsWith('weather.'))
-            .map(([entity_id, state]) => ({
-            entity_id,
-            name: state.attributes?.friendly_name || entity_id
-        }));
-        const areas = hass?.areas
-            ? Object.values(hass.areas)
-            : Array.from(new Set(Object.values(hass?.states || {}).map((e) => e.attributes?.area_id).filter(Boolean))).map((area_id) => ({ area_id, name: area_id }));
-        this._lastAreas = areas;
-        const states = Object.values(hass?.states || {});
-        // Nur die Sensoren die wir pro Raum brauchen
-        const requiredSensorTypes = [
-            'temperature', // Raumtemperatur
-            'humidity', // Luftfeuchtigkeit
-            'co2', // CO2-Gehalt
-            'window', // Fenster-Status
-            'door', // Tür-Status
-            'curtain', // Vorhang-Status
-            'blind', // Rolladen-Status
-            'heating', // Heizungs-Status (an/aus)
-            'heating_level', // Heizungs-Level (0-100%)
-            'target', // Zieltemperatur
-            'occupancy' // Anwesenheit
-        ];
-        const missingSensorsPerArea = areas.map(area => {
-            const missing = requiredSensorTypes.filter(type => {
-                const found = states.some((e) => e.attributes?.area_id === area.area_id && (type === 'heating' || type === 'heating_level'
-                    ? ['heating', 'heizung', 'thermostat', 'climate'].some(k => e.entity_id.toLowerCase().includes(k))
-                    : e.attributes?.device_class === type || (e.entity_id.toLowerCase().includes(type))));
-                return !found;
-            });
-            return { area, missing };
-        });
-        // Styles einbinden
+        if (!this._hass) {
+            return nothing;
+        }
         return html `
-      <style>
-      .card-config {
-        padding: 1em;
-      }
-      hr { margin: 1em 0; border: none; border-top: 1px solid #ddd; }
-      mwc-select, select { min-width: 200px; }
-      li { margin: 0.2em 0; }
-      .sensor-row {
-        display: flex;
-        align-items: center;
-        gap: 0.5em;
-        margin-bottom: 0.5em;
-      }
-      .target-row {
-        margin-bottom: 1em;
-      }
-      .sensor-label {
-        min-width: 120px;
-        font-weight: bold;
-      }
-      .sensor-select {
-        flex-grow: 1;
-      }
-      .help-text {
-        color: #666;
-        font-size: 0.9em;
-        margin-top: 0.3em;
-      }
-      .weather-info {
-        margin-top: 0.5em;
-        font-size: 0.95em;
-        color: #333;
-      }
-      </style>
       <div class="card-config">
-      <!-- Debug Mode -->
-      <label>
-        <input type="checkbox" .checked=${this.config.debug ?? false} @change=${this._onDebugChange} />
-        Debug mode
-      </label>
-
-      <!-- Weather Entity Selection -->
-      <div style="margin-top:1em;">
-        <b>Weather Entity:</b>
-        ${this._renderEntityPicker({
-            value: this.config.weather_entity || 'weather.home',
-            includeDomains: ['weather'],
-            options: weatherEntities.map(({ entity_id, name }) => ({ entity_id, label: name })),
-            onChange: (value) => {
-                if (value && value !== this.config.weather_entity) {
-                    this.config = {
-                        ...this.config,
-                        weather_entity: value
-                    };
-                    const event = new CustomEvent('config-changed', {
-                        detail: { config: this.config },
-                        bubbles: true,
-                        composed: true,
-                    });
-                    this.dispatchEvent(event);
-                }
-            }
-        })}
-        ${this._renderWeatherInfo()}
-      </div>
-
-      <!-- Default Target Temperature -->
-      <div style="margin-top:1em;">
-        <b>Default Target Temperature:</b>
-        ${this._renderEntityPicker({
-            value: this.config.default_target_entity || '',
-            includeDomains: ['input_number', 'sensor', 'number'],
-            options: this._createOptionsForDomains(['input_number', 'sensor', 'number']),
-            onChange: (value) => {
-                this.config = {
-                    ...this.config,
-                    default_target_entity: value
-                };
-                this._configChanged();
-            }
-        })}
-        <div class="help-text">
-          Wählen Sie einen Sensor oder Helper für die Standard-Solltemperatur aus.<br />
-          Wenn leer, wird der Wert unten verwendet:
-        </div>
-        <input 
-          type="number" 
-          min="15" 
-          max="30" 
-          step="0.5"
-          .value=${this.config.default_target || "21"} 
-          @change=${(e) => {
-            this.config = {
-                ...this.config,
-                default_target: Number(e.target.value)
-            };
-            this._configChanged();
-        }}
-        />°C
-      </div>
-
-      <hr />
-      <b>Areas and Sensors:</b>
-      ${areas.map(area => {
-            const isEnabled = this.config.areas?.find(a => a.area_id === area.area_id)?.enabled !== false;
-            // Zieltemperatur (target) zuerst anzeigen
-            const sensorTypesOrdered = [
-                'target',
-                ...requiredSensorTypes.filter(t => t !== 'target')
-            ];
-            return html `
-        <div class="${isEnabled ? '' : 'disabled-area'}">
-        <div class="area-header">
-          <input 
-          type="checkbox" 
-          .checked=${isEnabled} 
-          @change=${(e) => this._onAreaEnabledChange(area.area_id, e)}
-          />
-          <b>${area.name || area.area_id}</b>
-        </div>
-        <ul>
-          ${sensorTypesOrdered.map(type => {
-                const areaSensors = states.filter((e) => e.attributes?.area_id === area.area_id);
-                // 1. Direkte Übereinstimmung durch device_class
-                const matchingByClass = areaSensors.filter((e) => e.attributes?.device_class === type ||
-                    (type === 'occupancy' && e.attributes?.device_class === 'motion') ||
-                    (type === 'heating' && e.attributes?.device_class === 'climate'));
-                // 2. Übereinstimmung durch Keywords aus sensor-keywords.ts
-                const keywords = SENSOR_KEYWORDS[type] || [type];
-                const matchingByKeyword = states.filter((e) => {
-                    // Entity ID oder friendly_name enthält eines der Keywords
-                    const nameMatch = keywords.some(k => e.entity_id.toLowerCase().includes(k.toLowerCase()) ||
-                        (e.attributes?.friendly_name || '').toLowerCase().includes(k.toLowerCase()));
-                    // Spezielle Behandlung für bestimmte Typen
-                    const specialMatch = 
-                    // Heizung kann auch climate.* oder thermostat.* sein
-                    (type === 'heating' && (e.entity_id.startsWith('climate.') || e.entity_id.includes('thermostat'))) ||
-                        // CO2 kann auch als air_quality mit co2 Messung erscheinen
-                        (type === 'co2' && e.attributes?.device_class === 'carbon_dioxide') ||
-                        // Anwesenheit kann auch durch motion oder occupancy Sensoren erkannt werden
-                        (type === 'occupancy' && (e.attributes?.device_class === 'motion' ||
-                            e.attributes?.device_class === 'occupancy' ||
-                            e.entity_id.includes('motion') ||
-                            e.entity_id.includes('presence')));
-                    // Bereichszuordnung prüfen
-                    const areaMatch = e.attributes?.area_id === area.area_id || // Direkte Area ID
-                        (e.attributes?.device_id && this.hass?.devices?.[e.attributes.device_id]?.area_id === area.area_id) || // Device ID -> Area ID
-                        // Bereichsname im Namen
-                        (() => {
-                            const areaNames = [area.name?.toLowerCase(), area.area_id?.toLowerCase()].filter(Boolean);
-                            const entityName = e.entity_id.toLowerCase();
-                            const friendlyName = (e.attributes?.friendly_name || '').toLowerCase();
-                            return areaNames.some(an => an && (entityName.includes(an) || friendlyName.includes(an)));
-                        })();
-                    return (nameMatch || specialMatch) && areaMatch;
-                });
-                // Kombiniere und dedupliziere die Ergebnisse
-                const relevantEntities = Array.from(new Set([...matchingByClass, ...matchingByKeyword]));
-                // Sortiere nach friendly_name oder entity_id
-                relevantEntities.sort((a, b) => (a.attributes?.friendly_name || a.entity_id)
-                    .localeCompare(b.attributes?.friendly_name || b.entity_id));
-                const selected = this.config.overrides?.[area.area_id]?.[type] || '';
-                return html `
-            <li>
-              <div class="sensor-row ${type === 'target' ? 'target-row' : ''}">
-                <span class="sensor-label">
-                  ${type === 'target' ? 'Zieltemperatur-Sensor' :
-                    type === 'heating' ? 'Heizung' :
-                        type === 'heating_level' ? 'Heizleistung' :
-                            type}:
-                </span>
-                <div class="sensor-select">
-                  ${this._renderEntityPicker({
-                    value: selected || '',
-                    includeDomains: ['sensor', 'binary_sensor', 'input_number', 'number', 'climate', 'device_tracker', 'person', 'input_boolean'],
-                    area: area.area_id,
-                    options: relevantEntities.map((entity) => ({
-                        entity_id: entity.entity_id,
-                        label: entity.attributes?.friendly_name || entity.entity_id,
-                    })),
-                    onChange: (value) => this._onAreaSensorChange(area.area_id, type, value)
-                })}
-                  ${type === 'target' ? html `
-                  <div class="help-text">
-                  Wählen Sie einen Sensor für die Soll-Temperatur aus. Wenn leer, wird der Standardwert (${this.config.default_target || 21}°C) verwendet.
-                  </div>
-                  ` : ''}
-                </div>
-              </div>
-            </li>
-            `;
-            })}
-        </ul>
-        </div>
-      `;
-        })}
-      </div>
-
-      <!-- Missing Sensors per Area -->
-      <div style="margin-top:1em;">
-      <b>Fehlende Sensoren pro Bereich:</b>
-      <ul>
-        ${missingSensorsPerArea.map(a => html `<li><b>${a.area.name}</b>: ${a.missing.length === 0 ? 'Alle gefunden' : a.missing.join(', ')}</li>`)}
-      </ul>
-      </div>
-
-      <!-- Notifications & High Threshold -->
-      <div style="margin-top:1em;">
-      <label><input type="checkbox" .checked=${this.notify} @change=${this.handleNotifyChange} /> Regel-Treffer als Home Assistant Notification anzeigen</label>
-      </div>
-      <div style="margin-top:1em;">
-      <label>High Threshold: <input type="number" .value=${this.highThreshold} @input=${this.handleThresholdChange} /></label>
+        ${this._renderGeneralSection()}
+        ${this._renderAreasSection()}
+        ${this._renderAdvancedSection()}
+        ${this._renderMissingSensorsSection()}
       </div>
     `;
     }
-    _renderEntityPicker({ value, includeDomains, area, options, placeholder, onChange, }) {
-        const optionList = options?.length
-            ? [...options]
-            : this._createOptionsForDomains(includeDomains, area);
-        if (value && !optionList.some(option => option.entity_id === value)) {
-            optionList.unshift({ entity_id: value, label: value });
+    _renderGeneralSection() {
+        const weatherSelector = { entity: { domain: 'weather' } };
+        const targetSourceSelector = { entity: { domain: ['input_number', 'sensor', 'number'] } };
+        const defaultTargetValue = this.config.default_target ?? 21;
+        const highThreshold = this.config.highThreshold ?? 2000;
+        return html `
+      <section class="section">
+        <h3>Card Settings</h3>
+        ${this._renderField({
+            label: 'Debug mode',
+            helper: 'Enable verbose logging in the browser developer tools.',
+            control: this._renderSelectorControl({
+                selector: { boolean: {} },
+                value: this.config.debug ?? false,
+                valueType: 'boolean',
+                onChange: (value) => this._handleConfigValueChange('debug', Boolean(value)),
+            }),
+        })}
+        ${this._renderField({
+            label: 'Weather entity',
+            helper: 'Used for outside temperature and forecast context.',
+            control: this._renderSelectorControl({
+                selector: weatherSelector,
+                value: this.config.weather_entity ?? '',
+                valueType: 'string',
+                placeholder: 'Select weather entity',
+                onChange: (value) => this._handleConfigValueChange('weather_entity', value),
+            }),
+        })}
+        ${this._renderField({
+            label: 'Default target sensor',
+            helper: 'Optional entity that provides a reference target temperature.',
+            control: this._renderSelectorControl({
+                selector: targetSourceSelector,
+                value: this.config.default_target_entity ?? '',
+                valueType: 'string',
+                placeholder: 'Select entity (optional)',
+                onChange: (value) => this._handleConfigValueChange('default_target_entity', value),
+            }),
+        })}
+        ${this._renderField({
+            label: 'Fallback target temperature',
+            helper: 'Used when no area-specific target is available.',
+            control: this._renderSelectorControl({
+                selector: {
+                    number: {
+                        min: 15,
+                        max: 30,
+                        step: 0.5,
+                        unit_of_measurement: '°C',
+                    },
+                },
+                value: defaultTargetValue,
+                valueType: 'number',
+                min: 15,
+                max: 30,
+                step: 0.5,
+                onChange: (value) => this._handleConfigValueChange('default_target', Number(value)),
+            }),
+        })}
+        ${this._renderField({
+            label: 'Notify on rule hits',
+            helper: 'Send a persistent notification when rules trigger.',
+            control: this._renderSelectorControl({
+                selector: { boolean: {} },
+                value: this.config.notify ?? false,
+                valueType: 'boolean',
+                onChange: (value) => this._handleConfigValueChange('notify', Boolean(value)),
+            }),
+        })}
+        ${this._renderField({
+            label: 'CO2 high threshold',
+            helper: 'Upper limit in ppm before escalating recommendations.',
+            control: this._renderSelectorControl({
+                selector: {
+                    number: {
+                        min: 600,
+                        max: 4000,
+                        step: 50,
+                        unit_of_measurement: 'ppm',
+                    },
+                },
+                value: highThreshold,
+                valueType: 'number',
+                min: 600,
+                max: 4000,
+                step: 50,
+                onChange: (value) => this._handleConfigValueChange('highThreshold', Number(value)),
+            }),
+        })}
+      </section>
+    `;
+    }
+    _renderAreasSection() {
+        if (!this._areas.length) {
+            return html ``;
         }
-        const selectorConfig = optionList.length
-            ? { entity: { entity_id: optionList.map(option => option.entity_id) } }
-            : includeDomains?.length
-                ? { entity: { domain: includeDomains.length === 1 ? includeDomains[0] : includeDomains } }
-                : { entity: {} };
+        return html `
+      <section class="section">
+        <h3>Areas & Sensors</h3>
+        ${this._areas.map((area) => this._renderArea(area))}
+      </section>
+    `;
+    }
+    _renderArea(area) {
+        const enabled = area.enabled !== false;
+        return html `
+      <details class="area" ?open=${enabled}>
+        <summary>
+          <span>${area.name}</span>
+          <label class="area-toggle">
+            <input
+              type="checkbox"
+              .checked=${enabled}
+              @change=${(event) => this._onAreaToggle(area.area_id, event.target.checked)}
+            />
+            ${enabled ? 'Enabled' : 'Disabled'}
+          </label>
+        </summary>
+        <div class="area-body">
+          ${SENSOR_TYPES.map((type) => this._renderSensorRow(area, type))}
+        </div>
+      </details>
+    `;
+    }
+    _renderSensorRow(area, type) {
+        const descriptor = SENSOR_DESCRIPTORS[type];
+        const overrides = this.config.overrides ?? {};
+        const overrideValue = overrides[area.area_id]?.[type] ?? '';
+        const autoValue = this._autodetect(area.area_id, type);
+        const suggestions = this._matchingEntities(area.area_id, type);
+        const disabled = area.enabled === false;
+        return html `
+      <div class="sensor-row ${disabled ? 'is-disabled' : ''}">
+        <div class="sensor-text">
+          <div class="sensor-label">${descriptor.label}</div>
+          ${descriptor.helper ? html `<div class="sensor-helper">${descriptor.helper}</div>` : nothing}
+          ${autoValue
+            ? html `<div class="sensor-auto">Auto: <code>${autoValue}</code></div>`
+            : html `<div class="sensor-auto is-missing">No automatic match found</div>`}
+          ${overrideValue
+            ? html `<div class="sensor-override">Override: <code>${overrideValue}</code></div>`
+            : nothing}
+          ${suggestions.length
+            ? html `
+                <div class="sensor-suggestions">
+                  Suggestions:
+                  ${suggestions.slice(0, 4).map((entity) => html `
+                    <button
+                      class="suggestion"
+                      type="button"
+                      @click=${() => this._onAreaSensorChange(area.area_id, type, entity.entity_id)}
+                    >
+                      ${entity.attributes?.friendly_name || entity.entity_id}
+                    </button>
+                  `)}
+                </div>
+              `
+            : nothing}
+        </div>
+        <div class="sensor-control">
+          ${this._renderSelectorControl({
+            selector: this._selectorForSensor(type),
+            value: overrideValue,
+            valueType: 'string',
+            disabled,
+            inlineLabel: 'Override entity',
+            placeholder: autoValue ? `Automatic: ${autoValue}` : 'Select entity',
+            onChange: (value) => this._onAreaSensorChange(area.area_id, type, value),
+        })}
+          ${overrideValue
+            ? html `<button class="clear-button" type="button" @click=${() => this._onAreaSensorChange(area.area_id, type, '')}>Clear override</button>`
+            : nothing}
+        </div>
+      </div>
+    `;
+    }
+    _renderAdvancedSection() {
+        const rulesContent = this.config.rulesJson ?? '';
+        return html `
+      <section class="section">
+        <h3>Advanced</h3>
+        ${this._renderField({
+            label: 'Custom rules JSON',
+            helper: 'Paste a rules.json payload to override bundled rules (optional).',
+            control: this._renderSelectorControl({
+                selector: { text: { multiline: true } },
+                value: rulesContent,
+                valueType: 'string',
+                multiline: true,
+                onChange: (value) => this._handleConfigValueChange('rulesJson', value),
+            }),
+        })}
+      </section>
+    `;
+    }
+    _renderMissingSensorsSection() {
+        const missing = this._computeMissingSensors();
+        if (!missing.length) {
+            return html `
+        <section class="section">
+          <h3>Sensor coverage</h3>
+          <div class="field-helper">All enabled areas have at least an automatic match.</div>
+        </section>
+      `;
+        }
+        return html `
+      <section class="section">
+        <h3>Sensor coverage</h3>
+        <ul class="missing-list">
+          ${missing.map(({ area, sensors }) => html `
+            <li>
+              <span class="missing-area">${area.name}:</span>
+              ${sensors.map((type) => SENSOR_DESCRIPTORS[type].label).join(', ')}
+            </li>
+          `)}
+        </ul>
+      </section>
+    `;
+    }
+    _renderField(field) {
+        return html `
+      <div class="field">
+        <div class="field-label">${field.label}</div>
+        ${field.helper ? html `<div class="field-helper">${field.helper}</div>` : nothing}
+        <div class="field-control">${field.control}</div>
+      </div>
+    `;
+    }
+    _renderSelectorControl(config) {
         if (this._selectorReady && customElements.get('ha-selector')) {
             return html `
         <ha-selector
-          .hass=${this.hass}
-          .selector=${selectorConfig}
-          .value=${value || ''}
-          .label=${placeholder || undefined}
-          @value-changed=${(e) => onChange((e.detail && 'value' in e.detail) ? e.detail.value || '' : '')}
+          .hass=${this._hass}
+          .selector=${config.selector}
+          .value=${config.value}
+          .disabled=${config.disabled ?? false}
+          .label=${config.inlineLabel ?? ''}
+          .helper=${config.selectorHelper ?? ''}
+          @value-changed=${(event) => {
+                const raw = event.detail?.value ?? event.detail;
+                config.onChange(this._normalizeSelectorValue(raw, config.valueType));
+            }}
         ></ha-selector>
       `;
         }
+        if (config.valueType === 'boolean') {
+            return html `
+        <label class="area-toggle">
+          <input
+            type="checkbox"
+            .checked=${Boolean(config.value)}
+            ?disabled=${config.disabled ?? false}
+            @change=${(event) => config.onChange(event.target.checked)}
+          />
+          ${config.inlineLabel ?? ''}
+        </label>
+      `;
+        }
+        if (config.valueType === 'number') {
+            return html `
+        <input
+          type="number"
+          .value=${config.value ?? ''}
+          ?disabled=${config.disabled ?? false}
+          min=${config.min ?? ''}
+          max=${config.max ?? ''}
+          step=${config.step ?? 'any'}
+          @change=${(event) => config.onChange(this._normalizeSelectorValue(event.target.value, 'number'))}
+        />
+      `;
+        }
+        if (config.multiline) {
+            return html `
+        <textarea
+          .value=${config.value ?? ''}
+          ?disabled=${config.disabled ?? false}
+          @change=${(event) => config.onChange(event.target.value)}
+        ></textarea>
+      `;
+        }
         return html `
-      <mwc-select
-        outlined
-        .value=${value || ''}
-        @selected=${(event) => {
-            const select = event.target;
-            onChange(select?.value || '');
-        }}
-      >
-        <mwc-list-item value="">${placeholder || 'Keine Auswahl'}</mwc-list-item>
-        ${optionList.map(option => html `<mwc-list-item value=${option.entity_id}>${option.label}</mwc-list-item>`)}
-      </mwc-select>
+      <input
+        type="text"
+        .value=${config.value ?? ''}
+        placeholder=${config.placeholder ?? ''}
+        ?disabled=${config.disabled ?? false}
+        @change=${(event) => config.onChange(event.target.value)}
+      />
     `;
     }
-    _createOptionsForDomains(includeDomains, area) {
-        const states = Object.values(this.hass?.states || {});
-        const include = includeDomains?.length ? new Set(includeDomains) : undefined;
-        const options = states.filter((stateObj) => {
-            if (include) {
-                const domain = stateObj.entity_id.split('.')[0];
-                if (!include.has(domain)) {
-                    return false;
+    _normalizeSelectorValue(value, valueType) {
+        if (valueType === 'boolean') {
+            return Boolean(value);
+        }
+        if (valueType === 'number') {
+            if (value === '' || value === undefined || value === null) {
+                return undefined;
+            }
+            return Number(value);
+        }
+        return typeof value === 'string' ? value : value ?? '';
+    }
+    _handleConfigValueChange(key, value) {
+        const patch = { [key]: value };
+        this._emitConfig(patch);
+    }
+    _onAreaToggle(areaId, enabled) {
+        this._areas = this._areas.map((area) => (area.area_id === areaId ? { ...area, enabled } : area));
+        this._emitConfig();
+    }
+    _onAreaSensorChange(areaId, type, value) {
+        const overrides = { ...(this.config.overrides ?? {}) };
+        const current = { ...(overrides[areaId] ?? {}) };
+        if (!value) {
+            delete current[type];
+        }
+        else {
+            current[type] = value;
+        }
+        if (Object.keys(current).length) {
+            overrides[areaId] = current;
+        }
+        else {
+            delete overrides[areaId];
+        }
+        this._emitConfig({ overrides });
+    }
+    _emitConfig(patch = {}) {
+        const nextConfig = {
+            ...this.config,
+            ...patch,
+        };
+        nextConfig.overrides = { ...(patch.overrides ?? this.config.overrides ?? {}) };
+        nextConfig.areas = this._areas.map((area) => ({ area_id: area.area_id, name: area.name, enabled: area.enabled }));
+        nextConfig.auto = this._buildAutoMapping(nextConfig.areas);
+        if (!nextConfig.weather_entity) {
+            delete nextConfig.weather_entity;
+        }
+        if (!nextConfig.default_target_entity) {
+            delete nextConfig.default_target_entity;
+        }
+        if (!nextConfig.rulesJson) {
+            delete nextConfig.rulesJson;
+        }
+        this.config = nextConfig;
+        this.dispatchEvent(new CustomEvent('config-changed', {
+            detail: { config: nextConfig },
+            bubbles: true,
+            composed: true,
+        }));
+    }
+    _buildAutoMapping(areas = []) {
+        const auto = {};
+        for (const area of areas) {
+            auto[area.area_id] = {};
+            for (const type of SENSOR_TYPES) {
+                const suggestion = this._autodetect(area.area_id, type);
+                if (suggestion) {
+                    auto[area.area_id][type] = suggestion;
                 }
             }
-            if (!area) {
-                return true;
+        }
+        return auto;
+    }
+    _autodetect(areaId, type) {
+        const matches = this._matchingEntities(areaId, type);
+        if (!matches.length) {
+            return undefined;
+        }
+        const descriptor = SENSOR_DESCRIPTORS[type];
+        if (descriptor.deviceClasses?.length) {
+            const deviceClassHit = matches.find((entity) => {
+                const deviceClass = entity.attributes?.device_class;
+                return deviceClass ? descriptor.deviceClasses.includes(deviceClass) : false;
+            });
+            if (deviceClassHit) {
+                return deviceClassHit.entity_id;
             }
-            if (stateObj.attributes?.area_id === area) {
-                return true;
+        }
+        const domainHit = matches.find((entity) => this._domainMatches(entity, descriptor.domains));
+        if (domainHit) {
+            return domainHit.entity_id;
+        }
+        return matches[0]?.entity_id;
+    }
+    _matchingEntities(areaId, type) {
+        if (!this._hass) {
+            return [];
+        }
+        const descriptor = SENSOR_DESCRIPTORS[type];
+        const keywords = this._keywordsForType(type);
+        const states = Object.values(this._hass.states ?? {});
+        const candidates = states.filter((state) => this._matchesArea(state, areaId));
+        const matches = new Map();
+        for (const state of candidates) {
+            const domainMatch = this._domainMatches(state, descriptor.domains);
+            const deviceClass = state.attributes?.device_class;
+            const deviceClassMatch = descriptor.deviceClasses?.length
+                ? (deviceClass ? descriptor.deviceClasses.includes(deviceClass) : false)
+                : false;
+            const keywordMatch = keywords.some((keyword) => {
+                const lower = keyword.toLowerCase();
+                const entityId = state.entity_id.toLowerCase();
+                const friendly = (state.attributes?.friendly_name || '').toLowerCase();
+                return entityId.includes(lower) || friendly.includes(lower);
+            });
+            if (domainMatch || deviceClassMatch || keywordMatch) {
+                matches.set(state.entity_id, state);
             }
-            const deviceId = stateObj.attributes?.device_id;
-            if (deviceId && this.hass?.devices?.[deviceId]?.area_id === area) {
-                return true;
+        }
+        const sorted = Array.from(matches.values());
+        sorted.sort((a, b) => (a.attributes?.friendly_name || a.entity_id).localeCompare(b.attributes?.friendly_name || b.entity_id));
+        return sorted;
+    }
+    _keywordsForType(type) {
+        const descriptor = SENSOR_DESCRIPTORS[type];
+        const list = [
+            ...(SENSOR_KEYWORDS[type] ?? []),
+            type,
+            ...(descriptor.extraKeywords ?? []),
+        ];
+        return Array.from(new Set(list.map((keyword) => keyword.toLowerCase())));
+    }
+    _domainMatches(entity, domains) {
+        if (!domains || !domains.length) {
+            return true;
+        }
+        const domain = entity.entity_id.split('.')[0];
+        return domains.includes(domain);
+    }
+    _selectorForSensor(type) {
+        const descriptor = SENSOR_DESCRIPTORS[type];
+        const selector = { entity: {} };
+        if (descriptor.domains.length === 1) {
+            selector.entity.domain = descriptor.domains[0];
+        }
+        else {
+            selector.entity.domain = descriptor.domains;
+        }
+        if (descriptor.deviceClasses?.length === 1) {
+            selector.entity.device_class = descriptor.deviceClasses[0];
+        }
+        else if (descriptor.deviceClasses?.length) {
+            selector.entity.device_class = descriptor.deviceClasses;
+        }
+        return selector;
+    }
+    _matchesArea(entity, areaId) {
+        if (!areaId) {
+            return false;
+        }
+        if (entity.attributes?.area_id === areaId) {
+            return true;
+        }
+        const deviceId = entity.attributes?.device_id;
+        if (deviceId && this._hass?.devices?.[deviceId]?.area_id === areaId) {
+            return true;
+        }
+        const areaMeta = this._areas.find((area) => area.area_id === areaId);
+        const areaNames = [
+            this._hass?.areas?.[areaId]?.name,
+            areaMeta?.name,
+            areaId,
+        ]
+            .filter(Boolean)
+            .map((name) => name.toLowerCase());
+        if (!areaNames.length) {
+            return false;
+        }
+        const entityId = entity.entity_id.toLowerCase();
+        const friendly = (entity.attributes?.friendly_name || '').toLowerCase();
+        return areaNames.some((name) => entityId.includes(name) || friendly.includes(name));
+    }
+    _computeMissingSensors() {
+        return this._areas
+            .filter((area) => area.enabled !== false)
+            .map((area) => ({
+            area,
+            sensors: SENSOR_TYPES.filter((type) => {
+                const override = this.config.overrides?.[area.area_id]?.[type];
+                if (override) {
+                    return false;
+                }
+                return !this._autodetect(area.area_id, type);
+            }),
+        }))
+            .filter(({ sensors }) => sensors.length > 0);
+    }
+    _syncAreas() {
+        if (!this._hass) {
+            if (!this._areas.length && this.config.areas?.length) {
+                this._areas = this.config.areas.map((area) => ({ ...area }));
             }
-            const areaName = this.hass?.areas?.[area]?.name?.toLowerCase() || area.toLowerCase();
-            const entityId = stateObj.entity_id.toLowerCase();
-            const friendly = (stateObj.attributes?.friendly_name || '').toLowerCase();
-            return entityId.includes(areaName) || friendly.includes(areaName);
-        }).map((stateObj) => ({
-            entity_id: stateObj.entity_id,
-            label: stateObj.attributes?.friendly_name || stateObj.entity_id,
+            return;
+        }
+        const hassAreas = this._collectAreasFromHass();
+        const configuredAreas = new Map((this.config.areas ?? []).map((area) => [area.area_id, area]));
+        const merged = new Map();
+        for (const area of hassAreas) {
+            const configArea = configuredAreas.get(area.area_id);
+            merged.set(area.area_id, {
+                area_id: area.area_id,
+                name: configArea?.name ?? area.name,
+                enabled: configArea?.enabled ?? true,
+            });
+        }
+        for (const [areaId, configArea] of configuredAreas) {
+            if (!merged.has(areaId)) {
+                merged.set(areaId, {
+                    area_id: areaId,
+                    name: configArea.name ?? areaId,
+                    enabled: configArea.enabled ?? true,
+                });
+            }
+        }
+        this._areas = Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }
+    _collectAreasFromHass() {
+        if (!this._hass) {
+            return [];
+        }
+        if (this._hass.areas) {
+            return Object.values(this._hass.areas).map((area) => ({
+                area_id: area.area_id,
+                name: area.name ?? area.area_id,
+                enabled: true,
+            }));
+        }
+        const states = Object.values(this._hass.states || {});
+        const areaIds = new Map();
+        for (const state of states) {
+            const areaId = state.attributes?.area_id;
+            if (areaId) {
+                areaIds.set(areaId, areaId);
+            }
+        }
+        return Array.from(areaIds.keys()).map((areaId) => ({
+            area_id: areaId,
+            name: areaId,
+            enabled: true,
         }));
-        options.sort((a, b) => a.label.localeCompare(b.label));
-        return options;
     }
     async _ensureSelectorSystem() {
         if (this._selectorReady) {
@@ -540,21 +715,181 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         }
     }
 };
+HausgeistCardEditor.styles = css `
+    :host {
+      display: block;
+    }
+    .card-config {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      padding: 1rem;
+      box-sizing: border-box;
+    }
+    .section {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .section h3 {
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+    }
+    .field-label {
+      font-weight: 600;
+    }
+    .field-helper {
+      color: var(--secondary-text-color, #666);
+      font-size: 0.9rem;
+    }
+    .field-control {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    details.area {
+      border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+      border-radius: 0.6rem;
+      padding: 0 0.75rem 0.75rem;
+      background: var(--card-background-color, #fff);
+    }
+    details.area > summary {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      cursor: pointer;
+      list-style: none;
+      padding: 0.75rem 0;
+      font-weight: 600;
+    }
+    details.area > summary::-webkit-details-marker {
+      display: none;
+    }
+    details.area[open] > summary {
+      border-bottom: 1px solid var(--divider-color, rgba(0, 0, 0, 0.08));
+      margin-bottom: 0.75rem;
+    }
+    .area-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      font-weight: normal;
+    }
+    .area-body {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+    }
+    .sensor-row {
+      display: grid;
+      gap: 0.75rem;
+      grid-template-columns: minmax(0, 1fr);
+    }
+    @media (min-width: 680px) {
+      .sensor-row {
+        grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+        align-items: start;
+      }
+    }
+    .sensor-text {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+    .sensor-label {
+      font-weight: 600;
+    }
+    .sensor-helper {
+      font-size: 0.9rem;
+      color: var(--secondary-text-color, #666);
+    }
+    .sensor-auto {
+      font-size: 0.85rem;
+      color: var(--secondary-text-color, #666);
+    }
+    .sensor-auto.is-missing {
+      color: var(--error-color, #c62828);
+    }
+    .sensor-override {
+      font-size: 0.85rem;
+      color: var(--primary-color, #3f51b5);
+    }
+    .sensor-suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.25rem;
+      font-size: 0.85rem;
+      color: var(--secondary-text-color, #666);
+    }
+    .sensor-suggestions .suggestion {
+      border: 1px solid var(--secondary-text-color, #666);
+      border-radius: 999px;
+      background: transparent;
+      padding: 0.15rem 0.6rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .sensor-suggestions .suggestion:hover {
+      background: var(--secondary-background-color, rgba(0, 0, 0, 0.05));
+    }
+    .sensor-control {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .clear-button {
+      align-self: flex-start;
+      background: none;
+      border: none;
+      color: var(--primary-color, #3f51b5);
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 0;
+    }
+    .clear-button:focus {
+      outline: 1px dotted var(--primary-color, #3f51b5);
+      outline-offset: 2px;
+    }
+    .missing-list {
+      margin: 0;
+      padding-left: 1.2rem;
+    }
+    .missing-list li {
+      margin: 0.2rem 0;
+    }
+    .missing-area {
+      font-weight: 600;
+    }
+    input[type='text'],
+    input[type='number'],
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      font: inherit;
+      padding: 0.4rem 0.5rem;
+      border-radius: 0.3rem;
+      border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.3));
+      background: var(--card-background-color, #fff);
+    }
+    textarea {
+      min-height: 120px;
+      font-family: var(--code-font-family, monospace);
+    }
+  `;
 __decorate([
     property({ type: Object })
 ], HausgeistCardEditor.prototype, "config", void 0);
 __decorate([
     state()
-], HausgeistCardEditor.prototype, "testValues", void 0);
-__decorate([
-    state()
-], HausgeistCardEditor.prototype, "rulesJson", void 0);
-__decorate([
-    state()
-], HausgeistCardEditor.prototype, "notify", void 0);
-__decorate([
-    state()
-], HausgeistCardEditor.prototype, "highThreshold", void 0);
+], HausgeistCardEditor.prototype, "_areas", void 0);
 __decorate([
     state()
 ], HausgeistCardEditor.prototype, "_selectorReady", void 0);
