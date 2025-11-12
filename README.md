@@ -4,7 +4,7 @@
 ![Downloads](https://img.shields.io/github/downloads/strhwste/Domowoi/total)
 
 ![Domowoi](assets/domowoi-banner.png)
-A friendly ghost who watches over your home and helps you manage your home.
+A friendly ghost who watches over your home and tries to help you.
 
 # Hausgeist Card
 

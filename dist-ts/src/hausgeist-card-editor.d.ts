@@ -23,12 +23,14 @@ export declare class HausgeistCardEditor extends LitElement {
     rulesJson: string;
     notify: boolean;
     highThreshold: number;
+    private _hasHaEntityComboBox;
     private _lastAreas;
     private _autodetect;
     private _renderWeatherInfo;
     setConfig(config: any): void;
     get hass(): any;
     set hass(hass: any);
+    connectedCallback(): void;
     _onDebugChange: (e: Event) => void;
     private _onAreaSensorChange;
     _configChanged(): void;
@@ -38,4 +40,7 @@ export declare class HausgeistCardEditor extends LitElement {
     handleThresholdChange(e: any): void;
     private _onAreaEnabledChange;
     render(): import("lit-html").TemplateResult<1>;
+    private _ensureHaEntityComboBox;
+    private _renderEntityPicker;
+    private _createOptionsForDomains;
 }

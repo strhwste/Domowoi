@@ -19,6 +19,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         this.rulesJson = '';
         this.notify = false;
         this.highThreshold = 2000;
+        this._hasHaEntityComboBox = !!customElements.get('ha-entity-combo-box');
         this._lastAreas = [];
         // Use arrow function to auto-bind 'this'
         this._onDebugChange = (e) => {
@@ -94,6 +95,15 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     set hass(hass) {
         this._hass = hass;
         this.requestUpdate();
+    }
+    connectedCallback() {
+        super.connectedCallback();
+        this._ensureHaEntityComboBox();
+        customElements.whenDefined('ha-entity-combo-box').then(() => {
+            if (!this.isConnected)
+                return;
+            this._hasHaEntityComboBox = true;
+        });
     }
     // Handle sensor selection change for a specific area and type
     _onAreaSensorChange(areaId, type, value) {
@@ -263,45 +273,43 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
       <!-- Weather Entity Selection -->
       <div style="margin-top:1em;">
         <b>Weather Entity:</b>
-        <ha-entity-combo-box
-          .hass=${this.hass}
-          .value=${this.config.weather_entity || 'weather.home'}
-          .includeDomains=${['weather']}
-          @value-changed=${(e) => {
-            const value = e.detail.value;
-            if (value && value !== this.config.weather_entity) {
-                this.config = {
-                    ...this.config,
-                    weather_entity: value
-                };
-                const event = new CustomEvent('config-changed', {
-                    detail: { config: this.config },
-                    bubbles: true,
-                    composed: true,
-                });
-                this.dispatchEvent(event);
+        ${this._renderEntityPicker({
+            value: this.config.weather_entity || 'weather.home',
+            includeDomains: ['weather'],
+            options: weatherEntities.map(({ entity_id, name }) => ({ entity_id, label: name })),
+            onChange: (value) => {
+                if (value && value !== this.config.weather_entity) {
+                    this.config = {
+                        ...this.config,
+                        weather_entity: value
+                    };
+                    const event = new CustomEvent('config-changed', {
+                        detail: { config: this.config },
+                        bubbles: true,
+                        composed: true,
+                    });
+                    this.dispatchEvent(event);
+                }
             }
-        }}
-        ></ha-entity-combo-box>
+        })}
         ${this._renderWeatherInfo()}
       </div>
 
       <!-- Default Target Temperature -->
       <div style="margin-top:1em;">
         <b>Default Target Temperature:</b>
-        <ha-entity-combo-box
-          .hass=${this.hass}
-          .value=${this.config.default_target_entity || ''}
-          .includeDomains=${['input_number', 'sensor', 'number']}
-          @value-changed=${(e) => {
-            const value = e.detail.value;
-            this.config = {
-                ...this.config,
-                default_target_entity: value
-            };
-            this._configChanged();
-        }}
-        ></ha-entity-combo-box>
+        ${this._renderEntityPicker({
+            value: this.config.default_target_entity || '',
+            includeDomains: ['input_number', 'sensor', 'number'],
+            options: this._createOptionsForDomains(['input_number', 'sensor', 'number']),
+            onChange: (value) => {
+                this.config = {
+                    ...this.config,
+                    default_target_entity: value
+                };
+                this._configChanged();
+            }
+        })}
         <div class="help-text">
           Wählen Sie einen Sensor oder Helper für die Standard-Solltemperatur aus.<br />
           Wenn leer, wird der Wert unten verwendet:
@@ -393,13 +401,16 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
                             type}:
                 </span>
                 <div class="sensor-select">
-                  <ha-entity-combo-box
-                    .hass=${this.hass}
-                    .value=${selected || ''}
-                    .includeDomains=${['sensor', 'binary_sensor', 'input_number', 'number', 'climate', 'device_tracker', 'person', 'input_boolean']}
-                    .area=${area.area_id}
-                    @value-changed=${(e) => this._onAreaSensorChange(area.area_id, type, e.detail.value)}
-                  ></ha-entity-combo-box>
+                  ${this._renderEntityPicker({
+                    value: selected || '',
+                    includeDomains: ['sensor', 'binary_sensor', 'input_number', 'number', 'climate', 'device_tracker', 'person', 'input_boolean'],
+                    area: area.area_id,
+                    options: relevantEntities.map((entity) => ({
+                        entity_id: entity.entity_id,
+                        label: entity.attributes?.friendly_name || entity.entity_id,
+                    })),
+                    onChange: (value) => this._onAreaSensorChange(area.area_id, type, value)
+                })}
                   ${type === 'target' ? html `
                   <div class="help-text">
                   Wählen Sie einen Sensor für die Soll-Temperatur aus. Wenn leer, wird der Standardwert (${this.config.default_target || 21}°C) verwendet.
@@ -433,6 +444,92 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
       </div>
     `;
     }
+    async _ensureHaEntityComboBox() {
+        if (this._hasHaEntityComboBox) {
+            return;
+        }
+        const helpersLoader = window?.loadCardHelpers;
+        if (typeof helpersLoader === 'function') {
+            try {
+                const helpers = await helpersLoader();
+                const glanceCard = await helpers?.createCardElement?.({ type: 'glance' });
+                await glanceCard?.getConfigElement?.();
+            }
+            catch (error) {
+                if (this.config?.debug) {
+                    console.warn('Failed to load card helpers for ha-entity-combo-box', error);
+                }
+            }
+        }
+        const glanceCtor = customElements.get('hui-glance-card');
+        if (glanceCtor?.getConfigElement) {
+            try {
+                await glanceCtor.getConfigElement();
+            }
+            catch (error) {
+                if (this.config?.debug) {
+                    console.warn('Failed to load hui-glance-card editor', error);
+                }
+            }
+        }
+        this._hasHaEntityComboBox = !!customElements.get('ha-entity-combo-box');
+    }
+    _renderEntityPicker({ value, includeDomains, area, options, placeholder, onChange, }) {
+        if (this._hasHaEntityComboBox) {
+            return html `
+        <ha-entity-combo-box
+          .hass=${this.hass}
+          .value=${value || ''}
+          .includeDomains=${includeDomains}
+          .area=${area}
+          @value-changed=${(e) => onChange(e.detail?.value ?? '')}
+        ></ha-entity-combo-box>
+      `;
+        }
+        const fallbackOptions = options?.length
+            ? options
+            : this._createOptionsForDomains(includeDomains, area);
+        return html `
+      <select
+        .value=${value || ''}
+        @change=${(event) => onChange(event.target.value)}
+      >
+        <option value="">${placeholder || 'Select entity'}</option>
+        ${fallbackOptions.map(option => html `<option value=${option.entity_id}>${option.label}</option>`)}
+      </select>
+    `;
+    }
+    _createOptionsForDomains(includeDomains, area) {
+        const states = Object.values(this.hass?.states || {});
+        const include = includeDomains?.length ? new Set(includeDomains) : undefined;
+        const options = states.filter((stateObj) => {
+            if (include) {
+                const domain = stateObj.entity_id.split('.')[0];
+                if (!include.has(domain)) {
+                    return false;
+                }
+            }
+            if (!area) {
+                return true;
+            }
+            if (stateObj.attributes?.area_id === area) {
+                return true;
+            }
+            const deviceId = stateObj.attributes?.device_id;
+            if (deviceId && this.hass?.devices?.[deviceId]?.area_id === area) {
+                return true;
+            }
+            const areaName = this.hass?.areas?.[area]?.name?.toLowerCase() || area.toLowerCase();
+            const entityId = stateObj.entity_id.toLowerCase();
+            const friendly = (stateObj.attributes?.friendly_name || '').toLowerCase();
+            return entityId.includes(areaName) || friendly.includes(areaName);
+        }).map((stateObj) => ({
+            entity_id: stateObj.entity_id,
+            label: stateObj.attributes?.friendly_name || stateObj.entity_id,
+        }));
+        options.sort((a, b) => a.label.localeCompare(b.label));
+        return options;
+    }
 };
 __decorate([
     property({ type: Object })
@@ -449,6 +546,9 @@ __decorate([
 __decorate([
     state()
 ], HausgeistCardEditor.prototype, "highThreshold", void 0);
+__decorate([
+    state()
+], HausgeistCardEditor.prototype, "_hasHaEntityComboBox", void 0);
 HausgeistCardEditor = __decorate([
     customElement('hausgeist-card-editor')
 ], HausgeistCardEditor);
