@@ -24,13 +24,13 @@ An intelligent, multilingual Home Assistant Lovelace card for indoor climate, en
 ## Screenshots
 ![Screenshot 1](assets/ghost_bsp.png)
 
-
 ## Installation
 ### Via HACS
 1. Install HACS in your Home Assistant instance if you haven't already.
 2. In HACS, go to "Frontend" and click on the "+" button to add a new resource.
-3. Search for "Domowoi Hausgeist Card" and install it.
-4. Follow the instructions below to add the card to your Lovelace dashboard.
+3. Add the repository `strhwste/Domowoi`.
+4. Search for "Domowoi Hausgeist Card" and install it.
+5. Follow the instructions below to add the card to your Lovelace dashboard.
 
 ### Manual Installation
 1. Download the latest release from the [Releases](https://github.com/strhwste/Domowoi/releases) page.
