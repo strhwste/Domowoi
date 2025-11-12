@@ -58,3 +58,6 @@ An intelligent, multilingual Home Assistant Lovelace card for indoor climate, en
 
 ## License
 See LICENSE.
+
+## Important Note
+This project is based on research of VISE and it's project VISE-I. It is not affiliated with or endorsed by VISE. For more information, visit [VISE-I Smart User Interfaces](https://smart-energy-nrw.web.th-koeln.de/vise-i-smart-user-interfaces/).
