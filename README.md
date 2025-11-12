@@ -1,7 +1,6 @@
 # Domowoi
 [![Buy me a beer](https://img.shields.io/badge/Support-Buy%20me%20a%20beer-fdd734?logo=buy-me-a-coffee)](https://www.buymeacoffee.com/strhwste)
 [![Last commit](https://img.shields.io/github/last-commit/strhwste/Domowoi)](#)
-![Downloads](https://img.shields.io/github/downloads/strhwste/Domowoi/total)
 
 ![Domowoi](assets/domowoi-banner.png)
 A friendly ghost who watches over your home and tries to help you.
