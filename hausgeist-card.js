@@ -308,43 +308,47 @@ const SENSOR_KEYWORDS = {
     ]
 };
 
-var low_humidity$1 = "Humidity below 35% – please ventilate or humidify";
-var high_co2$1 = "High CO₂ levels – please air out";
-var cold_temp$1 = "Temperature below 18 °C – check heating or windows";
+var yes$1 = "yes";
+var no$1 = "no";
+var low_humidity$1 = "Humidity below 35% – currently {{humidity}}%.";
+var high_co2$1 = "High CO₂ levels – {{co2}} ppm, please air out.";
+var cold_temp$1 = "Temperature below 18 °C – currently {{temp}}°C, check heating or windows.";
 var all_ok$1 = "All good here 🎉";
 var loading$2 = "Collecting sensor data...";
-var temp_above_target$1 = "⚠️ Temperature well above target – check heating curve.";
-var temp_below_target$1 = "❄️ Room is undercooled – check heating or windows.";
-var humidity_low$1 = "💧 Humidity too low – consider using a humidifier.";
-var humidity_high$1 = "🌫️ Humidity too high – ventilation recommended (risk of mold).";
-var co2_high$1 = "🌬️ CO₂ level too high – ventilate to improve air quality.";
-var window_open_heating_on$1 = "🪟 Heating is on while window is open – avoid energy loss.";
-var room_empty_warm$1 = "📉 Room is empty but warm – adjust heating profile?";
-var outside_warm_inside_warm$1 = "☀️ It's warm outside – reduce heating demand.";
-var forecast_warmer_target_high$1 = "📅 Tomorrow will be warmer – lower target temperature?";
-var energy_high$1 = "💸 High energy consumption – check heating strategy.";
-var eco_mode$1 = "🛌 Temperature reduction active – Eco mode detected.";
-var temp_rising_fast$1 = "🔥 Temperature rising unusually fast – inefficient?";
-var no_motion_heating_on$1 = "🚪 No motion detected – room may be heated unnecessarily.";
-var morning_cool_outside$1 = "🌄 It's cooler outside in the morning – ventilate to cool down.";
-var afternoon_window_open_hot_outside$1 = "🌞 Warmer outside than inside – better close the window.";
-var hot_day_morning_ventilate$1 = "📊 Hot day ahead – ventilate well in the morning.";
-var very_hot_window_open$1 = "🔥 Very hot outside – close windows to avoid heating up.";
-var early_cool_outside_ventilate$1 = "🧊 Early cool outside – natural cooling by ventilation possible.";
-var keep_window_closed_cool_inside$1 = "Keep windows closed to keep it cool inside.";
-var close_curtains_to_keep_cool$1 = "Close curtains or blinds to keep the room cool.";
-var rain_soon_close_window$1 = "Rain is expected soon – please close the windows.";
-var close_door_to_save_heat$1 = "Close the door to prevent heat loss to other rooms.";
-var ventilate_air_quality_poor$1 = "Air quality is poor – ventilate the room.";
-var ventilate_high_humidity$1 = "Humidity is high – ventilate to reduce moisture.";
-var open_blinds_for_sun_warmth$1 = "Sunny soon – open blinds to warm up the room.";
-var window_open_night_cold$1 = "🌙 Window is open at night and it's cold outside – please close to avoid cooling down.";
-var room_too_cold_window_open$1 = "❄️ Room is below 17°C and window is open – please close to avoid undercooling.";
-var mold_risk_dew_point$1 = "⚠️ Mold risk: High humidity and dew point reached – please ventilate!";
+var temp_above_target$1 = "⚠️ Temperature well above target – {{temp}}°C vs target {{comfort_high}}°C.";
+var temp_below_target$1 = "❄️ Room is undercooled – {{temp}}°C vs target {{comfort_low}}°C.";
+var humidity_low$1 = "💧 Humidity too low – {{humidity}}%.";
+var humidity_high$1 = "🌫️ Humidity too high – {{humidity}}% for {{humidity_high_minutes}} min (risk of mold).";
+var co2_high$1 = "🌬️ CO₂ level too high – {{co2}} ppm, ventilate to improve air quality.";
+var window_open_heating_on$1 = "🪟 Heating on while window open {{window_open_minutes}} min – outside {{outside_temp}}°C vs inside {{temp}}°C.";
+var room_empty_warm$1 = "📉 Room empty but warm – {{temp}}°C vs target {{comfort_high}}°C.";
+var outside_warm_inside_warm$1 = "☀️ Outside {{outside_temp}}°C while heating runs (inside {{temp}}°C) – reduce heating demand.";
+var forecast_warmer_target_high$1 = "📅 Tomorrow {{forecast_temp}}°C expected – lower target {{comfort_high}}°C?";
+var energy_high$1 = "💸 High energy consumption – {{energy}} vs limit {{high_threshold}}.";
+var eco_mode$1 = "🛌 Temperature reduction active – target {{target}}°C indicates Eco mode.";
+var temp_rising_fast$1 = "🔥 Temperature rising unusually fast – +{{temp_change_rate}}°C/h while heating.";
+var no_motion_heating_on$1 = "🚪 No motion detected – heating still running at {{temp}}°C.";
+var morning_cool_outside$1 = "🌄 Outside cooler at {{outside_temp}}°C (inside {{temp}}°C) – ventilate to cool down.";
+var afternoon_window_open_hot_outside$1 = "🌞 Outside {{outside_temp}}°C > inside {{temp}}°C – window open {{window_open_minutes}} min.";
+var hot_day_morning_ventilate$1 = "📊 Hot day ahead (forecast {{forecast_temp}}°C) – ventilate well in the morning.";
+var very_hot_window_open$1 = "🔥 Very hot outside (forecast {{forecast_temp}}°C) – window open {{window_open_minutes}} min, close it.";
+var early_cool_outside_ventilate$1 = "🧊 Early cool outside at {{outside_temp}}°C (inside {{temp}}°C) – natural cooling possible.";
+var keep_window_closed_cool_inside$1 = "Keep windows closed: outside {{outside_temp}}°C > inside {{temp}}°C.";
+var close_curtains_to_keep_cool$1 = "Close curtains or blinds – outside {{outside_temp}}°C.";
+var rain_soon_close_window$1 = "Rain expected soon – window open {{window_open_minutes}} min.";
+var close_door_to_save_heat$1 = "Close the door (open {{door_open_minutes}} min) – adjacent room {{adjacent_room_temp}}°C vs {{temp}}°C.";
+var ventilate_air_quality_poor$1 = "Air quality is {{air_quality}} – ventilate the room.";
+var ventilate_high_humidity$1 = "Humidity {{humidity}}% for {{humidity_high_minutes}} min – ventilate to reduce moisture.";
+var open_blinds_for_sun_warmth$1 = "Sunny soon (forecast {{forecast_temp}}°C) – open blinds to warm the room ({{temp}}°C).";
+var window_open_night_cold$1 = "🌙 Window open {{window_open_minutes}} min at night, outside {{outside_temp}}°C – close to avoid cooling.";
+var room_too_cold_window_open$1 = "❄️ Room {{temp}}°C with window open {{window_open_minutes}} min – close to avoid undercooling.";
+var mold_risk_dew_point$1 = "⚠️ Mold risk: humidity {{humidity}}% near dew point – ventilate now.";
 var debug_rule_match$1 = "Debug rule matched - rule engine is working";
-var temp_above_target_ventilate_possible$1 = "Temperature well above target, outside is cooler and window is closed – ventilate now!";
-var temp_above_target_outside_hot$1 = "Temperature well above target, but outside is even hotter – better keep windows closed.";
+var temp_above_target_ventilate_possible$1 = "Temperature {{temp}}°C well above target {{comfort_high}}°C, outside {{outside_temp}}°C is cooler and window closed – ventilate now!";
+var temp_above_target_outside_hot$1 = "Temperature {{temp}}°C above target {{comfort_high}}°C, but outside hotter at {{outside_temp}}°C – better keep windows closed.";
 var en = {
+	yes: yes$1,
+	no: no$1,
 	low_humidity: low_humidity$1,
 	high_co2: high_co2$1,
 	cold_temp: cold_temp$1,
@@ -383,43 +387,47 @@ var en = {
 	temp_above_target_outside_hot: temp_above_target_outside_hot$1
 };
 
-var low_humidity = "Luftfeuchtigkeit unter 35 % – lüften oder befeuchten empfohlen";
-var high_co2 = "CO₂-Wert hoch – bitte Stoßlüften";
-var cold_temp = "Temperatur unter 18 °C – Heizung prüfen bzw. Fenster schließen";
+var yes = "ja";
+var no = "nein";
+var low_humidity = "Luftfeuchtigkeit unter 35 % – aktuell {{humidity}} %.";
+var high_co2 = "CO₂-Wert hoch – {{co2}} ppm, bitte Stoßlüften.";
+var cold_temp = "Temperatur unter 18 °C – aktuell {{temp}} °C, Heizung oder Fenster prüfen.";
 var all_ok = "Alles im grünen Bereich 🎉";
 var loading$1 = "Sammle Sensordaten...";
-var temp_above_target = "⚠️ Temperatur deutlich über dem Sollwert – Heizkurve prüfen.";
-var temp_below_target = "❄️ Raum ist unterkühlt – Heizung oder Fenster prüfen.";
-var humidity_low = "💧 Luftfeuchtigkeit zu niedrig – ggf. Luftbefeuchter nutzen.";
-var humidity_high = "🌫️ Luftfeuchtigkeit zu hoch – Lüften empfohlen (Schimmelgefahr).";
-var co2_high = "🌬️ CO₂-Wert zu hoch – Lüften verbessert Luftqualität.";
-var window_open_heating_on = "🪟 Heizung läuft bei offenem Fenster – Energieverlust vermeiden.";
-var room_empty_warm = "📉 Raum ist leer, aber warm – Heizprofil anpassen?";
-var outside_warm_inside_warm = "☀️ Draußen ist es warm – Heizbedarf reduzieren.";
-var forecast_warmer_target_high = "📅 Morgen wird’s wärmer – Zieltemperatur senken?";
-var energy_high = "💸 Hoher Energieverbrauch – Heizstrategie prüfen.";
-var eco_mode = "🛌 Temperaturabsenkung aktiv – Eco-Modus erkannt.";
-var temp_rising_fast = "🔥 Temperaturanstieg ungewöhnlich schnell – ineffizient?";
-var no_motion_heating_on = "🚪 Keine Bewegung erkannt – Raum evtl. unnötig beheizt.";
-var morning_cool_outside = "🌄 Morgens ist es draußen kühler – jetzt lüften zum Abkühlen.";
-var afternoon_window_open_hot_outside = "🌞 Draußen wärmer als drinnen – Fenster besser schließen.";
-var hot_day_morning_ventilate = "📊 Heute wird’s heiß – jetzt morgens gut durchlüften.";
-var very_hot_window_open = "🔥 Hitze draußen – Fenster schließen, um Aufheizen zu vermeiden.";
-var early_cool_outside_ventilate = "🧊 Früh kühl draußen – natürliche Kühlung durch Lüften möglich.";
-var keep_window_closed_cool_inside = "Fenster geschlossen halten, um es innen kühl zu halten.";
-var close_curtains_to_keep_cool = "Vorhänge oder Jalousien schließen, um den Raum kühl zu halten.";
-var rain_soon_close_window = "Bald Regen erwartet – Fenster besser schließen.";
-var close_door_to_save_heat = "Tür schließen, um Wärmeverlust in andere Räume zu vermeiden.";
-var ventilate_air_quality_poor = "Luftqualität schlecht – bitte lüften.";
-var ventilate_high_humidity = "Luftfeuchtigkeit hoch – lüften empfohlen.";
-var open_blinds_for_sun_warmth = "Bald sonnig – Jalousien öffnen, um Raum zu erwärmen.";
-var window_open_night_cold = "🌙 Fenster ist nachts offen und es ist draußen kalt – bitte schließen, um Auskühlung zu vermeiden.";
-var room_too_cold_window_open = "❄️ Raum ist unter 17 °C und das Fenster ist offen – bitte schließen, um Unterkühlung zu vermeiden.";
-var mold_risk_dew_point = "⚠️ Schimmelgefahr: Hohe Luftfeuchtigkeit und Taupunkt erreicht – bitte lüften!";
+var temp_above_target = "⚠️ Temperatur deutlich über dem Soll – {{temp}} °C vs Soll {{comfort_high}} °C.";
+var temp_below_target = "❄️ Raum ist unterkühlt – {{temp}} °C vs Soll {{comfort_low}} °C.";
+var humidity_low = "💧 Luftfeuchtigkeit zu niedrig – {{humidity}} %.";
+var humidity_high = "🌫️ Luftfeuchtigkeit zu hoch – {{humidity}} % seit {{humidity_high_minutes}} min (Schimmelgefahr).";
+var co2_high = "🌬️ CO₂-Wert zu hoch – {{co2}} ppm, bitte lüften.";
+var window_open_heating_on = "🪟 Heizung läuft bei offenem Fenster ({{window_open_minutes}} min) – außen {{outside_temp}} °C, innen {{temp}} °C.";
+var room_empty_warm = "📉 Raum ist leer, aber warm – {{temp}} °C vs Soll {{comfort_high}} °C.";
+var outside_warm_inside_warm = "☀️ Draußen {{outside_temp}} °C bei laufender Heizung (innen {{temp}} °C) – Heizbedarf senken.";
+var forecast_warmer_target_high = "📅 Morgen werden {{forecast_temp}} °C erwartet – Ziel {{comfort_high}} °C senken?";
+var energy_high = "💸 Hoher Energieverbrauch – {{energy}} vs Grenzwert {{high_threshold}}.";
+var eco_mode = "🛌 Temperaturabsenkung aktiv – Ziel {{target}} °C deutet Eco-Modus an.";
+var temp_rising_fast = "🔥 Temperaturanstieg ungewöhnlich schnell – +{{temp_change_rate}} °C/h bei laufender Heizung.";
+var no_motion_heating_on = "🚪 Keine Bewegung erkannt – Heizung läuft bei {{temp}} °C.";
+var morning_cool_outside = "🌄 Draußen kühler mit {{outside_temp}} °C (innen {{temp}} °C) – zum Abkühlen lüften.";
+var afternoon_window_open_hot_outside = "🌞 Draußen {{outside_temp}} °C > innen {{temp}} °C – Fenster seit {{window_open_minutes}} min offen.";
+var hot_day_morning_ventilate = "📊 Heißer Tag erwartet ({{forecast_temp}} °C) – morgens gut durchlüften.";
+var very_hot_window_open = "🔥 Sehr heiß draußen ({{forecast_temp}} °C) – Fenster seit {{window_open_minutes}} min offen, bitte schließen.";
+var early_cool_outside_ventilate = "🧊 Früh kühl draußen mit {{outside_temp}} °C (innen {{temp}} °C) – natürliches Kühlen möglich.";
+var keep_window_closed_cool_inside = "Fenster geschlossen halten: draußen {{outside_temp}} °C > innen {{temp}} °C.";
+var close_curtains_to_keep_cool = "Vorhänge oder Jalousien schließen – draußen {{outside_temp}} °C.";
+var rain_soon_close_window = "Bald Regen erwartet – Fenster seit {{window_open_minutes}} min offen.";
+var close_door_to_save_heat = "Tür schließen (seit {{door_open_minutes}} min offen) – Nebenraum {{adjacent_room_temp}} °C vs {{temp}} °C.";
+var ventilate_air_quality_poor = "Luftqualität ist {{air_quality}} – bitte lüften.";
+var ventilate_high_humidity = "Luftfeuchtigkeit {{humidity}} % seit {{humidity_high_minutes}} min – Lüften empfohlen.";
+var open_blinds_for_sun_warmth = "Bald sonnig ({{forecast_temp}} °C) – Jalousien öffnen, um den Raum ({{temp}} °C) zu erwärmen.";
+var window_open_night_cold = "🌙 Fenster seit {{window_open_minutes}} min offen, draußen {{outside_temp}} °C – schließen, um Auskühlung zu vermeiden.";
+var room_too_cold_window_open = "❄️ Raum {{temp}} °C bei offenen Fenstern ({{window_open_minutes}} min) – schließen gegen Unterkühlung.";
+var mold_risk_dew_point = "⚠️ Schimmelgefahr: {{humidity}} % Luftfeuchtigkeit nahe Taupunkt – jetzt lüften!";
 var debug_rule_match = "Debug-Regel aktiv - Regelwerk funktioniert";
-var temp_above_target_ventilate_possible = "Temperatur deutlich über Soll, draußen kühler als drinnen und Fenster zu – jetzt lüften!";
-var temp_above_target_outside_hot = "Temperatur deutlich über Soll, aber draußen noch wärmer – Fenster besser geschlossen halten.";
+var temp_above_target_ventilate_possible = "Temperatur {{temp}} °C über Soll {{comfort_high}} °C, draußen {{outside_temp}} °C kühler und Fenster zu – jetzt lüften!";
+var temp_above_target_outside_hot = "Temperatur {{temp}} °C über Soll {{comfort_high}} °C, draußen aber heißer mit {{outside_temp}} °C – Fenster geschlossen halten.";
 var de = {
+	yes: yes,
+	no: no,
 	low_humidity: low_humidity,
 	high_co2: high_co2,
 	cold_temp: cold_temp,
@@ -58573,6 +58581,7 @@ let HausgeistCard = class HausgeistCard extends i {
         this._humidityHighSince = {};
         this._windowOpenSince = {};
         this._doorOpenSince = {};
+        this._currentLocale = 'en';
     }
     // Add required setConfig method for custom cards
     setConfig(config) {
@@ -58744,6 +58753,7 @@ let HausgeistCard = class HausgeistCard extends i {
         if (!this.texts || Object.keys(this.texts).length === 0) {
             this.texts = TRANSLATIONS['de'];
         }
+        this._currentLocale = lang;
         // Mapping areaId -> Klartextname (aus config.areas)
         const areaIdToName = {};
         areas.forEach(a => { areaIdToName[a.area_id] = a.name || a.area_id; });
@@ -58756,12 +58766,14 @@ let HausgeistCard = class HausgeistCard extends i {
         areaIds[this._currentAreaIndex];
         // Sammle alle evals aus allen Bereichen
         let allEvals = [];
-        Object.entries(this._areaResults).forEach(([area, result]) => {
+        Object.entries(this._areaResults).forEach(([_areaId, result]) => {
             result.evals.forEach(ev => {
                 if (typeof ev === 'object' && ev.message_key) {
-                    const msg = (ev.message_key && this.texts[ev.message_key]) ? this.texts[ev.message_key] : ev.message_key;
+                    const template = (ev.message_key && this.texts[ev.message_key]) ? this.texts[ev.message_key] : ev.message_key;
+                    const formatted = this._formatTemplate(template, result.context || {});
+                    const suffix = Object.keys(this._areaResults).length > 1 ? ` (${result.area})` : '';
                     allEvals.push({
-                        msg: msg + (Object.keys(this._areaResults).length > 1 ? ` (${result.area})` : ''),
+                        msg: formatted + suffix,
                         prio: ev.priority,
                         area: result.area
                     });
@@ -59079,6 +59091,61 @@ let HausgeistCard = class HausgeistCard extends i {
         this._areaLastEval[area] = nowTime;
         return cacheObj;
     }
+    _formatTemplate(template, context) {
+        if (!template || template.indexOf('{{') === -1) {
+            return template;
+        }
+        return template.replace(/{{\s*([\w.]+)\s*}}/g, (_match, key) => {
+            const value = this._getContextValue(context, key);
+            return this._formatContextValue(key, value);
+        });
+    }
+    _getContextValue(context, key) {
+        if (!context) {
+            return undefined;
+        }
+        if (key.includes('.')) {
+            return key.split('.').reduce((acc, part) => (acc != null ? acc[part] : undefined), context);
+        }
+        return context[key];
+    }
+    _formatContextValue(key, value) {
+        if (value === undefined || value === null) {
+            return '–';
+        }
+        if (typeof value === 'number') {
+            if (!Number.isFinite(value)) {
+                return '–';
+            }
+            const options = this._getNumberFormatOptionsForKey(key);
+            try {
+                return new Intl.NumberFormat(this._currentLocale || 'de', options).format(value);
+            }
+            catch (error) {
+                console.warn('[Hausgeist] Number formatting failed for key', key, error);
+                return String(value);
+            }
+        }
+        if (typeof value === 'boolean') {
+            return value ? (this.texts['yes'] || 'yes') : (this.texts['no'] || 'no');
+        }
+        return String(value);
+    }
+    _getNumberFormatOptionsForKey(key) {
+        if (key.endsWith('_minutes')) {
+            return { maximumFractionDigits: 0 };
+        }
+        if (key.endsWith('_rate')) {
+            return { minimumFractionDigits: 1, maximumFractionDigits: 1 };
+        }
+        if (key.includes('humidity') || key.includes('co2') || key.includes('energy')) {
+            return { maximumFractionDigits: 0 };
+        }
+        if (key.includes('temp') || key.includes('target')) {
+            return { minimumFractionDigits: 1, maximumFractionDigits: 1 };
+        }
+        return { minimumFractionDigits: 0, maximumFractionDigits: 1 };
+    }
     _calculateTempChangeRate(area, tempSensor) {
         if (!tempSensor) {
             return 0;
@@ -59250,10 +59317,16 @@ let HausgeistCard = class HausgeistCard extends i {
                 continue;
             }
             const evals = this.engine.evaluate(context);
+            const contextForResult = {
+                ...context,
+                area_id: area.area_id,
+                area_name: area.name || area.area_id
+            };
             this._areaResults[area.area_id] = {
                 area: area.name || area.area_id,
                 evals,
-                usedSensors
+                usedSensors,
+                context: contextForResult
             };
             updated = true;
             processed++;

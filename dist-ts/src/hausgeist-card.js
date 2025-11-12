@@ -43,6 +43,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         this._humidityHighSince = {};
         this._windowOpenSince = {};
         this._doorOpenSince = {};
+        this._currentLocale = 'en';
     }
     // Add required setConfig method for custom cards
     setConfig(config) {
@@ -214,6 +215,7 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         if (!this.texts || Object.keys(this.texts).length === 0) {
             this.texts = TRANSLATIONS['de'];
         }
+        this._currentLocale = lang;
         // Mapping areaId -> Klartextname (aus config.areas)
         const areaIdToName = {};
         areas.forEach(a => { areaIdToName[a.area_id] = a.name || a.area_id; });
@@ -226,12 +228,14 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         const activeAreaId = areaIds[this._currentAreaIndex];
         // Sammle alle evals aus allen Bereichen
         let allEvals = [];
-        Object.entries(this._areaResults).forEach(([area, result]) => {
+        Object.entries(this._areaResults).forEach(([_areaId, result]) => {
             result.evals.forEach(ev => {
                 if (typeof ev === 'object' && ev.message_key) {
-                    const msg = (ev.message_key && this.texts[ev.message_key]) ? this.texts[ev.message_key] : ev.message_key;
+                    const template = (ev.message_key && this.texts[ev.message_key]) ? this.texts[ev.message_key] : ev.message_key;
+                    const formatted = this._formatTemplate(template, result.context || {});
+                    const suffix = Object.keys(this._areaResults).length > 1 ? ` (${result.area})` : '';
                     allEvals.push({
-                        msg: msg + (Object.keys(this._areaResults).length > 1 ? ` (${result.area})` : ''),
+                        msg: formatted + suffix,
                         prio: ev.priority,
                         area: result.area
                     });
@@ -549,6 +553,61 @@ let HausgeistCard = class HausgeistCard extends LitElement {
         this._areaLastEval[area] = nowTime;
         return cacheObj;
     }
+    _formatTemplate(template, context) {
+        if (!template || template.indexOf('{{') === -1) {
+            return template;
+        }
+        return template.replace(/{{\s*([\w.]+)\s*}}/g, (_match, key) => {
+            const value = this._getContextValue(context, key);
+            return this._formatContextValue(key, value);
+        });
+    }
+    _getContextValue(context, key) {
+        if (!context) {
+            return undefined;
+        }
+        if (key.includes('.')) {
+            return key.split('.').reduce((acc, part) => (acc != null ? acc[part] : undefined), context);
+        }
+        return context[key];
+    }
+    _formatContextValue(key, value) {
+        if (value === undefined || value === null) {
+            return '–';
+        }
+        if (typeof value === 'number') {
+            if (!Number.isFinite(value)) {
+                return '–';
+            }
+            const options = this._getNumberFormatOptionsForKey(key);
+            try {
+                return new Intl.NumberFormat(this._currentLocale || 'de', options).format(value);
+            }
+            catch (error) {
+                console.warn('[Hausgeist] Number formatting failed for key', key, error);
+                return String(value);
+            }
+        }
+        if (typeof value === 'boolean') {
+            return value ? (this.texts['yes'] || 'yes') : (this.texts['no'] || 'no');
+        }
+        return String(value);
+    }
+    _getNumberFormatOptionsForKey(key) {
+        if (key.endsWith('_minutes')) {
+            return { maximumFractionDigits: 0 };
+        }
+        if (key.endsWith('_rate')) {
+            return { minimumFractionDigits: 1, maximumFractionDigits: 1 };
+        }
+        if (key.includes('humidity') || key.includes('co2') || key.includes('energy')) {
+            return { maximumFractionDigits: 0 };
+        }
+        if (key.includes('temp') || key.includes('target')) {
+            return { minimumFractionDigits: 1, maximumFractionDigits: 1 };
+        }
+        return { minimumFractionDigits: 0, maximumFractionDigits: 1 };
+    }
     _calculateTempChangeRate(area, tempSensor) {
         if (!tempSensor) {
             return 0;
@@ -720,10 +779,16 @@ let HausgeistCard = class HausgeistCard extends LitElement {
                 continue;
             }
             const evals = this.engine.evaluate(context);
+            const contextForResult = {
+                ...context,
+                area_id: area.area_id,
+                area_name: area.name || area.area_id
+            };
             this._areaResults[area.area_id] = {
                 area: area.name || area.area_id,
                 evals,
-                usedSensors
+                usedSensors,
+                context: contextForResult
             };
             updated = true;
             processed++;
