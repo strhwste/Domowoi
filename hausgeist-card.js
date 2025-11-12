@@ -500,7 +500,7 @@ var __assign = function() {
   return __assign.apply(this, arguments);
 };
 
-function __decorate$2(decorators, target, key, desc) {
+function __decorate$3(decorators, target, key, desc) {
   var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
   if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
   else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
@@ -1009,16 +1009,16 @@ class NotchedOutlineBase extends BaseElement {
       </span>`;
     }
 }
-__decorate$2([
+__decorate$3([
     i$t('.mdc-notched-outline')
 ], NotchedOutlineBase.prototype, "mdcRoot", void 0);
-__decorate$2([
+__decorate$3([
     n$E({ type: Number })
 ], NotchedOutlineBase.prototype, "width", void 0);
-__decorate$2([
+__decorate$3([
     n$E({ type: Boolean, reflect: true })
 ], NotchedOutlineBase.prototype, "open", void 0);
-__decorate$2([
+__decorate$3([
     i$t('.mdc-notched-outline__notch')
 ], NotchedOutlineBase.prototype, "notchElement", void 0);
 
@@ -1037,7 +1037,7 @@ const styles$8 = i$r `.mdc-notched-outline{display:flex;position:absolute;top:0;
 let NotchedOutline = class NotchedOutline extends NotchedOutlineBase {
 };
 NotchedOutline.styles = [styles$8];
-NotchedOutline = __decorate$2([
+NotchedOutline = __decorate$3([
     e$D('mwc-notched-outline')
 ], NotchedOutline);
 
@@ -2018,58 +2018,58 @@ class RippleBase extends BaseElement {
         })}"></div>`;
     }
 }
-__decorate$2([
+__decorate$3([
     i$j('.mdc-ripple-surface')
 ], RippleBase.prototype, "mdcRoot", void 0);
-__decorate$2([
+__decorate$3([
     n$q({ type: Boolean })
 ], RippleBase.prototype, "primary", void 0);
-__decorate$2([
+__decorate$3([
     n$q({ type: Boolean })
 ], RippleBase.prototype, "accent", void 0);
-__decorate$2([
+__decorate$3([
     n$q({ type: Boolean })
 ], RippleBase.prototype, "unbounded", void 0);
-__decorate$2([
+__decorate$3([
     n$q({ type: Boolean })
 ], RippleBase.prototype, "disabled", void 0);
-__decorate$2([
+__decorate$3([
     n$q({ type: Boolean })
 ], RippleBase.prototype, "activated", void 0);
-__decorate$2([
+__decorate$3([
     n$q({ type: Boolean })
 ], RippleBase.prototype, "selected", void 0);
-__decorate$2([
+__decorate$3([
     n$q({ type: Boolean })
 ], RippleBase.prototype, "internalUseStateLayerCustomProperties", void 0);
-__decorate$2([
+__decorate$3([
     t$g()
 ], RippleBase.prototype, "hovering", void 0);
-__decorate$2([
+__decorate$3([
     t$g()
 ], RippleBase.prototype, "bgFocused", void 0);
-__decorate$2([
+__decorate$3([
     t$g()
 ], RippleBase.prototype, "fgActivation", void 0);
-__decorate$2([
+__decorate$3([
     t$g()
 ], RippleBase.prototype, "fgDeactivation", void 0);
-__decorate$2([
+__decorate$3([
     t$g()
 ], RippleBase.prototype, "fgScale", void 0);
-__decorate$2([
+__decorate$3([
     t$g()
 ], RippleBase.prototype, "fgSize", void 0);
-__decorate$2([
+__decorate$3([
     t$g()
 ], RippleBase.prototype, "translateStart", void 0);
-__decorate$2([
+__decorate$3([
     t$g()
 ], RippleBase.prototype, "translateEnd", void 0);
-__decorate$2([
+__decorate$3([
     t$g()
 ], RippleBase.prototype, "leftPos", void 0);
-__decorate$2([
+__decorate$3([
     t$g()
 ], RippleBase.prototype, "topPos", void 0);
 
@@ -2089,7 +2089,7 @@ const styles$7 = i$i `.mdc-ripple-surface{--mdc-ripple-fg-size: 0;--mdc-ripple-l
 let Ripple = class Ripple extends RippleBase {
 };
 Ripple.styles = [styles$7];
-Ripple = __decorate$2([
+Ripple = __decorate$3([
     e$o('mwc-ripple')
 ], Ripple);
 
@@ -2421,22 +2421,22 @@ class ListItemBase extends s$c {
         this.dispatchEvent(ev);
     }
 }
-__decorate$2([
+__decorate$3([
     i$l('slot')
 ], ListItemBase.prototype, "slotElement", void 0);
-__decorate$2([
+__decorate$3([
     e$q('mwc-ripple')
 ], ListItemBase.prototype, "ripple", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: String })
 ], ListItemBase.prototype, "value", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: String, reflect: true })
 ], ListItemBase.prototype, "group", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Number, reflect: true })
 ], ListItemBase.prototype, "tabindex", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean, reflect: true }),
     observer(function (value) {
         if (value) {
@@ -2447,22 +2447,22 @@ __decorate$2([
         }
     })
 ], ListItemBase.prototype, "disabled", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean, reflect: true })
 ], ListItemBase.prototype, "twoline", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean, reflect: true })
 ], ListItemBase.prototype, "activated", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: String, reflect: true })
 ], ListItemBase.prototype, "graphic", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean })
 ], ListItemBase.prototype, "multipleGraphics", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean })
 ], ListItemBase.prototype, "hasMeta", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean, reflect: true }),
     observer(function (value) {
         if (value) {
@@ -2477,7 +2477,7 @@ __decorate$2([
         }
     })
 ], ListItemBase.prototype, "noninteractive", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean, reflect: true }),
     observer(function (value) {
         const role = this.getAttribute('role');
@@ -2499,10 +2499,10 @@ __decorate$2([
         this.fireRequestSelected(value, 'property');
     })
 ], ListItemBase.prototype, "selected", void 0);
-__decorate$2([
+__decorate$3([
     t$h()
 ], ListItemBase.prototype, "shouldRenderRipple", void 0);
-__decorate$2([
+__decorate$3([
     t$h()
 ], ListItemBase.prototype, "_managingList", void 0);
 
@@ -2521,7 +2521,7 @@ const styles$6 = i$e `:host{cursor:pointer;user-select:none;-webkit-tap-highligh
 let ListItem = class ListItem extends ListItemBase {
 };
 ListItem.styles = [styles$6];
-ListItem = __decorate$2([
+ListItem = __decorate$3([
     e$s('mwc-list-item')
 ], ListItem);
 
@@ -3620,19 +3620,19 @@ class ListBase extends BaseElement {
         }
     }
 }
-__decorate$2([
+__decorate$3([
     n$s({ type: String })
 ], ListBase.prototype, "emptyMessage", void 0);
-__decorate$2([
+__decorate$3([
     i$l('.mdc-deprecated-list')
 ], ListBase.prototype, "mdcRoot", void 0);
-__decorate$2([
+__decorate$3([
     o$r('', true, '*')
 ], ListBase.prototype, "assignedElements", void 0);
-__decorate$2([
+__decorate$3([
     o$r('', true, '[tabindex="0"]')
 ], ListBase.prototype, "tabbableElements", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean }),
     observer(function (value) {
         if (this.mdcFoundation) {
@@ -3640,7 +3640,7 @@ __decorate$2([
         }
     })
 ], ListBase.prototype, "activatable", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean }),
     observer(function (newValue, oldValue) {
         if (this.mdcFoundation) {
@@ -3651,7 +3651,7 @@ __decorate$2([
         }
     })
 ], ListBase.prototype, "multi", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean }),
     observer(function (value) {
         if (this.mdcFoundation) {
@@ -3659,7 +3659,7 @@ __decorate$2([
         }
     })
 ], ListBase.prototype, "wrapFocus", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: String }),
     observer(function (_newValue, oldValue) {
         if (oldValue !== undefined) {
@@ -3667,16 +3667,16 @@ __decorate$2([
         }
     })
 ], ListBase.prototype, "itemRoles", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: String })
 ], ListBase.prototype, "innerRole", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: String })
 ], ListBase.prototype, "innerAriaLabel", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean })
 ], ListBase.prototype, "rootTabbable", void 0);
-__decorate$2([
+__decorate$3([
     n$s({ type: Boolean, reflect: true }),
     observer(function (value) {
         var _a, _b;
@@ -3709,7 +3709,7 @@ const styles$5 = i$e `@keyframes mdc-ripple-fg-radius-in{from{animation-timing-f
 let List = class List extends ListBase {
 };
 List.styles = [styles$5];
-List = __decorate$2([
+List = __decorate$3([
     e$s('mwc-list')
 ], List);
 
@@ -4674,13 +4674,13 @@ class MenuSurfaceBase extends BaseElement {
         this.open = true;
     }
 }
-__decorate$2([
+__decorate$3([
     i$n('.mdc-menu-surface')
 ], MenuSurfaceBase.prototype, "mdcRoot", void 0);
-__decorate$2([
+__decorate$3([
     i$n('slot')
 ], MenuSurfaceBase.prototype, "slotElement", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean }),
     observer(function (isAbsolute) {
         if (this.mdcFoundation && !this.fixed) {
@@ -4688,10 +4688,10 @@ __decorate$2([
         }
     })
 ], MenuSurfaceBase.prototype, "absolute", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean })
 ], MenuSurfaceBase.prototype, "fullwidth", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean }),
     observer(function (isFixed) {
         if (this.mdcFoundation && !this.absolute) {
@@ -4699,7 +4699,7 @@ __decorate$2([
         }
     })
 ], MenuSurfaceBase.prototype, "fixed", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Number }),
     observer(function (value) {
         if (this.mdcFoundation && this.y !== null && value !== null) {
@@ -4708,7 +4708,7 @@ __decorate$2([
         }
     })
 ], MenuSurfaceBase.prototype, "x", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Number }),
     observer(function (value) {
         if (this.mdcFoundation && this.x !== null && value !== null) {
@@ -4717,7 +4717,7 @@ __decorate$2([
         }
     })
 ], MenuSurfaceBase.prototype, "y", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean }),
     observer(function (value) {
         if (this.mdcFoundation) {
@@ -4725,16 +4725,16 @@ __decorate$2([
         }
     })
 ], MenuSurfaceBase.prototype, "quick", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean, reflect: true }),
     observer(function (isOpen, wasOpen) {
         this.onOpenChanged(isOpen, wasOpen);
     })
 ], MenuSurfaceBase.prototype, "open", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean })
 ], MenuSurfaceBase.prototype, "stayOpenOnBodyClick", void 0);
-__decorate$2([
+__decorate$3([
     t$i(),
     observer(function (value) {
         if (this.mdcFoundation) {
@@ -4747,7 +4747,7 @@ __decorate$2([
         }
     })
 ], MenuSurfaceBase.prototype, "bitwiseCorner", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: String }),
     observer(function (value) {
         if (this.mdcFoundation) {
@@ -4763,7 +4763,7 @@ __decorate$2([
         }
     })
 ], MenuSurfaceBase.prototype, "menuCorner", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: String }),
     observer(function (value) {
         if (this.mdcFoundation) {
@@ -4777,22 +4777,22 @@ __decorate$2([
         }
     })
 ], MenuSurfaceBase.prototype, "corner", void 0);
-__decorate$2([
+__decorate$3([
     t$i()
 ], MenuSurfaceBase.prototype, "styleTop", void 0);
-__decorate$2([
+__decorate$3([
     t$i()
 ], MenuSurfaceBase.prototype, "styleLeft", void 0);
-__decorate$2([
+__decorate$3([
     t$i()
 ], MenuSurfaceBase.prototype, "styleRight", void 0);
-__decorate$2([
+__decorate$3([
     t$i()
 ], MenuSurfaceBase.prototype, "styleBottom", void 0);
-__decorate$2([
+__decorate$3([
     t$i()
 ], MenuSurfaceBase.prototype, "styleMaxHeight", void 0);
-__decorate$2([
+__decorate$3([
     t$i()
 ], MenuSurfaceBase.prototype, "styleTransformOrigin", void 0);
 
@@ -4811,7 +4811,7 @@ const styles$4 = i$b `.mdc-menu-surface{display:none;position:absolute;box-sizin
 let MenuSurface = class MenuSurface extends MenuSurfaceBase {
 };
 MenuSurface.styles = [styles$4];
-MenuSurface = __decorate$2([
+MenuSurface = __decorate$3([
     e$u('mwc-menu-surface')
 ], MenuSurface);
 
@@ -5373,64 +5373,64 @@ class MenuBase extends BaseElement {
         }
     }
 }
-__decorate$2([
+__decorate$3([
     i$n('.mdc-menu')
 ], MenuBase.prototype, "mdcRoot", void 0);
-__decorate$2([
+__decorate$3([
     i$n('slot')
 ], MenuBase.prototype, "slotElement", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Object })
 ], MenuBase.prototype, "anchor", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean, reflect: true })
 ], MenuBase.prototype, "open", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean })
 ], MenuBase.prototype, "quick", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean })
 ], MenuBase.prototype, "wrapFocus", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: String })
 ], MenuBase.prototype, "innerRole", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: String })
 ], MenuBase.prototype, "innerAriaLabel", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: String })
 ], MenuBase.prototype, "corner", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Number })
 ], MenuBase.prototype, "x", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Number })
 ], MenuBase.prototype, "y", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean })
 ], MenuBase.prototype, "absolute", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean })
 ], MenuBase.prototype, "multi", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean })
 ], MenuBase.prototype, "activatable", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean })
 ], MenuBase.prototype, "fixed", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean })
 ], MenuBase.prototype, "forceGroupSelection", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean })
 ], MenuBase.prototype, "fullwidth", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: String })
 ], MenuBase.prototype, "menuCorner", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: Boolean })
 ], MenuBase.prototype, "stayOpenOnBodyClick", void 0);
-__decorate$2([
+__decorate$3([
     n$u({ type: String }),
     observer(function (value) {
         if (this.mdcFoundation) {
@@ -5454,7 +5454,7 @@ const styles$3 = i$b `mwc-list ::slotted([mwc-list-item]:not([twoline])),mwc-lis
 let Menu = class Menu extends MenuBase {
 };
 Menu.styles = [styles$3];
-Menu = __decorate$2([
+Menu = __decorate$3([
     e$u('mwc-menu')
 ], Menu);
 
@@ -5517,7 +5517,7 @@ let Icon = class Icon extends s$4 {
     }
 };
 Icon.styles = [styles$2];
-Icon = __decorate$2([
+Icon = __decorate$3([
     e$7('mwc-icon')
 ], Icon);
 
@@ -5926,7 +5926,7 @@ class FormElement extends BaseElement {
     }
 }
 FormElement.shadowRootOptions = { mode: 'open', delegatesFocus: true };
-__decorate$2([
+__decorate$3([
     n$5({ type: Boolean })
 ], FormElement.prototype, "disabled", void 0);
 
@@ -7496,37 +7496,37 @@ class SelectBase extends FormElement {
         this.mdcFoundation.layoutOptions();
     }
 }
-__decorate$2([
+__decorate$3([
     i$v('.mdc-select')
 ], SelectBase.prototype, "mdcRoot", void 0);
-__decorate$2([
+__decorate$3([
     i$v('.formElement')
 ], SelectBase.prototype, "formElement", void 0);
-__decorate$2([
+__decorate$3([
     i$v('slot')
 ], SelectBase.prototype, "slotElement", void 0);
-__decorate$2([
+__decorate$3([
     i$v('select')
 ], SelectBase.prototype, "nativeSelectElement", void 0);
-__decorate$2([
+__decorate$3([
     i$v('input')
 ], SelectBase.prototype, "nativeInputElement", void 0);
-__decorate$2([
+__decorate$3([
     i$v('.mdc-line-ripple')
 ], SelectBase.prototype, "lineRippleElement", void 0);
-__decorate$2([
+__decorate$3([
     i$v('.mdc-floating-label')
 ], SelectBase.prototype, "labelElement", void 0);
-__decorate$2([
+__decorate$3([
     i$v('mwc-notched-outline')
 ], SelectBase.prototype, "outlineElement", void 0);
-__decorate$2([
+__decorate$3([
     i$v('.mdc-menu')
 ], SelectBase.prototype, "menuElement", void 0);
-__decorate$2([
+__decorate$3([
     i$v('.mdc-select__anchor')
 ], SelectBase.prototype, "anchorElement", void 0);
-__decorate$2([
+__decorate$3([
     n$G({ type: Boolean, attribute: 'disabled', reflect: true }),
     observer(function (value) {
         if (this.mdcFoundation) {
@@ -7534,7 +7534,7 @@ __decorate$2([
         }
     })
 ], SelectBase.prototype, "disabled", void 0);
-__decorate$2([
+__decorate$3([
     n$G({ type: Boolean }),
     observer(function (_newVal, oldVal) {
         if (oldVal !== undefined && this.outlined !== oldVal) {
@@ -7542,7 +7542,7 @@ __decorate$2([
         }
     })
 ], SelectBase.prototype, "outlined", void 0);
-__decorate$2([
+__decorate$3([
     n$G({ type: String }),
     observer(function (_newVal, oldVal) {
         if (oldVal !== undefined && this.label !== oldVal) {
@@ -7550,13 +7550,13 @@ __decorate$2([
         }
     })
 ], SelectBase.prototype, "label", void 0);
-__decorate$2([
+__decorate$3([
     t$o()
 ], SelectBase.prototype, "outlineOpen", void 0);
-__decorate$2([
+__decorate$3([
     t$o()
 ], SelectBase.prototype, "outlineWidth", void 0);
-__decorate$2([
+__decorate$3([
     n$G({ type: String }),
     observer(function (value) {
         if (this.mdcFoundation) {
@@ -7569,40 +7569,40 @@ __decorate$2([
         }
     })
 ], SelectBase.prototype, "value", void 0);
-__decorate$2([
+__decorate$3([
     n$G()
 ], SelectBase.prototype, "name", void 0);
-__decorate$2([
+__decorate$3([
     t$o()
 ], SelectBase.prototype, "selectedText", void 0);
-__decorate$2([
+__decorate$3([
     n$G({ type: String })
 ], SelectBase.prototype, "icon", void 0);
-__decorate$2([
+__decorate$3([
     t$o()
 ], SelectBase.prototype, "menuOpen", void 0);
-__decorate$2([
+__decorate$3([
     n$G({ type: String })
 ], SelectBase.prototype, "helper", void 0);
-__decorate$2([
+__decorate$3([
     n$G({ type: Boolean })
 ], SelectBase.prototype, "validateOnInitialRender", void 0);
-__decorate$2([
+__decorate$3([
     n$G({ type: String })
 ], SelectBase.prototype, "validationMessage", void 0);
-__decorate$2([
+__decorate$3([
     n$G({ type: Boolean })
 ], SelectBase.prototype, "required", void 0);
-__decorate$2([
+__decorate$3([
     n$G({ type: Boolean })
 ], SelectBase.prototype, "naturalMenuWidth", void 0);
-__decorate$2([
+__decorate$3([
     t$o()
 ], SelectBase.prototype, "isUiValid", void 0);
-__decorate$2([
+__decorate$3([
     n$G({ type: Boolean })
 ], SelectBase.prototype, "fixedMenuPosition", void 0);
-__decorate$2([
+__decorate$3([
     e$E({ capture: true })
 ], SelectBase.prototype, "handleTypeahead", null);
 
@@ -7621,9 +7621,167 @@ const styles$1 = i$2 `.mdc-floating-label{-moz-osx-font-smoothing:grayscale;-web
 let Select = class Select extends SelectBase {
 };
 Select.styles = [styles$1];
-Select = __decorate$2([
+Select = __decorate$3([
     e$G('mwc-select')
 ], Select);
+
+var __decorate$2 = (window && window.__decorate) || function (decorators, target, key, desc) {
+    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
+    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
+    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
+    return c > 3 && r && Object.defineProperty(target, key, r), r;
+};
+/**
+ * Simple fallback implementation for the Home Assistant entity combo box element.
+ * When the real component is already registered by Home Assistant, this file
+ * does nothing thanks to the existence check below.
+ */
+if (!customElements.get('ha-entity-combo-box')) {
+    class HaEntityComboBox extends i$x {
+        constructor() {
+            super(...arguments);
+            this.disabled = false;
+            this._filter = '';
+            this._onFilterChange = (event) => {
+                this._filter = event.target.value;
+            };
+            this._onSelectionChange = (event) => {
+                const value = event.target.value || '';
+                this.value = value || undefined;
+                this.dispatchEvent(new CustomEvent('value-changed', {
+                    detail: { value: this.value },
+                    bubbles: true,
+                    composed: true,
+                }));
+            };
+        }
+        render() {
+            if (!this.hass?.states) {
+                return E$7;
+            }
+            const entries = this._filterEntities();
+            const filter = this._filter.trim().toLowerCase();
+            const filteredEntries = filter
+                ? entries.filter((entity) => this._matchesFilter(entity, filter))
+                : entries;
+            return x$6 `
+				<div class="combo-wrapper">
+					${entries.length > 10
+                ? x$6 `<input
+								class="search-input"
+								type="search"
+								placeholder="${this._localize('Search entity...')}"
+								.value=${this._filter}
+								?disabled=${this.disabled}
+								@input=${this._onFilterChange}
+							/>`
+                : E$7}
+					<select
+						.value=${this.value ?? ''}
+						?disabled=${this.disabled}
+						@change=${this._onSelectionChange}
+					>
+						<option value="">${this._localize('None')}</option>
+						${filteredEntries.map((entity) => {
+                const name = entity.attributes?.friendly_name || entity.entity_id;
+                return x$6 `<option value=${entity.entity_id}>${name}</option>`;
+            })}
+					</select>
+				</div>
+			`;
+        }
+        _filterEntities() {
+            const states = Object.values(this.hass?.states ?? {});
+            const includeDomains = this.includeDomains?.length
+                ? new Set(this.includeDomains)
+                : undefined;
+            return states
+                .filter((entity) => {
+                if (includeDomains) {
+                    const domain = entity.entity_id.split('.')[0];
+                    if (!includeDomains.has(domain)) {
+                        return false;
+                    }
+                }
+                if (!this.area) {
+                    return true;
+                }
+                const entityArea = entity.attributes?.area_id ?? this._resolveAreaFromDevice(entity);
+                return entityArea === this.area;
+            })
+                .sort((a, b) => {
+                const nameA = a.attributes?.friendly_name || a.entity_id;
+                const nameB = b.attributes?.friendly_name || b.entity_id;
+                return nameA.localeCompare(nameB);
+            });
+        }
+        _resolveAreaFromDevice(entity) {
+            const deviceId = entity?.attributes?.device_id;
+            if (!deviceId || !this.hass?.devices) {
+                return undefined;
+            }
+            return this.hass.devices[deviceId]?.area_id;
+        }
+        _matchesFilter(entity, filter) {
+            const id = entity.entity_id.toLowerCase();
+            const name = (entity.attributes?.friendly_name || '').toLowerCase();
+            return id.includes(filter) || name.includes(filter);
+        }
+        _localize(fallback) {
+            return fallback;
+        }
+    }
+    HaEntityComboBox.styles = i$A `
+			:host {
+				display: block;
+				font-family: inherit;
+			}
+			.combo-wrapper {
+				display: flex;
+				flex-direction: column;
+				gap: 0.25rem;
+			}
+			.search-input {
+				padding: 0.25rem 0.5rem;
+				font: inherit;
+			}
+			select {
+				width: 100%;
+				padding: 0.35rem 0.5rem;
+				font: inherit;
+				border-radius: 4px;
+				border: 1px solid var(--divider-color, #ccc);
+				background: var(--card-background-color, #fff);
+				color: inherit;
+			}
+			select:disabled {
+				opacity: 0.6;
+				cursor: not-allowed;
+			}
+			option {
+				color: initial;
+			}
+		`;
+    __decorate$2([
+        n$H({ attribute: false })
+    ], HaEntityComboBox.prototype, "hass", void 0);
+    __decorate$2([
+        n$H({ type: String })
+    ], HaEntityComboBox.prototype, "value", void 0);
+    __decorate$2([
+        n$H({ attribute: false })
+    ], HaEntityComboBox.prototype, "includeDomains", void 0);
+    __decorate$2([
+        n$H({ type: String })
+    ], HaEntityComboBox.prototype, "area", void 0);
+    __decorate$2([
+        n$H({ type: Boolean })
+    ], HaEntityComboBox.prototype, "disabled", void 0);
+    __decorate$2([
+        r$l()
+    ], HaEntityComboBox.prototype, "_filter", void 0);
+    customElements.define('ha-entity-combo-box', HaEntityComboBox);
+}
 
 var __decorate$1 = (window && window.__decorate) || function (decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
