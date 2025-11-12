@@ -1,7 +1,6 @@
 import { LitElement } from 'lit';
 import '@material/mwc-select';
 import '@material/mwc-list/mwc-list-item';
-import './ha-entity-combo-box';
 export declare class HausgeistCardEditor extends LitElement {
     config: {
         debug?: boolean;
@@ -23,7 +22,7 @@ export declare class HausgeistCardEditor extends LitElement {
     rulesJson: string;
     notify: boolean;
     highThreshold: number;
-    private _hasHaEntityComboBox;
+    private _selectorReady;
     private _lastAreas;
     private _autodetect;
     private _renderWeatherInfo;
@@ -40,7 +39,7 @@ export declare class HausgeistCardEditor extends LitElement {
     handleThresholdChange(e: any): void;
     private _onAreaEnabledChange;
     render(): import("lit-html").TemplateResult<1>;
-    private _ensureHaEntityComboBox;
     private _renderEntityPicker;
     private _createOptionsForDomains;
+    private _ensureSelectorSystem;
 }
