@@ -9,7 +9,6 @@ import { property, customElement, state } from 'lit/decorators.js';
 import { SENSOR_KEYWORDS } from './sensor-keywords';
 import '@material/mwc-select';
 import '@material/mwc-list/mwc-list-item';
-import './ha-entity-combo-box'; // Custom element for entity selection (assumed available)
 let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     constructor() {
         super(...arguments);
@@ -19,7 +18,7 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         this.rulesJson = '';
         this.notify = false;
         this.highThreshold = 2000;
-        this._hasHaEntityComboBox = !!customElements.get('ha-entity-combo-box');
+        this._selectorReady = false;
         this._lastAreas = [];
         // Use arrow function to auto-bind 'this'
         this._onDebugChange = (e) => {
@@ -94,16 +93,12 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
     }
     set hass(hass) {
         this._hass = hass;
+        this._ensureSelectorSystem();
         this.requestUpdate();
     }
     connectedCallback() {
         super.connectedCallback();
-        this._ensureHaEntityComboBox();
-        customElements.whenDefined('ha-entity-combo-box').then(() => {
-            if (!this.isConnected)
-                return;
-            this._hasHaEntityComboBox = true;
-        });
+        this._ensureSelectorSystem();
     }
     // Handle sensor selection change for a specific area and type
     _onAreaSensorChange(areaId, type, value) {
@@ -444,59 +439,41 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
       </div>
     `;
     }
-    async _ensureHaEntityComboBox() {
-        if (this._hasHaEntityComboBox) {
-            return;
-        }
-        const helpersLoader = window?.loadCardHelpers;
-        if (typeof helpersLoader === 'function') {
-            try {
-                const helpers = await helpersLoader();
-                const glanceCard = await helpers?.createCardElement?.({ type: 'glance' });
-                await glanceCard?.getConfigElement?.();
-            }
-            catch (error) {
-                if (this.config?.debug) {
-                    console.warn('Failed to load card helpers for ha-entity-combo-box', error);
-                }
-            }
-        }
-        const glanceCtor = customElements.get('hui-glance-card');
-        if (glanceCtor?.getConfigElement) {
-            try {
-                await glanceCtor.getConfigElement();
-            }
-            catch (error) {
-                if (this.config?.debug) {
-                    console.warn('Failed to load hui-glance-card editor', error);
-                }
-            }
-        }
-        this._hasHaEntityComboBox = !!customElements.get('ha-entity-combo-box');
-    }
     _renderEntityPicker({ value, includeDomains, area, options, placeholder, onChange, }) {
-        if (this._hasHaEntityComboBox) {
+        const optionList = options?.length
+            ? [...options]
+            : this._createOptionsForDomains(includeDomains, area);
+        if (value && !optionList.some(option => option.entity_id === value)) {
+            optionList.unshift({ entity_id: value, label: value });
+        }
+        const selectorConfig = optionList.length
+            ? { entity: { entity_id: optionList.map(option => option.entity_id) } }
+            : includeDomains?.length
+                ? { entity: { domain: includeDomains.length === 1 ? includeDomains[0] : includeDomains } }
+                : { entity: {} };
+        if (this._selectorReady && customElements.get('ha-selector')) {
             return html `
-        <ha-entity-combo-box
+        <ha-selector
           .hass=${this.hass}
+          .selector=${selectorConfig}
           .value=${value || ''}
-          .includeDomains=${includeDomains}
-          .area=${area}
-          @value-changed=${(e) => onChange(e.detail?.value ?? '')}
-        ></ha-entity-combo-box>
+          .label=${placeholder || undefined}
+          @value-changed=${(e) => onChange((e.detail && 'value' in e.detail) ? e.detail.value || '' : '')}
+        ></ha-selector>
       `;
         }
-        const fallbackOptions = options?.length
-            ? options
-            : this._createOptionsForDomains(includeDomains, area);
         return html `
-      <select
+      <mwc-select
+        outlined
         .value=${value || ''}
-        @change=${(event) => onChange(event.target.value)}
+        @selected=${(event) => {
+            const select = event.target;
+            onChange(select?.value || '');
+        }}
       >
-        <option value="">${placeholder || 'Select entity'}</option>
-        ${fallbackOptions.map(option => html `<option value=${option.entity_id}>${option.label}</option>`)}
-      </select>
+        <mwc-list-item value="">${placeholder || 'Keine Auswahl'}</mwc-list-item>
+        ${optionList.map(option => html `<mwc-list-item value=${option.entity_id}>${option.label}</mwc-list-item>`)}
+      </mwc-select>
     `;
     }
     _createOptionsForDomains(includeDomains, area) {
@@ -530,6 +507,38 @@ let HausgeistCardEditor = class HausgeistCardEditor extends LitElement {
         options.sort((a, b) => a.label.localeCompare(b.label));
         return options;
     }
+    async _ensureSelectorSystem() {
+        if (this._selectorReady) {
+            return;
+        }
+        const helpersLoader = window?.loadCardHelpers;
+        if (typeof helpersLoader === 'function') {
+            try {
+                const helpers = await helpersLoader();
+                await helpers?.loadHaForm?.();
+            }
+            catch (error) {
+                if (this.config?.debug) {
+                    console.warn('Failed to load selector helpers', error);
+                }
+            }
+        }
+        if (customElements.get('ha-selector')) {
+            this._selectorReady = true;
+            return;
+        }
+        try {
+            await customElements.whenDefined('ha-selector');
+            if (this.isConnected) {
+                this._selectorReady = true;
+            }
+        }
+        catch (error) {
+            if (this.config?.debug) {
+                console.warn('ha-selector never became available', error);
+            }
+        }
+    }
 };
 __decorate([
     property({ type: Object })
@@ -548,7 +557,7 @@ __decorate([
 ], HausgeistCardEditor.prototype, "highThreshold", void 0);
 __decorate([
     state()
-], HausgeistCardEditor.prototype, "_hasHaEntityComboBox", void 0);
+], HausgeistCardEditor.prototype, "_selectorReady", void 0);
 HausgeistCardEditor = __decorate([
     customElement('hausgeist-card-editor')
 ], HausgeistCardEditor);
